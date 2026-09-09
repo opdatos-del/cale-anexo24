@@ -1,19 +1,13 @@
-# Procesos actuales
+# Procesos actuales del sistema Anexo 24
 
-## Proceso: [Nombre]
+## Acceso y autorización
 
-### Objetivo
+El usuario inicia sesión, el sistema valida credenciales y presenta funciones según el perfil. La modernización conservará ese flujo, pero la autorización se validará en API para cada operación.
 
-[Por definir]
+## Consultas y reportes
 
-### Actores
+Catálogos presentan tablas filtrables. Entradas, salidas, materiales utilizados y activo fijo exigen rango de fechas antes de recuperar información. Los cinco reportes siguen el patrón fecha inicial + fecha final + generar + exportar; actualmente devuelven error genérico con rango válido. La nueva versión validará rango, paginará resultados y mostrará errores correlacionables.
 
-- [Por definir]
+## Gestión y carga
 
-### Flujo actual
-
-1. [Por definir]
-
-### Problemas identificados
-
-- [Por definir]
+Usuarios, perfiles y actividades permiten administración controlada. Facturación acepta múltiples XLS/XLSX y valida antes de guardar; se propone conservar el flujo seleccionar → validar → vista previa → confirmar → guardar transaccionalmente → bitácora, con errores por archivo, hoja, fila y columna.

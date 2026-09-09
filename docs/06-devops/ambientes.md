@@ -1,7 +1,9 @@
 # Ambientes
 
-| Ambiente | Propósito | URL | Configuración | Responsable |
-|---|---|---|---|---|
-| Desarrollo | [Por definir] | [Por definir] | [Por definir] | [Por definir] |
-| Pruebas | [Por definir] | [Por definir] | [Por definir] | [Por definir] |
-| Producción | [Por definir] | [Por definir] | [Por definir] | [Por definir] |
+| Ambiente | Propósito | Datos | Control |
+|---|---|---|---|
+| Desarrollo | Construcción y pruebas locales | Sintéticos o copia anonimizada autorizada | Secretos locales fuera de Git. |
+| Pruebas | Integración y aceptación | Datos controlados no productivos | Acceso restringido, bitácora y respaldo. |
+| Producción | Operación autorizada | Información real | HTTPS, mínimo privilegio, monitoreo, respaldo y cambio aprobado. |
+
+Las URL y credenciales se administran como configuración de cada ambiente, nunca dentro del repositorio.

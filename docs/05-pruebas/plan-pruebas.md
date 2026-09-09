@@ -1,20 +1,13 @@
 # Plan de pruebas
 
-## Objetivo
+## Objetivo y alcance
 
-[Por definir]
+Verificar seguridad, permisos, consultas, reportes, exportación, carga y adaptación a Módulo C sin modificar datos productivos. Se usan ambientes y datos sintéticos controlados.
 
-## Alcance
+## Estrategia y criterios
 
-[Por definir]
-
-## Estrategia
-
-- Pruebas unitarias
-- Pruebas de integración
-- Pruebas funcionales
-
-## Criterios de entrada y salida
-
-- **Entrada:** [Por definir]
-- **Salida:** [Por definir]
+- Unitarias: reglas, validadores y mapeos.
+- Integración: API, seguridad, SQL Server/procedimientos y transacciones.
+- Funcionales: recorridos de usuario y hallazgos de auditoría.
+- Entrada: requisitos trazados, ambiente disponible y datos de prueba aprobados.
+- Salida: casos críticos aprobados, defectos críticos resueltos, evidencia de ejecución y reversión validada.

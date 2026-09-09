@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title":"Arquitectura propuesta - Anexo 24","quality_profile":"showcase","viewBox":[920,520]},
+  "components": [
+    {"id":"usuario","type":"external","label":"Usuario","sublabel":"Autorizado","pos":[35,225],"size":[115,62]},
+    {"id":"web","type":"frontend","label":"Aplicación web","sublabel":"Angular","pos":[185,225],"size":[120,62]},
+    {"id":"api","type":"security","label":"API segura","sublabel":"Spring Boot","pos":[340,225],"size":[120,62]},
+    {"id":"dominio","type":"backend","label":"Negocio","sublabel":"Casos de uso","pos":[495,225],"size":[120,62]},
+    {"id":"adaptador","type":"backend","label":"Adaptador","sublabel":"Módulo C","pos":[650,225],"size":[120,62]},
+    {"id":"modulo-c","type":"database","label":"Módulo C","sublabel":"SQL Server","pos":[805,225],"size":[100,62]},
+    {"id":"bitacora","type":"database","label":"Bitácora","sublabel":"Aplicación","pos":[495,380],"size":[120,62]}
+  ],
+  "connections": [
+    {"from":"usuario","to":"web","label":"HTTPS"},
+    {"from":"web","to":"api","label":"REST"},
+    {"from":"api","to":"dominio"},
+    {"from":"dominio","to":"adaptador"},
+    {"from":"adaptador","to":"modulo-c","label":"SQL parametrizado","labelAt":[788,301]},
+    {"from":"api","to":"bitacora","label":"eventos críticos","fromSide":"bottom","toSide":"top"}
+  ],
+  "cards": [{"dot":"amber","title":"Integración controlada","items":["Módulo C no se modifica sin autorización.","La bitácora omite secretos."]}]
+}

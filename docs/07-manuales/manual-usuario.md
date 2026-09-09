@@ -1,17 +1,13 @@
 # Manual de usuario
 
-## Introducción
+## Acceso
 
-[Por definir]
+Ingrese con su cuenta vigente. El menú muestra únicamente las funciones autorizadas. Si no puede acceder, contacte al administrador; no comparta credenciales.
 
-## Requisitos de acceso
+## Consultas y reportes
 
-- [Por definir]
+Seleccione el módulo, indique el rango de fechas cuando se solicite, agregue filtros y ejecute la consulta. Exporte solo cuando existan resultados. Guarde el identificador de incidente mostrado si ocurre un error.
 
-## Operación principal
+## Carga de facturación
 
-1. [Por definir]
-
-## Preguntas frecuentes
-
-- [Por definir]
+Seleccione archivos XLS/XLSX conforme a la plantilla vigente, cargue y revise el resumen. Corrija los errores indicados por fila y columna; confirme el guardado únicamente cuando el resultado sea correcto. La aplicación registra el resultado de la operación.
