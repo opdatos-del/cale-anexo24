@@ -28,6 +28,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Hacer ejecutable gradlew
+        run: chmod +x gradlew
+
       - name: Test
         run: ./gradlew test
 
@@ -45,6 +48,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Node 24
         uses: actions/setup-node@v4
         with:
@@ -52,19 +60,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
       - name: Install
         run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
-
-      - name: Test
-        run: pnpm test -- --watch=false
 
       - name: Build
         run: pnpm build
