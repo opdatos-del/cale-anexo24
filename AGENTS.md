@@ -73,6 +73,6 @@ Nombres de carpetas en inglés (renombrados deliberadamente desde español).
 
 - **Comentarios/Javadoc/KDoc en español.** Javadoc con semántica estándar (`@param`, `@return`).
 - Commits en español, convencionales: `feat:`, `fix(ci):`, `docs:`, `refactor:`.
-- Branching simple: `main` + `feature/*`. Sin `develop`.
+- **Branching:** `main` (producción, estable), `staging` (pre-producción/QA), `dev` (desarrollo activo). Features se ramifican de `dev`: `feature/*`. Flujo: `feature/*` → `dev` → `staging` → `main`.
 - Spring Boot 4.x reorganizó paquetes de auto-config (ej. `org.springframework.boot.jdbc.autoconfigure.*`, no `org.springframework.boot.autoconfigure.jdbc.*`) — usar nombres actuales.
 - Gradle Kotlin DSL: `io.spring.dependency-management` es necesario (sin él no resuelven versiones de starters).
