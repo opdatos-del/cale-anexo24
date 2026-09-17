@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
+  <!-- Fondo corporativo del login Anexo 24.
+       SUSTITUIR: reemplaza este archivo por la fotografía industrial/logística
+       de la empresa (misma ruta) o edita public/assets/login-bg.svg. -->
+  <defs>
+    <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1a28"/>
+      <stop offset="0.55" stop-color="#10283d"/>
+      <stop offset="1" stop-color="#16354e"/>
+    </linearGradient>
+    <linearGradient id="piso" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d2030" stop-opacity="0"/>
+      <stop offset="1" stop-color="#060f18" stop-opacity="0.9"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#2a5a7d" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2a5a7d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d4560" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#132f45" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Cielo -->
+  <rect width="1600" height="900" fill="url(#cielo)"/>
+
+  <!-- Halo de luz central -->
+  <rect width="1600" height="900" fill="url(#halo)"/>
+
+  <!-- Estructura de techo industrial (vigas) -->
+  <g stroke="#3f7cad" stroke-opacity="0.14" stroke-width="2" fill="none">
+    <path d="M0 90 L1600 210 M0 130 L1600 250 M0 170 L1600 290"/>
+    <path d="M100 0 L260 300 M420 0 L560 300 M740 0 L860 300 M1060 0 L1160 300 M1380 0 L1460 300"/>
+  </g>
+
+  <!-- Racks de almacén: fila lejana -->
+  <g fill="url(#rack)">
+    <rect x="120" y="430" width="170" height="260" rx="4"/>
+    <rect x="330" y="430" width="170" height="260" rx="4"/>
+    <rect x="1100" y="430" width="170" height="260" rx="4"/>
+    <rect x="1310" y="430" width="170" height="260" rx="4"/>
+  </g>
+  <g stroke="#5b9cc9" stroke-opacity="0.22" stroke-width="2" fill="none">
+    <path d="M120 460 H290 M120 520 H290 M120 580 H290 M120 640 H290"/>
+    <path d="M330 460 H500 M330 520 H500 M330 580 H500 M330 640 H500"/>
+    <path d="M1100 460 H1270 M1100 520 H1270 M1100 580 H1270 M1100 640 H1270"/>
+    <path d="M1310 460 H1480 M1310 520 H1480 M1310 580 H1480 M1310 640 H1480"/>
+  </g>
+
+  <!-- Racks: fila cercana (silueta base de la card) -->
+  <g fill="#08141f" fill-opacity="0.55">
+    <rect x="40" y="560" width="230" height="300" rx="4"/>
+    <rect x="1330" y="540" width="240" height="320" rx="4"/>
+  </g>
+
+  <!-- Línea de horizonte -->
+  <rect y="700" width="1600" height="200" fill="url(#piso)"/>
+  <line x1="0" y1="700" x2="1600" y2="700" stroke="#3f7cad" stroke-opacity="0.18" stroke-width="2"/>
+
+  <!-- Textura de piso -->
+  <g stroke="#5b9cc9" stroke-opacity="0.08" stroke-width="1.5">
+    <path d="M0 760 H1600 M0 820 H1600 M0 880 H1600"/>
+    <path d="M300 700 V900 M700 700 V900 M1100 700 V900"/>
+  </g>
+</svg>
