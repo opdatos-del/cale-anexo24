@@ -37,33 +37,13 @@
   box-shadow: none !important;
 }
 
-.user-menu-trigger {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 8px;
-  border-radius: 8px;
-  transition: background-color 160ms ease;
-}
-
-.user-menu-trigger:hover {
-  background: rgb(255 255 255 / 8%);
-}
-
-.user-avatar,
 .user-menu-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #dbeafe;
-  font-size: 11px;
-  font-weight: 700;
-  background: #28539a;
+  object-fit: cover;
+  background: #dbeafe;
   border-radius: 50%;
-}
-
-.user-avatar {
-  width: 26px;
-  height: 26px;
 }
 
 .user-menu-header {

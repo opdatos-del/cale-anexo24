@@ -89,14 +89,14 @@ interface NavGroup {
           }
           <span class="hidden text-[13px] font-medium tracking-wide text-slate-200 sm:inline">ANEXO 24 <span class="mx-1 text-slate-500">·</span> Control de Inventarios</span>
           <span class="flex-1"></span>
-          <button mat-button type="button" [matMenuTriggerFor]="userMenu" class="user-menu-trigger !min-w-0 !px-2 !text-xs !text-white" aria-label="Abrir menú de usuario">
-            <span class="user-avatar">{{ userInitial() }}</span>
-            <span class="hidden sm:inline">{{ auth.userName() || 'Usuario' }}</span>
-            <mat-icon class="ml-1 !text-[16px]">expand_more</mat-icon>
+          <button type="button" [matMenuTriggerFor]="userMenu" class="inline-flex h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-2.5 text-white transition hover:bg-white/8" aria-label="Abrir menú de usuario">
+            <img class="h-[26px] w-[26px] shrink-0 rounded-full bg-blue-100 object-cover" [src]="auth.avatarUrl()" alt="" />
+            <span class="hidden max-w-40 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold leading-none sm:inline">{{ auth.userName() || 'Usuario' }}</span>
+            <mat-icon class="h-4 w-4 shrink-0 text-[18px] text-slate-400">expand_more</mat-icon>
           </button>
           <mat-menu #userMenu="matMenu" xPosition="before">
             <div class="user-menu-header" role="presentation">
-              <span class="user-menu-avatar">{{ userInitial() }}</span>
+              <img class="user-menu-avatar" [src]="auth.avatarUrl()" alt="" />
               <div><strong>{{ auth.userName() || 'Usuario' }}</strong><span>Sesión activa</span></div>
             </div>
             <div class="user-menu-divider" role="presentation"></div>
@@ -144,10 +144,6 @@ export class MainLayoutComponent {
 
   protected closeMobileSidebar(): void {
     this.mobileSidebarOpen.set(false);
-  }
-
-  protected userInitial(): string {
-    return (this.auth.userName() || 'U').trim().charAt(0).toUpperCase();
   }
 
   protected goToDashboard(): void {
