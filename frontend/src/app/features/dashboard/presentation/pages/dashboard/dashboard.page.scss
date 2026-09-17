@@ -2,6 +2,43 @@
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
+.welcome-notice {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 18px;
+  color: #31517e;
+  background: linear-gradient(100deg, #eef6ff, #f8fbff);
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+}
+
+.welcome-notice p {
+  margin: 0 0 2px;
+  color: #1e3a5f;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.welcome-notice span:not(.welcome-icon) {
+  font-size: 12px;
+}
+
+.welcome-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: #2563eb;
+  background: #dbeafe;
+  border-radius: 10px;
+}
+
+.welcome-icon mat-icon {
+  font-size: 20px;
+}
+
 .dashboard-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgb(15 23 42 / 8%) !important;

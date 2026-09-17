@@ -89,12 +89,18 @@ interface NavGroup {
           }
           <span class="hidden text-[13px] font-medium tracking-wide text-slate-200 sm:inline">ANEXO 24 <span class="mx-1 text-slate-500">·</span> Control de Inventarios</span>
           <span class="flex-1"></span>
-          <button mat-button type="button" [matMenuTriggerFor]="userMenu" class="!min-w-0 !px-2 !text-xs !text-white" aria-label="Abrir menú de usuario">
-            <mat-icon class="mr-1 !text-[18px]">account_circle</mat-icon>
+          <button mat-button type="button" [matMenuTriggerFor]="userMenu" class="user-menu-trigger !min-w-0 !px-2 !text-xs !text-white" aria-label="Abrir menú de usuario">
+            <span class="user-avatar">{{ userInitial() }}</span>
             <span class="hidden sm:inline">{{ auth.userName() || 'Usuario' }}</span>
             <mat-icon class="ml-1 !text-[16px]">expand_more</mat-icon>
           </button>
           <mat-menu #userMenu="matMenu" xPosition="before">
+            <div class="user-menu-header" role="presentation">
+              <span class="user-menu-avatar">{{ userInitial() }}</span>
+              <div><strong>{{ auth.userName() || 'Usuario' }}</strong><span>Sesión activa</span></div>
+            </div>
+            <div class="user-menu-divider" role="presentation"></div>
+            <button mat-menu-item type="button" (click)="goToDashboard()"><mat-icon>space_dashboard</mat-icon><span>Ir al inicio</span></button>
             <button mat-menu-item type="button" (click)="logout()"><mat-icon>logout</mat-icon><span>Cerrar sesión</span></button>
           </mat-menu>
         </mat-toolbar>
@@ -138,6 +144,14 @@ export class MainLayoutComponent {
 
   protected closeMobileSidebar(): void {
     this.mobileSidebarOpen.set(false);
+  }
+
+  protected userInitial(): string {
+    return (this.auth.userName() || 'U').trim().charAt(0).toUpperCase();
+  }
+
+  protected goToDashboard(): void {
+    this.router.navigate(['/dashboard']);
   }
 
   protected logout(): void {

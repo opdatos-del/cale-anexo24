@@ -18,6 +18,14 @@ import { DashboardSummaryService } from '../../../application/dashboard-summary.
         <p class="mt-2 text-sm text-slate-500">Resumen operativo de tu control de inventarios.</p>
       </div>
 
+      <section class="welcome-notice mb-7" aria-label="Mensaje de bienvenida">
+        <span class="welcome-icon"><mat-icon>verified</mat-icon></span>
+        <div>
+          <p>Bienvenido de nuevo, {{ auth.userName() || 'Usuario' }}.</p>
+          <span>Tu sesión está activa y el sistema está listo para operar.</span>
+        </div>
+      </section>
+
       <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Resumen del sistema">
         <mat-card class="dashboard-card !rounded-2xl !border !border-slate-200/80 !bg-white !p-5 !shadow-[0_4px_18px_rgb(15_23_42_/_4%)]">
           <div class="flex items-center gap-3">
@@ -50,7 +58,7 @@ import { DashboardSummaryService } from '../../../application/dashboard-summary.
         <h2 id="avisos-title" class="mb-3 text-sm font-normal uppercase text-slate-700">Avisos</h2>
         <div class="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-600">
           <mat-icon class="!h-5 !w-5 !text-[20px] text-blue-700">info</mat-icon>
-          <span>No hay avisos disponibles.</span>
+          <span>No hay avisos operativos pendientes.</span>
         </div>
       </section>
 

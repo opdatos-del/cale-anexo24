@@ -37,6 +37,71 @@
   box-shadow: none !important;
 }
 
+.user-menu-trigger {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  transition: background-color 160ms ease;
+}
+
+.user-menu-trigger:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.user-avatar,
+.user-menu-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #dbeafe;
+  font-size: 11px;
+  font-weight: 700;
+  background: #28539a;
+  border-radius: 50%;
+}
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+}
+
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  padding: 14px 16px 12px;
+  color: #334155;
+}
+
+.user-menu-header div {
+  display: grid;
+  gap: 2px;
+}
+
+.user-menu-header strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.user-menu-header span:not(.user-menu-avatar) {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.user-menu-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+.user-menu-divider {
+  height: 1px;
+  margin: 0 8px 6px;
+  background: #e2e8f0;
+}
+
 .sidebar-brand {
   position: relative;
   display: flex;
@@ -79,7 +144,6 @@
   color: #9fb0c4 !important;
   border: 1px solid transparent;
   border-radius: 8px;
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
   cursor: pointer;
 }
 
@@ -107,7 +171,6 @@
   text-decoration: none;
   border-left: 0;
   border-radius: 5px;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .sidebar-nav-item:hover {
@@ -125,7 +188,6 @@
   flex: 0 0 auto;
   color: #8094ac;
   font-size: 20px;
-  transition: color 160ms ease;
 }
 
 .sidebar-nav-item:hover .nav-icon,
@@ -147,7 +209,6 @@
   overflow: hidden;
   opacity: 1;
   white-space: nowrap;
-  transition: max-width 160ms ease, opacity 120ms ease;
 }
 
 .sidebar-compact .sidebar-copy {
@@ -235,11 +296,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell,
-  .app-sidebar,
-  .sidebar-copy,
-  .sidebar-nav-item,
-  .sidebar-toggle,
-  .nav-icon {
+  .app-sidebar {
     transition-duration: 0.01ms !important;
   }
 }
