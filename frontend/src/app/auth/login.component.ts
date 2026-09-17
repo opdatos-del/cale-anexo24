@@ -1,10 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { AuthService } from './auth.service';
 
 /**
@@ -14,114 +10,181 @@ import { AuthService } from './auth.service';
  * {@link AuthService}. El componente no ejecuta llamadas HTTP.
  */
 @Component({
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [ReactiveFormsModule],
   selector: 'app-login',
   template: `
-    <div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-      <!-- Imagen de fondo: public/assets/login-bg.svg (sustituir por fotografía corporativa) -->
-      <img
-        src="/assets/login-bg.svg"
-        alt=""
-        class="absolute inset-0 h-full w-full object-cover"
-        aria-hidden="true"
-      />
-      <!-- Overlay oscuro para contraste -->
-      <div class="absolute inset-0 bg-slate-950/45" aria-hidden="true"></div>
+    <div class="relative min-h-screen w-full overflow-hidden">
+      <!-- FONDO: cubre todo el viewport -->
+      <div class="absolute inset-0">
+        <!-- Imagen en public/assets/login-bg.svg (sustituir por fotografía corporativa) -->
+        <img src="/assets/login-bg.svg" alt="" class="h-full w-full object-cover" />
+      </div>
 
-      <div
-        class="relative z-10 w-[calc(100%-2rem)] max-w-[400px] animate-card-in rounded-2xl border border-white/15 bg-white/92 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] backdrop-blur-md"
-      >
-        <!-- Encabezado -->
-        <header class="mb-8 text-center">
-          <div
-            class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-on-primary shadow-md"
-          >
-            <mat-icon>inventory_2</mat-icon>
-          </div>
-          <h1 class="m-0 text-2xl font-semibold tracking-tight text-on-surface">Anexo 24</h1>
-          <p class="m-0 mt-1 text-sm text-on-surface-variant">Sistema de control aduanero</p>
-          <p class="m-0 mt-4 text-sm text-on-surface-variant">
-            Ingresa tus credenciales para continuar
-          </p>
-        </header>
+      <!-- OVERLAY para contraste -->
+      <div class="absolute inset-0 bg-slate-950/45"></div>
 
-        <!-- Formulario -->
-        <form [formGroup]="form" (ngSubmit)="enviar()" class="flex flex-col gap-4" novalidate>
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label for="username">Usuario</mat-label>
-            <input
-              id="username"
-              matInput
-              formControlName="username"
-              placeholder="usuario"
-              autocomplete="username"
-              (input)="limpiarError()"
-            />
-            @if (mostrarError(username)) {
-              <mat-error>{{
-                username.hasError('required') ? 'El usuario es obligatorio.' : ''
-              }}</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="w-full">
-            <mat-label for="password">Contraseña</mat-label>
-            <input
-              id="password"
-              matInput
-              formControlName="password"
-              placeholder="••••••••"
-              [type]="ocultarPassword() ? 'password' : 'text'"
-              autocomplete="current-password"
-              (input)="limpiarError()"
-            />
-            <button
-              mat-icon-button
-              type="button"
-              class="mr-1"
-              [attr.aria-label]="ocultarPassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
-              [attr.aria-pressed]="!ocultarPassword()"
-              (click)="alternarPassword()"
+      <!-- CONTENEDOR CENTRADO: card flotante encima de fondo + overlay -->
+      <div class="relative z-10 flex min-h-screen w-full items-center justify-center p-4">
+        <div
+          class="animate-card-in w-full max-w-[420px] rounded-3xl border border-white/20 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
+        >
+          <!-- HEADER -->
+          <header class="text-center">
+            <div
+              class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg"
             >
-              <mat-icon>{{ ocultarPassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
-            </button>
-            @if (mostrarError(password)) {
-              <mat-error>{{
-                password.hasError('required') ? 'La contraseña es obligatoria.' : ''
-              }}</mat-error>
-            }
-          </mat-form-field>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-7 w-7 text-white"
+                aria-hidden="true"
+              >
+                <path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z" />
+                <path d="M6 18h12" />
+                <path d="M6 14h12" />
+                <rect width="12" height="12" x="6" y="10" />
+              </svg>
+            </div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Anexo 24</h1>
+            <p class="mt-1 text-sm text-slate-500">Sistema de control aduanero</p>
+            <p class="mt-4 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
+          </header>
 
-          @if (error()) {
-            <p
-              role="alert"
-              class="m-0 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-            >
-              <mat-icon class="text-[18px]">error_outline</mat-icon>
-              <span>{{ error() }}</span>
-            </p>
-          }
+          <!-- FORMULARIO: estrictamente vertical -->
+          <form [formGroup]="form" (ngSubmit)="enviar()" class="mt-8 space-y-5" novalidate>
+            <div>
+              <label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">
+                Usuario
+              </label>
+              <input
+                id="username"
+                type="text"
+                formControlName="username"
+                placeholder="usuario"
+                autocomplete="username"
+                [disabled]="cargando()"
+                class="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                (input)="limpiarError()"
+              />
+              @if (mostrarError(username)) {
+                <p class="mt-1.5 text-sm text-red-600">
+                  {{ username.hasError('required') ? 'El usuario es obligatorio.' : '' }}
+                </p>
+              }
+            </div>
 
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="cargando()"
-            class="!h-12 w-full !text-base"
-          >
-            @if (cargando()) {
-              <span class="flex items-center justify-center gap-2">
-                <span
-                  class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            <div>
+              <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">
+                Contraseña
+              </label>
+              <div class="relative">
+                <input
+                  id="password"
+                  [type]="ocultarPassword() ? 'password' : 'text'"
+                  formControlName="password"
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  [disabled]="cargando()"
+                  class="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 pr-12 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  (input)="limpiarError()"
+                />
+                <button
+                  type="button"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  [attr.aria-label]="ocultarPassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+                  [attr.aria-pressed]="!ocultarPassword()"
+                  (click)="alternarPassword()"
+                >
+                  @if (ocultarPassword()) {
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  } @else {
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                      <line x1="2" x2="22" y1="2" y2="22" />
+                    </svg>
+                  }
+                </button>
+              </div>
+              @if (mostrarError(password)) {
+                <p class="mt-1.5 text-sm text-red-600">
+                  {{ password.hasError('required') ? 'La contraseña es obligatoria.' : '' }}
+                </p>
+              }
+            </div>
+
+            @if (error()) {
+              <p
+                role="alert"
+                class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-4 w-4 shrink-0"
                   aria-hidden="true"
-                ></span>
-                <span>Iniciando sesión...</span>
-              </span>
-            } @else {
-              <span>Iniciar sesión</span>
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" x2="12" y1="8" y2="12" />
+                  <line x1="12" x2="12.01" y1="16" y2="16" />
+                </svg>
+                <span>{{ error() }}</span>
+              </p>
             }
-          </button>
-        </form>
+
+            <button
+              type="submit"
+              [disabled]="cargando()"
+              class="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              @if (cargando()) {
+                <span class="flex items-center justify-center gap-2">
+                  <span
+                    class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Iniciando sesión...</span>
+                </span>
+              } @else {
+                <span>Iniciar sesión</span>
+              }
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   `,
