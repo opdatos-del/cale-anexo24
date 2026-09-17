@@ -14,9 +14,9 @@ import { MaterialDto, MaterialService } from './material.service';
   imports: [FormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatPaginatorModule, MatTableModule],
   selector: 'app-materiales',
   template: `
-    <div class="header">
-      <h2>Materiales</h2>
-      <form (submit)="buscar()">
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-3">
+      <h2 class="m-0 text-xl font-semibold text-on-surface">Materiales</h2>
+      <form (submit)="buscar()" class="flex items-center gap-2">
         <mat-form-field appearance="outline">
           <mat-label>Clave, descripción o fracción</mat-label>
           <input matInput name="filtro" [(ngModel)]="filtro" placeholder="ej. PINO" />
@@ -26,9 +26,9 @@ import { MaterialDto, MaterialService } from './material.service';
     </div>
 
     @if (cargando()) {
-      <p>Cargando…</p>
+      <p class="text-on-surface-variant">Cargando…</p>
     } @else {
-      <table mat-table [dataSource]="items()" class="mat-elevation-z2">
+      <table mat-table [dataSource]="items()" class="w-full">
         <ng-container matColumnDef="clave">
           <th mat-header-cell *matHeaderCellDef>Clave</th>
           <td mat-cell *matCellDef="let m">{{ m.clave }}</td>
@@ -57,26 +57,6 @@ import { MaterialDto, MaterialService } from './material.service';
       ></mat-paginator>
     }
   `,
-  styles: [
-    `
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-        padding-bottom: 12px;
-      }
-      form {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      table {
-        width: 100%;
-      }
-    `,
-  ],
 })
 export class MaterialesComponent implements OnInit {
   protected columnas = ['clave', 'descripcion', 'fraccion', 'unidad'];

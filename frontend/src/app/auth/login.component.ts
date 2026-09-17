@@ -14,14 +14,14 @@ import { AuthService } from './auth.service';
   imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   selector: 'app-login',
   template: `
-    <div class="login-wrapper">
-      <mat-card class="login-card">
+    <div class="flex min-h-screen items-center justify-center bg-gray-100">
+      <mat-card class="w-[360px]">
         <mat-card-header>
-          <mat-card-title>Anexo 24</mat-card-title>
-          <mat-card-subtitle>Control automatizado de inventarios</mat-card-subtitle>
+          <mat-card-title>Acceso Sistema</mat-card-title>
+          <mat-card-subtitle>Anexo 24</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <form #form="ngForm" (ngSubmit)="enviar()">
+          <form #form="ngForm" (ngSubmit)="enviar()" class="flex flex-col gap-3 pt-3">
             <mat-form-field appearance="outline">
               <mat-label>Clave</mat-label>
               <input matInput name="clave" [(ngModel)]="clave" required autocomplete="username" />
@@ -38,9 +38,15 @@ import { AuthService } from './auth.service';
               />
             </mat-form-field>
             @if (error()) {
-              <p class="error">{{ error() }}</p>
+              <p class="m-0 text-sm text-red-800">{{ error() }}</p>
             }
-            <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || cargando()">
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || cargando()"
+              class="w-full"
+            >
               {{ cargando() ? 'Ingresando…' : 'Ingresar' }}
             </button>
           </form>
@@ -48,31 +54,6 @@ import { AuthService } from './auth.service';
       </mat-card>
     </div>
   `,
-  styles: [
-    `
-      .login-wrapper {
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f5f5f5;
-      }
-      .login-card {
-        width: 360px;
-      }
-      form {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding-top: 12px;
-      }
-      .error {
-        color: #b71c1c;
-        font-size: 14px;
-        margin: 0;
-      }
-    `,
-  ],
 })
 export class LoginComponent {
   protected clave = '';
