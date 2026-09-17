@@ -67,7 +67,6 @@ import { AuthService } from './auth.service';
                 formControlName="username"
                 placeholder="usuario"
                 autocomplete="username"
-                [disabled]="cargando()"
                 class="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 (input)="limpiarError()"
               />
@@ -89,7 +88,6 @@ import { AuthService } from './auth.service';
                   formControlName="password"
                   placeholder="••••••••"
                   autocomplete="current-password"
-                  [disabled]="cargando()"
                   class="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 pr-12 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                   (input)="limpiarError()"
                 />
@@ -233,12 +231,16 @@ export class LoginComponent {
     }
 
     this.cargando.set(true);
+    // Angular recomienda deshabilitar vía el control (no con [disabled] en el
+    // template): así el atributo se refleja en el DOM sin errores de CD.
+    this.form.disable();
     this.auth
       .login({ clave: this.username.value, password: this.password.value })
       .subscribe({
         next: () => this.router.navigate(['/materiales']),
         error: (err) => {
           this.cargando.set(false);
+          this.form.enable();
           this.error.set(this.mensajeError(err));
         },
       });
