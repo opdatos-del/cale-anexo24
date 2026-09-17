@@ -14,18 +14,17 @@ import { SearchMaterialsUseCase } from '../../../application/use-cases/search-ma
   imports: [FormsModule, MatButtonModule, MatInputModule, MatPaginatorModule, MatTableModule],
   selector: 'app-materiales',
   template: `
-    <div class="min-h-screen bg-slate-50 text-slate-800">
-      <header class="flex h-14 items-center justify-between bg-blue-700 px-6 text-white shadow-sm">
-        <span class="text-sm font-semibold tracking-wide">CALE · ANEXO 24</span>
-        <span class="text-xs font-medium uppercase tracking-[0.16em] text-blue-100">Catálogo · Materiales</span>
-      </header>
-
-      <main class="mx-auto w-full max-w-[1440px] px-6 py-6">
-        <div class="mb-5">
-          <h1 class="m-0 text-2xl font-medium tracking-tight text-slate-800">Catálogo · Materiales</h1>
+    <div class="min-h-full bg-[#f4f7fb] text-slate-800">
+      <main class="mx-auto w-full max-w-[1440px] px-5 py-8 sm:px-8">
+        <div class="mb-7 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Catálogos</p>
+            <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Materiales</h1>
+            <p class="mt-2 text-sm text-slate-500">Consulta y administra el catálogo de materiales.</p>
+          </div>
         </div>
 
-        <section class="mb-5 rounded-sm bg-slate-100 p-4" aria-labelledby="filtros-materiales">
+        <section class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42_/_4%)]" aria-labelledby="filtros-materiales">
           <h2 id="filtros-materiales" class="sr-only">Filtros de materiales</h2>
           <form (submit)="search()" class="flex flex-wrap items-end gap-4">
             <label class="min-w-0 flex-1 sm:min-w-[280px]">
@@ -35,24 +34,24 @@ import { SearchMaterialsUseCase } from '../../../application/use-cases/search-ma
                 name="filter"
                 [(ngModel)]="filter"
                 placeholder="Buscar en el catálogo"
-                class="h-10 w-full rounded-lg border border-slate-400 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
               />
             </label>
-            <button mat-flat-button color="primary" type="submit" class="h-10 min-w-28">Consultar</button>
-              <button mat-stroked-button type="button" class="h-10 min-w-24" (click)="clearFilter()">Limpiar</button>
+            <button mat-flat-button color="primary" type="submit" class="h-11 min-w-28 !rounded-xl">Consultar</button>
+            <button mat-stroked-button type="button" class="h-11 min-w-24 !rounded-xl" (click)="clearFilter()">Limpiar</button>
           </form>
         </section>
 
-        <div class="mb-3 flex flex-wrap items-center gap-3">
-          <button mat-flat-button color="primary" type="button" class="h-10">+ Nuevo</button>
-          <button mat-stroked-button type="button" class="h-10">⇩ Exportar</button>
-          <button mat-stroked-button type="button" class="h-10" (click)="loadMaterials()">⟳ Refrescar</button>
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+          <button mat-flat-button color="primary" type="button" class="h-10 !rounded-xl">+ Nuevo</button>
+          <button mat-stroked-button type="button" class="h-10 !rounded-xl">⇩ Exportar</button>
+          <button mat-stroked-button type="button" class="h-10 !rounded-xl" (click)="loadMaterials()">⟳ Refrescar</button>
         </div>
 
         @if (isLoading()) {
-          <div class="rounded border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">Cargando…</div>
+          <div class="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500 shadow-sm">Cargando…</div>
         } @else {
-          <div class="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
+          <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_18px_rgb(15_23_42_/_4%)]">
             <div class="overflow-x-auto">
               <table mat-table [dataSource]="items()" class="w-full min-w-[760px]">
                 <ng-container matColumnDef="partNumber">
