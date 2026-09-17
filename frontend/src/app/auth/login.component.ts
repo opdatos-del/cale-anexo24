@@ -53,7 +53,6 @@ import { AuthService } from './auth.service';
               </svg>
             </div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Anexo 24</h1>
-            <p class="mt-1 text-sm text-slate-500">Sistema de control aduanero</p>
             <p class="mt-4 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
           </header>
 

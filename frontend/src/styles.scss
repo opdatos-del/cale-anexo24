@@ -17,6 +17,17 @@ html {
   );
 }
 
+app-root,
+app-login,
+router-outlet {
+  display: block;
+}
+
+app-root,
+app-login {
+  min-height: 100%;
+}
+
 body {
   color-scheme: light;
   background-color: var(--mat-sys-surface);
