@@ -26,6 +26,8 @@ router-outlet {
 app-root,
 app-login {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
@@ -35,4 +37,5 @@ body {
   font: var(--mat-sys-body-medium);
   margin: 0;
   height: 100%;
+  overflow-x: hidden;
 }

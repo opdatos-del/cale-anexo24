@@ -1,0 +1,59 @@
+.sidebar-shell {
+  width: 260px;
+  min-width: 0;
+  max-width: 260px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  transition: width 220ms ease;
+}
+
+.sidebar-shell.compacta {
+  width: 68px;
+  min-width: 0;
+  max-width: 68px;
+}
+
+.sidebar-shell .mat-drawer-inner-container {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.sidebar-copy {
+  max-width: 160px;
+  overflow: hidden;
+  opacity: 1;
+  white-space: nowrap;
+  transition: max-width 180ms ease, opacity 140ms ease;
+}
+
+.sidebar-shell.compacta .sidebar-copy {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-nav-item {
+  border-left: 3px solid transparent;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.sidebar-nav-item:hover {
+  background-color: #eff6ff;
+}
+
+@media (max-width: 767px) {
+  .sidebar-shell,
+  .sidebar-shell.compacta {
+    width: 260px;
+    max-width: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-shell,
+  .sidebar-copy,
+  .sidebar-nav-item {
+    transition-duration: 0.01ms !important;
+  }
+}
