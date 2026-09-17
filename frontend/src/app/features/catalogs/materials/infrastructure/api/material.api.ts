@@ -1,36 +1,16 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { MaterialPageResponseDto } from '../dto/material-response.dto';
 
-export interface MaterialDto {
-  materialkey: number;
-  clave: string;
-  descripcion: string;
-  fraccion: string;
-  unidad: string;
-  unidadt: string;
-  tipomaterial: string;
-}
-
-export interface Pagina<T> {
-  items: T[];
-  total: number;
-  pagina: number;
-  tamano: number;
-}
-
-/**
- * Consulta del catálogo de materiales (RF-010).
- */
+/** Adaptador HTTP: conoce únicamente el contrato REST de materiales. */
 @Injectable({ providedIn: 'root' })
-export class MaterialService {
+export class MaterialApi {
   private readonly http = inject(HttpClient);
 
-  listar(filtro: string | null, pagina: number, tamano: number): Observable<Pagina<MaterialDto>> {
-    const params: Record<string, string> = { pagina: String(pagina), tamano: String(tamano) };
-    if (filtro && filtro.trim()) {
-      params['filtro'] = filtro.trim();
-    }
-    return this.http.get<Pagina<MaterialDto>>('/api/v1/catalogos/materiales', { params });
+  search(filter: string, page: number, pageSize: number): Observable<MaterialPageResponseDto> {
+    let params = new HttpParams().set('pagina', page).set('tamano', pageSize);
+    if (filter.trim()) params = params.set('filtro', filter.trim());
+    return this.http.get<MaterialPageResponseDto>('/api/v1/catalogos/materiales', { params });
   }
 }

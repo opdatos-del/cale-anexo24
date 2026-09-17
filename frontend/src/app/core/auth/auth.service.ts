@@ -2,12 +2,12 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
-export interface LoginRequest {
-  clave: string;
+export interface LoginCredentials {
+  username: string;
   password: string;
 }
 
-export interface LoginResponse {
+interface LoginResponseDto {
   token: string;
   expiraEn: number;
   usuario: string;
@@ -21,13 +21,13 @@ export interface LoginResponse {
 export class AuthService {
   private readonly tokenKey = 'anexo24_token';
   private readonly http = inject(HttpClient);
-  readonly usuario = signal<string | null>(null);
+  readonly userName = signal<string | null>(null);
 
-  login(request: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>('/api/v1/auth/login', request).pipe(
+  login(credentials: LoginCredentials): Observable<LoginResponseDto> {
+    return this.http.post<LoginResponseDto>('/api/v1/auth/login', { clave: credentials.username, password: credentials.password }).pipe(
       tap((resp) => {
         localStorage.setItem(this.tokenKey, resp.token);
-        this.usuario.set(resp.usuario);
+        this.userName.set(resp.usuario);
       }),
     );
   }
@@ -38,7 +38,7 @@ export class AuthService {
 
   logout(): void {
     localStorage.removeItem(this.tokenKey);
-    this.usuario.set(null);
+    this.userName.set(null);
   }
 
   tieneSesion(): boolean {

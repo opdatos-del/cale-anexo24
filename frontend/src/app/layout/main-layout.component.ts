@@ -9,7 +9,7 @@ import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '../core/auth/auth.service';
 
 interface NavItem {
   label: string;
@@ -42,28 +42,28 @@ interface NavGroup {
     <mat-sidenav-container autosize class="h-screen w-full max-w-full overflow-hidden bg-slate-50">
       <mat-sidenav
         #sidenav
-        [mode]="esMovil() ? 'over' : 'side'"
-        [opened]="esMovil() ? sidenavMovilAbierto() : true"
-        (openedChange)="sidenavMovilAbierto.set($event)"
-        [class.compacta]="sidebarColapsado() && !esMovil()"
+        [mode]="isMobile() ? 'over' : 'side'"
+        [opened]="isMobile() ? mobileSidenavOpen() : true"
+        (openedChange)="mobileSidenavOpen.set($event)"
+        [class.compacta]="sidebarCollapsed() && !isMobile()"
         class="sidebar-shell border-r border-slate-200 bg-slate-50"
         aria-label="Navegación principal"
       >
         <div class="flex h-11 items-center border-b border-slate-200 px-3 text-sm font-medium text-slate-700">
           <mat-icon class="shrink-0 text-[20px] text-blue-700">inventory_2</mat-icon>
           <span class="sidebar-copy ml-2">Anexo 24</span>
-          @if (!esMovil()) {
+          @if (!isMobile()) {
             <button
               mat-icon-button
               type="button"
               class="ml-auto !h-8 !w-8 !shrink-0"
-              [matTooltip]="sidebarColapsado() ? 'Expandir menú lateral' : 'Contraer menú lateral'"
-              [attr.aria-label]="sidebarColapsado() ? 'Expandir menú lateral' : 'Contraer menú lateral'"
-              [attr.aria-expanded]="!sidebarColapsado()"
+              [matTooltip]="sidebarCollapsed() ? 'Expandir menú lateral' : 'Contraer menú lateral'"
+              [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú lateral' : 'Contraer menú lateral'"
+              [attr.aria-expanded]="!sidebarCollapsed()"
               aria-controls="sidebar-navigation"
-              (click)="alternarSidebar()"
+              (click)="toggleSidebar()"
             >
-              <mat-icon class="!text-[20px]">{{ sidebarColapsado() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+              <mat-icon class="!text-[20px]">{{ sidebarCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
             </button>
           }
         </div>
@@ -75,27 +75,27 @@ interface NavGroup {
             routerLinkActive="bg-blue-50 text-blue-700"
             [routerLinkActiveOptions]="{ exact: true }"
             matTooltip="Inicio"
-            [matTooltipDisabled]="!sidebarColapsado() || esMovil()"
-            [class.justify-center]="sidebarColapsado() && !esMovil()"
+            [matTooltipDisabled]="!sidebarCollapsed() || isMobile()"
+            [class.justify-center]="sidebarCollapsed() && !isMobile()"
             class="sidebar-nav-item"
-            (click)="cerrarEnMovil(sidenav)"
+            (click)="closeOnMobile(sidenav)"
           >
             <mat-icon matListItemIcon>home</mat-icon>
             <span matListItemTitle class="sidebar-copy">Inicio</span>
           </a>
 
-          @for (grupo of grupos; track grupo.label) {
-            <div class="sidebar-copy px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wide text-blue-700">{{ grupo.label }}</div>
-            @for (item of grupo.items; track item.route) {
+          @for (group of navigationGroups; track group.label) {
+            <div class="sidebar-copy px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wide text-blue-700">{{ group.label }}</div>
+            @for (item of group.items; track item.route) {
               <a
                 mat-list-item
                 [routerLink]="item.route"
                 routerLinkActive="bg-blue-50 text-blue-700"
                 [matTooltip]="item.label"
-                [matTooltipDisabled]="!sidebarColapsado() || esMovil()"
-                [class.justify-center]="sidebarColapsado() && !esMovil()"
+                [matTooltipDisabled]="!sidebarCollapsed() || isMobile()"
+                [class.justify-center]="sidebarCollapsed() && !isMobile()"
                 class="sidebar-nav-item"
-                (click)="cerrarEnMovil(sidenav)"
+                (click)="closeOnMobile(sidenav)"
               >
                 <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
                 <span matListItemTitle class="sidebar-copy">{{ item.label }}</span>
@@ -107,7 +107,7 @@ interface NavGroup {
 
       <mat-sidenav-content class="flex min-w-0 max-w-full flex-col overflow-x-hidden bg-[#f8f9fc]">
         <mat-toolbar class="!h-11 !min-h-11 !bg-[#202428] !px-4 !text-white shadow-sm">
-          @if (esMovil()) {
+          @if (isMobile()) {
             <button mat-icon-button type="button" aria-label="Abrir menú" (click)="sidenav.toggle()">
               <mat-icon>menu</mat-icon>
             </button>
@@ -122,11 +122,11 @@ interface NavGroup {
             aria-label="Abrir menú de usuario"
           >
             <mat-icon class="mr-1 !text-[18px]">account_circle</mat-icon>
-            <span class="hidden sm:inline">{{ auth.usuario() || 'Usuario' }}</span>
+            <span class="hidden sm:inline">{{ auth.userName() || 'Usuario' }}</span>
             <mat-icon class="ml-1 !text-[16px]">expand_more</mat-icon>
           </button>
           <mat-menu #usuarioMenu="matMenu" xPosition="before">
-            <button mat-menu-item type="button" (click)="cerrarSesion()">
+            <button mat-menu-item type="button" (click)="logout()">
               <mat-icon>logout</mat-icon>
               <span>Cerrar sesión</span>
             </button>
@@ -142,10 +142,10 @@ interface NavGroup {
 })
 export class MainLayoutComponent {
   protected readonly auth = inject(AuthService);
-  protected readonly esMovil = signal(false);
-  protected readonly sidenavMovilAbierto = signal(false);
-  protected readonly sidebarColapsado = signal(false);
-  protected readonly grupos: NavGroup[] = [
+  protected readonly isMobile = signal(false);
+  protected readonly mobileSidenavOpen = signal(false);
+  protected readonly sidebarCollapsed = signal(false);
+  protected readonly navigationGroups: NavGroup[] = [
     {
       label: 'Catálogos',
       items: [{ label: 'Materiales', icon: 'inventory_2', route: '/materiales' }],
@@ -159,21 +159,21 @@ export class MainLayoutComponent {
     inject(BreakpointObserver)
       .observe(Breakpoints.Handset)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ matches }) => this.esMovil.set(matches));
+      .subscribe(({ matches }) => this.isMobile.set(matches));
   }
 
-  protected cerrarEnMovil(sidenav: MatSidenav): void {
+  protected closeOnMobile(sidenav: MatSidenav): void {
     // El modo overlay se cierra al navegar; desktop conserva sidebar visible.
-    if (this.esMovil()) {
+    if (this.isMobile()) {
       sidenav.close();
     }
   }
 
-  protected alternarSidebar(): void {
-    this.sidebarColapsado.update((colapsado) => !colapsado);
+  protected toggleSidebar(): void {
+    this.sidebarCollapsed.update((collapsed) => !collapsed);
   }
 
-  protected cerrarSesion(): void {
+  protected logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
   }

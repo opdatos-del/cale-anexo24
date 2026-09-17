@@ -2,18 +2,18 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
-import { DashboardService } from './dashboard.service';
+import { AuthService } from '../../../../../core/auth/auth.service';
+import { DashboardSummaryService } from '../../../application/dashboard-summary.service';
 
 /** Página de inicio autenticada, alineada al mockup DASH. */
 @Component({
   imports: [MatCardModule, MatIconModule, RouterLink],
   selector: 'app-dashboard',
-  styleUrl: './dashboard.component.scss',
+  styleUrl: './dashboard.page.scss',
   template: `
     <div class="mx-auto max-w-[1440px] px-6 py-5">
       <div class="mb-6">
-        <h1 class="m-0 text-xl font-normal text-slate-800">Hola, {{ auth.usuario() || 'Usuario' }}</h1>
+        <h1 class="m-0 text-xl font-normal text-slate-800">Hola, {{ auth.userName() || 'Usuario' }}</h1>
         <p class="mt-1 text-sm text-slate-500">Resumen general del sistema</p>
       </div>
 
@@ -23,10 +23,10 @@ import { DashboardService } from './dashboard.service';
             <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><mat-icon class="!text-[20px]">inventory_2</mat-icon></span>
             <p class="m-0 text-sm text-slate-700">Materiales</p>
           </div>
-          @if (cargando()) {
+          @if (isLoading()) {
             <p class="mt-4 text-sm text-slate-400">Cargando…</p>
-          } @else if (materialesTotal() !== null) {
-            <a routerLink="/materiales" class="mt-4 inline-block text-base text-blue-700 hover:underline">{{ materialesTotal() }} items</a>
+          } @else if (materialsTotal() !== null) {
+            <a routerLink="/materiales" class="mt-4 inline-block text-base text-blue-700 hover:underline">{{ materialsTotal() }} items</a>
           } @else {
             <p class="mt-4 text-sm text-slate-500">No disponible</p>
           }
@@ -64,20 +64,20 @@ import { DashboardService } from './dashboard.service';
     </div>
   `,
 })
-export class DashboardComponent implements OnInit {
+export class DashboardPage implements OnInit {
   protected readonly auth = inject(AuthService);
-  protected readonly materialesTotal = signal<number | null>(null);
-  protected readonly cargando = signal(true);
+  protected readonly materialsTotal = signal<number | null>(null);
+  protected readonly isLoading = signal(true);
 
-  private readonly service = inject(DashboardService);
+  private readonly service = inject(DashboardSummaryService);
 
   ngOnInit(): void {
     this.service.resumen().subscribe({
       next: (resumen) => {
-        this.materialesTotal.set(resumen.materialesTotal);
-        this.cargando.set(false);
+        this.materialsTotal.set(resumen.materialsTotal);
+        this.isLoading.set(false);
       },
-      error: () => this.cargando.set(false),
+      error: () => this.isLoading.set(false),
     });
   }
 }

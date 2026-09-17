@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from './auth.service';
+import { AuthService } from '../../../../../core/auth/auth.service';
 
 /**
  * Pantalla de inicio de sesión (CU-001).
@@ -85,7 +85,7 @@ import { AuthService } from './auth.service';
               <div class="relative">
                 <input
                   id="password"
-                  [type]="ocultarPassword() ? 'password' : 'text'"
+                  [type]="hidePassword() ? 'password' : 'text'"
                   formControlName="password"
                   placeholder="••••••••"
                   autocomplete="current-password"
@@ -95,11 +95,11 @@ import { AuthService } from './auth.service';
                 <button
                   type="button"
                   class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  [attr.aria-label]="ocultarPassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
-                  [attr.aria-pressed]="!ocultarPassword()"
-                  (click)="alternarPassword()"
+                  [attr.aria-label]="hidePassword() ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+                  [attr.aria-pressed]="!hidePassword()"
+                  (click)="togglePassword()"
                 >
-                  @if (ocultarPassword()) {
+                  @if (hidePassword()) {
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -167,10 +167,10 @@ import { AuthService } from './auth.service';
 
             <button
               type="submit"
-              [disabled]="cargando()"
+              [disabled]="isLoading()"
               class="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              @if (cargando()) {
+              @if (isLoading()) {
                 <span class="flex items-center justify-center gap-2">
                   <span
                     class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
@@ -188,7 +188,7 @@ import { AuthService } from './auth.service';
     </div>
   `,
 })
-export class LoginComponent {
+export class LoginPage {
   protected readonly username = new FormControl('', {
     validators: [Validators.required],
     nonNullable: true,
@@ -201,22 +201,22 @@ export class LoginComponent {
     username: this.username,
     password: this.password,
   });
-  protected readonly ocultarPassword = signal(true);
-  protected readonly cargando = signal(false);
+  protected readonly hidePassword = signal(true);
+  protected readonly isLoading = signal(false);
   protected readonly error = signal<string | null>(null);
   /** true tras el primer intento de envío: activa la validación visible. */
-  protected readonly enviado = signal(false);
+  protected readonly submitted = signal(false);
 
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   /** El error solo se muestra tras tocar el campo o intentar enviar. */
   protected mostrarError(campo: FormControl<string>): boolean {
-    return campo.invalid && (campo.touched || this.enviado());
+    return campo.invalid && (campo.touched || this.submitted());
   }
 
-  protected alternarPassword(): void {
-    this.ocultarPassword.update((v) => !v);
+  protected togglePassword(): void {
+    this.hidePassword.update((v) => !v);
   }
 
   protected limpiarError(): void {
@@ -225,22 +225,22 @@ export class LoginComponent {
 
   protected enviar(): void {
     this.error.set(null);
-    this.enviado.set(true);
+    this.submitted.set(true);
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.cargando.set(true);
+    this.isLoading.set(true);
     // Angular recomienda deshabilitar vía el control (no con [disabled] en el
     // template): así el atributo se refleja en el DOM sin errores de CD.
     this.form.disable();
     this.auth
-      .login({ clave: this.username.value, password: this.password.value })
+      .login({ username: this.username.value, password: this.password.value })
       .subscribe({
         next: () => this.router.navigate(['/materiales']),
         error: (err) => {
-          this.cargando.set(false);
+          this.isLoading.set(false);
           this.form.enable();
           this.error.set(this.mensajeError(err));
         },
