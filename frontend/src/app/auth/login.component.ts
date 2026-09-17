@@ -16,8 +16,10 @@ import { AuthService } from './auth.service';
     <div class="relative min-h-screen w-full overflow-hidden">
       <!-- FONDO: cubre todo el viewport -->
       <div class="absolute inset-0">
-        <!-- Imagen en public/assets/login-bg.svg (sustituir por fotografía corporativa) -->
-        <img src="/assets/login-bg.svg" alt="" class="h-full w-full object-cover" />
+        <!-- Imagen: public/assets/login-bg.jpg (sustituir por fotografía corporativa propia).
+             Actual: "Warehouse interior showcasing organized shelving and packages" de
+             Shixart1985, Wikimedia Commons, CC BY 2.0 (https://creativecommons.org/licenses/by/2.0) -->
+        <img src="/assets/login-bg.jpg" alt="" class="h-full w-full object-cover" />
       </div>
 
       <!-- OVERLAY para contraste -->
