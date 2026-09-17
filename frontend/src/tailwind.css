@@ -1,0 +1,29 @@
+/* Tailwind CSS v4 — en CSS plano a propósito: Sass resolvería este import
+   e inlinearía el dist pre-compilado, impidiendo que el plugin PostCSS
+   escanee las clases de los templates. */
+@import 'tailwindcss';
+
+/* Escaneo explícito de templates Angular (paths relativos a este archivo) */
+@source "./app";
+
+/* Mapea los tokens de Material 3 a utilities de Tailwind:
+   bg-primary, text-on-surface, border-outline, etc. */
+@theme inline {
+  --color-primary: var(--mat-sys-primary);
+  --color-on-primary: var(--mat-sys-on-primary);
+  --color-primary-container: var(--mat-sys-primary-container);
+  --color-on-primary-container: var(--mat-sys-on-primary-container);
+  --color-secondary: var(--mat-sys-secondary);
+  --color-on-secondary: var(--mat-sys-on-secondary);
+  --color-surface: var(--mat-sys-surface);
+  --color-surface-container: var(--mat-sys-surface-container);
+  --color-on-surface: var(--mat-sys-on-surface);
+  --color-on-surface-variant: var(--mat-sys-on-surface-variant);
+  --color-outline: var(--mat-sys-outline);
+  --color-error: var(--mat-sys-error);
+  --color-on-error: var(--mat-sys-on-error);
+}
+
+@theme {
+  --font-roboto: 'Roboto', sans-serif;
+}
