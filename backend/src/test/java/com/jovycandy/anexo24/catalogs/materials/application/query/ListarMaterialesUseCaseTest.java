@@ -3,6 +3,7 @@ package com.jovycandy.anexo24.catalogs.materials.application.query;
 import com.jovycandy.anexo24.catalogs.materials.domain.model.Material;
 import com.jovycandy.anexo24.catalogs.materials.domain.port.MaterialRepository;
 import com.jovycandy.anexo24.shared.api.Pagina;
+import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -67,21 +68,21 @@ class ListarMaterialesUseCaseTest {
     void rechazaPaginaMenorQueUno() {
         assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
                 .ejecutar(null, 0, 20))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(SolicitudInvalidaException.class);
     }
 
     @Test
     void rechazaTamanoMenorQueUno() {
         assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
                 .ejecutar(null, 1, 0))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(SolicitudInvalidaException.class);
     }
 
     @Test
     void rechazaTamanoMayorQueCien() {
         assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
                 .ejecutar(null, 1, 101))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(SolicitudInvalidaException.class);
     }
 
     private Pagina<Material> paginaVacia(int pagina, int tamano) {

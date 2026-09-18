@@ -1,6 +1,7 @@
 package com.jovycandy.anexo24.shared.api;
 
 import com.jovycandy.anexo24.security.CredencialesInvalidasException;
+import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,10 +85,23 @@ public class GlobalExceptionHandler {
      * @param request solicitud HTTP actual
      * @return 400 con mensaje accionable y correlación
      */
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
-            IllegalArgumentException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ApiError> handleMalformedRequest(Exception ex,
                                                             HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",
+                "La solicitud tiene un formato o parámetro inválido.", request);
+    }
+
+    /**
+     * Maneja reglas de negocio incumplidas por parámetros de la solicitud.
+     *
+     * @param ex excepción de solicitud inválida
+     * @param request solicitud HTTP actual
+     * @return 400 con mensaje público y correlación
+     */
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ResponseEntity<ApiError> handleInvalidRequest(SolicitudInvalidaException ex,
+                                                          HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",
                 "La solicitud tiene un formato o parámetro inválido.", request);
     }

@@ -3,6 +3,7 @@ package com.jovycandy.anexo24.catalogs.materials.api;
 import com.jovycandy.anexo24.catalogs.materials.application.query.ListarMaterialesUseCase;
 
 import com.jovycandy.anexo24.Anexo24Application;
+import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,9 @@ class MaterialControllerTest {
     @Test
     void sinTokenResponde401() throws Exception {
         mockMvc.perform(get("/api/v1/catalogos/materiales"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTENTICACION_REQUERIDA"))
+                .andExpect(jsonPath("$.correlationId").exists());
     }
 
     @Test
@@ -53,7 +56,7 @@ class MaterialControllerTest {
     @Test
     void parametrosInvalidosResponden400() throws Exception {
         when(useCase.ejecutar(null, 0, 20))
-                .thenThrow(new IllegalArgumentException("pagina inválida"));
+                .thenThrow(new SolicitudInvalidaException("pagina inválida"));
 
 mockMvc.perform(get("/api/v1/catalogos/materiales?pagina=0")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("MATERIALES_CONSULTAR"))))

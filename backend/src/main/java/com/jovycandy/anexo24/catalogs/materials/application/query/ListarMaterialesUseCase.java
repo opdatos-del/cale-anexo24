@@ -3,6 +3,7 @@ package com.jovycandy.anexo24.catalogs.materials.application.query;
 import com.jovycandy.anexo24.catalogs.materials.domain.model.Material;
 import com.jovycandy.anexo24.catalogs.materials.domain.port.MaterialRepository;
 import com.jovycandy.anexo24.shared.api.Pagina;
+import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
 /** Caso de uso de consulta paginada del catálogo de materiales. */
@@ -39,10 +40,10 @@ public class ListarMaterialesUseCase {
 
     private void validarPaginacion(int pagina, int tamano) {
         if (pagina < PAGINA_MINIMA) {
-            throw new IllegalArgumentException("El parámetro pagina debe ser mayor o igual que 1.");
+            throw new SolicitudInvalidaException("El parámetro pagina debe ser mayor o igual que 1.");
         }
         if (tamano < TAMANO_MINIMO || tamano > TAMANO_MAXIMO) {
-            throw new IllegalArgumentException("El parámetro tamano debe estar entre 1 y 100.");
+            throw new SolicitudInvalidaException("El parámetro tamano debe estar entre 1 y 100.");
         }
     }
 
