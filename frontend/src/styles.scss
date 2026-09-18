@@ -39,3 +39,34 @@ body {
   height: 100%;
   overflow-x: hidden;
 }
+
+.app-snackbar-success,
+.app-snackbar-error,
+.app-snackbar-info,
+.app-snackbar-warning {
+  --mdc-snackbar-container-color: #17263b;
+  --mdc-snackbar-container-shape: 12px;
+  --mdc-snackbar-supporting-text-color: #f8fafc;
+  --mat-snack-bar-button-color: #bfdbfe;
+}
+
+.app-snackbar-success .mat-mdc-snack-bar-action,
+.app-snackbar-error .mat-mdc-snack-bar-action,
+.app-snackbar-info .mat-mdc-snack-bar-action,
+.app-snackbar-warning .mat-mdc-snack-bar-action {
+  min-height: 32px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.app-snackbar-success {
+  --mdc-snackbar-container-color: #166534;
+}
+
+.app-snackbar-error {
+  --mdc-snackbar-container-color: #991b1b;
+}
+
+.app-snackbar-warning {
+  --mdc-snackbar-container-color: #92400e;
+}

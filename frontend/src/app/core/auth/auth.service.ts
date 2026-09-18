@@ -39,10 +39,16 @@ export class AuthService {
     return localStorage.getItem(this.tokenKey);
   }
 
-  /** Avatar determinista de DiceBear para la identidad de sesión actual. */
-  avatarUrl(): string {
-    const seed = encodeURIComponent(this.userName() || 'anexo24-user');
-    return `https://api.dicebear.com/10.x/lorelei-neutral/svg?seed=${seed}&backgroundColor=dbeafe`;
+  /** Devuelve hasta dos iniciales para identificar la sesión sin cargar imágenes externas. */
+  initials(): string {
+    const name = (this.userName() || 'Usuario').trim();
+    const words = name.split(/\s+/).filter(Boolean);
+
+    if (words.length > 1) {
+      return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+    }
+
+    return name.slice(0, 2).toUpperCase();
   }
 
   logout(): void {

@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../../core/auth/auth.service';
+import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
 
 /**
  * Pantalla de inicio de sesión (CU-001).
@@ -10,7 +11,7 @@ import { AuthService } from '../../../../../core/auth/auth.service';
  * {@link AuthService}. El componente no ejecuta llamadas HTTP.
  */
 @Component({
-  imports: [ReactiveFormsModule],
+  imports: [AppAlertComponent, ReactiveFormsModule],
   selector: 'app-login',
   template: `
     <div class="relative min-h-screen w-full overflow-hidden">
@@ -28,7 +29,7 @@ import { AuthService } from '../../../../../core/auth/auth.service';
       <!-- CONTENEDOR CENTRADO: card flotante encima de fondo + overlay -->
       <div class="relative z-10 flex min-h-screen w-full items-center justify-center p-4">
         <div
-          class="animate-card-in w-full max-w-[420px] rounded-3xl border border-white/20 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
+          class="animate-card-in w-full max-w-105 rounded-3xl border border-white/20 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
         >
           <!-- HEADER -->
           <header class="text-center">
@@ -142,27 +143,7 @@ import { AuthService } from '../../../../../core/auth/auth.service';
             </div>
 
             @if (error()) {
-              <p
-                role="alert"
-                class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="h-4 w-4 shrink-0"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" x2="12" y1="8" y2="12" />
-                  <line x1="12" x2="12.01" y1="16" y2="16" />
-                </svg>
-                <span>{{ error() }}</span>
-              </p>
+              <app-alert kind="error" title="No se pudo iniciar sesión" [message]="error()!" />
             }
 
             <button
