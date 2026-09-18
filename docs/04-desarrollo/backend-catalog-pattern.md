@@ -48,9 +48,9 @@ La paginación se ejecuta en SQL Server con `OFFSET/FETCH`, y la respuesta usa
 {"items": [], "total": 0, "pagina": 1, "tamano": 20}
 ```
 
-El orden actual permanece como `ORDER BY clave`. La auditoría disponible no
-confirma que `materialkey` sea una clave única y estable para agregarlo como
-segundo criterio. Debe validarse contra el esquema real antes de cambiarlo.
+La paginación usa `ORDER BY clave, materialkey`. `materialkey` es `NOT NULL`,
+`PRIMARY KEY` y `CLUSTERED` en `dbo.material`, por lo que funciona como segundo
+criterio único y estable para garantizar un orden determinista entre páginas.
 
 ## Seguridad y errores
 

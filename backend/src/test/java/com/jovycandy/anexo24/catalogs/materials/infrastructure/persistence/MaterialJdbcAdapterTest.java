@@ -61,7 +61,7 @@ class MaterialJdbcAdapterTest {
         verify(jdbcTemplate).query(sql.capture(),
                 org.mockito.ArgumentMatchers.<RowMapper<Material>>any(), any(Object[].class));
         assertThat(sql.getValue()).contains("WHERE clave LIKE ? OR descripcion LIKE ? OR fraccion LIKE ?");
-        assertThat(sql.getValue()).contains("ORDER BY clave OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+        assertThat(sql.getValue()).contains("ORDER BY clave, materialkey OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
     }
 
     @Test

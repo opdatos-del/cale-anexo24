@@ -65,7 +65,7 @@ public class MaterialJdbcAdapter implements MaterialRepository {
         List<Material> items = jdbcTemplate.query(
                 "SELECT materialkey, clave, descripcion, fraccion, unidad, unidadt, "
                         + "tipomaterial, tipo, FactorUM, IGIE FROM dbo.material"
-                        + where + " ORDER BY clave OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+                        + where + " ORDER BY clave, materialkey OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
                 MAPPER, appendParams(params, offset, tamano));
         return new Pagina<>(items, total, pagina, tamano);
     }
