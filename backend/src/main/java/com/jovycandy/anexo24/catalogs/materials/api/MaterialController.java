@@ -4,6 +4,13 @@ import com.jovycandy.anexo24.catalogs.materials.api.dto.MaterialDto;
 import com.jovycandy.anexo24.catalogs.materials.domain.model.Material;
 import com.jovycandy.anexo24.catalogs.materials.application.query.ListarMaterialesUseCase;
 import com.jovycandy.anexo24.shared.api.Pagina;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,11 +47,30 @@ public class MaterialController {
      * @param tamano tamaño de página (default 20, máximo 100)
      * @return página de materiales
      */
+    @Operation(summary = "Consultar materiales",
+            description = "Consulta paginada de materiales del Módulo C.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consulta realizada"),
+            @ApiResponse(responseCode = "400", description = "Parámetros inválidos",
+                    content = @Content(schema = @Schema(implementation = com.jovycandy.anexo24.shared.api.ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "Autenticación requerida",
+                    content = @Content(schema = @Schema(implementation = com.jovycandy.anexo24.shared.api.ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Permiso insuficiente",
+                    content = @Content(schema = @Schema(implementation = com.jovycandy.anexo24.shared.api.ApiError.class))),
+            @ApiResponse(responseCode = "503", description = "Servicio de datos no disponible",
+                    content = @Content(schema = @Schema(implementation = com.jovycandy.anexo24.shared.api.ApiError.class)))
+    })
     @GetMapping
     @PreAuthorize("hasAuthority('MATERIALES_CONSULTAR')")
     public ResponseEntity<Pagina<MaterialDto>> listar(
+            @Parameter(description = "Texto para buscar por clave, descripción o fracción",
+                    in = ParameterIn.QUERY)
             @RequestParam(required = false) String filtro,
+            @Parameter(description = "Número de página base 1", example = "1",
+                    in = ParameterIn.QUERY)
             @RequestParam(defaultValue = "1") int pagina,
+            @Parameter(description = "Elementos por página; rango 1-100", example = "20",
+                    in = ParameterIn.QUERY)
             @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Material> paginaDominio = listarMaterialesUseCase.ejecutar(filtro, pagina, tamano);
         Pagina<MaterialDto> paginaDto = new Pagina<>(

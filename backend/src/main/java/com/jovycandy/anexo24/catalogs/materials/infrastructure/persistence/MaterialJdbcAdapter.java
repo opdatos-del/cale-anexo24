@@ -3,6 +3,7 @@ package com.jovycandy.anexo24.catalogs.materials.infrastructure.persistence;
 import com.jovycandy.anexo24.catalogs.materials.domain.model.Material;
 import com.jovycandy.anexo24.catalogs.materials.domain.port.MaterialRepository;
 import com.jovycandy.anexo24.shared.api.Pagina;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -38,7 +39,7 @@ public class MaterialJdbcAdapter implements MaterialRepository {
      *
      * @param jdbcTemplate plantilla JDBC de CALE_IMMEX
      */
-    public MaterialJdbcAdapter(JdbcTemplate jdbcTemplate) {
+    public MaterialJdbcAdapter(@Qualifier("jdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -51,7 +52,7 @@ public class MaterialJdbcAdapter implements MaterialRepository {
         Object[] params;
         if (filtro != null && !filtro.isBlank()) {
             where = " WHERE clave LIKE ? OR descripcion LIKE ? OR fraccion LIKE ?";
-            String patron = "%" + filtro.trim() + "%";
+            String patron = "%" + filtro + "%";
             params = new Object[]{patron, patron, patron};
         } else {
             params = new Object[]{};

@@ -84,7 +84,8 @@ public class GlobalExceptionHandler {
      * @param request solicitud HTTP actual
      * @return 400 con mensaje accionable y correlación
      */
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class})
     public ResponseEntity<ApiError> handleMalformedRequest(Exception ex,
                                                             HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",

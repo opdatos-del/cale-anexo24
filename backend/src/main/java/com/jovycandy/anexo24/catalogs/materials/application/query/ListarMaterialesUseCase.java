@@ -33,8 +33,23 @@ public class ListarMaterialesUseCase {
      * @return página de materiales
      */
     public Pagina<Material> ejecutar(String filtro, int pagina, int tamano) {
-        int paginaReal = Math.max(pagina, PAGINA_MINIMA);
-        int tamanoReal = Math.min(Math.max(tamano, TAMANO_MINIMO), TAMANO_MAXIMO);
-        return materialRepository.findPage(filtro, paginaReal, tamanoReal);
+        validarPaginacion(pagina, tamano);
+        return materialRepository.findPage(normalizarFiltro(filtro), pagina, tamano);
+    }
+
+    private void validarPaginacion(int pagina, int tamano) {
+        if (pagina < PAGINA_MINIMA) {
+            throw new IllegalArgumentException("El parámetro pagina debe ser mayor o igual que 1.");
+        }
+        if (tamano < TAMANO_MINIMO || tamano > TAMANO_MAXIMO) {
+            throw new IllegalArgumentException("El parámetro tamano debe estar entre 1 y 100.");
+        }
+    }
+
+    private String normalizarFiltro(String filtro) {
+        if (filtro == null || filtro.isBlank()) {
+            return null;
+        }
+        return filtro.trim();
     }
 }

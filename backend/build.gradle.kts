@@ -46,6 +46,7 @@ dependencies {
 
     // Pruebas
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.security:spring-security-test")
 
     testImplementation("org.testcontainers:testcontainers:1.20.4")
