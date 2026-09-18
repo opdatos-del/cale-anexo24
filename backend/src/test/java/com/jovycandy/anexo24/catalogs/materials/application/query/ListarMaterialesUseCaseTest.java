@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,26 +23,68 @@ class ListarMaterialesUseCaseTest {
     private MaterialRepository materialRepository;
 
     @Test
-    void normalizaLosLimitesDePaginacion() {
-        Pagina<Material> esperado = new Pagina<>(List.of(), 0, 1, 100);
-        when(materialRepository.findPage(" tornillo ", 1, 100)).thenReturn(esperado);
+    void normalizaFiltroNulo() {
+        Pagina<Material> esperado = paginaVacia(1, 20);
+        when(materialRepository.findPage(null, 1, 20)).thenReturn(esperado);
 
-        Pagina<Material> resultado = new ListarMaterialesUseCase(materialRepository)
-                .ejecutar(" tornillo ", 0, 500);
-
-        assertThat(resultado).isSameAs(esperado);
-        verify(materialRepository).findPage(" tornillo ", 1, 100);
+        assertThat(new ListarMaterialesUseCase(materialRepository)
+                .ejecutar(null, 1, 20)).isSameAs(esperado);
+        verify(materialRepository).findPage(null, 1, 20);
     }
 
     @Test
-    void conservaUnaPaginacionValida() {
-        Pagina<Material> esperado = new Pagina<>(List.of(), 0, 2, 20);
-        when(materialRepository.findPage(null, 2, 20)).thenReturn(esperado);
+    void normalizaFiltroVacioYBlank() {
+        Pagina<Material> esperado = paginaVacia(1, 20);
+        when(materialRepository.findPage(null, 1, 20)).thenReturn(esperado);
+        ListarMaterialesUseCase useCase = new ListarMaterialesUseCase(materialRepository);
 
-        Pagina<Material> resultado = new ListarMaterialesUseCase(materialRepository)
-                .ejecutar(null, 2, 20);
+        assertThat(useCase.ejecutar("", 1, 20)).isSameAs(esperado);
+        assertThat(useCase.ejecutar("   ", 1, 20)).isSameAs(esperado);
+        verify(materialRepository, org.mockito.Mockito.times(2)).findPage(null, 1, 20);
+    }
 
-        assertThat(resultado).isSameAs(esperado);
-        verify(materialRepository).findPage(null, 2, 20);
+    @Test
+    void recortaEspaciosDelFiltro() {
+        Pagina<Material> esperado = paginaVacia(2, 20);
+        when(materialRepository.findPage("tornillo", 2, 20)).thenReturn(esperado);
+
+        assertThat(new ListarMaterialesUseCase(materialRepository)
+                .ejecutar("  tornillo  ", 2, 20)).isSameAs(esperado);
+        verify(materialRepository).findPage("tornillo", 2, 20);
+    }
+
+    @Test
+    void conservaPaginacionValida() {
+        Pagina<Material> esperado = paginaVacia(2, 100);
+        when(materialRepository.findPage(null, 2, 100)).thenReturn(esperado);
+
+        assertThat(new ListarMaterialesUseCase(materialRepository)
+                .ejecutar(null, 2, 100)).isSameAs(esperado);
+        verify(materialRepository).findPage(null, 2, 100);
+    }
+
+    @Test
+    void rechazaPaginaMenorQueUno() {
+        assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
+                .ejecutar(null, 0, 20))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rechazaTamanoMenorQueUno() {
+        assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
+                .ejecutar(null, 1, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rechazaTamanoMayorQueCien() {
+        assertThatThrownBy(() -> new ListarMaterialesUseCase(materialRepository)
+                .ejecutar(null, 1, 101))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private Pagina<Material> paginaVacia(int pagina, int tamano) {
+        return new Pagina<>(List.of(), 0, pagina, tamano);
     }
 }
