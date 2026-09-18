@@ -1,57 +1,64 @@
 # Productos
 
 Auditoría técnica de solo lectura para definir la integración del catálogo de
-Productos con Módulo C. La auditoría se ejecutó sobre `CALE_IMMEX` en la
-instancia remota configurada por el proyecto y sobre `ANEXO24_DEV` únicamente
-para confirmar el permiso de aplicación. No se modificaron objetos de ninguna
-base de datos.
+Productos con Módulo C bajo la estrategia **STORED PROCEDURE FIRST**. La
+revisión se ejecutó sobre `CALE_IMMEX` en la instancia configurada por el
+proyecto. No se ejecutó ningún stored procedure operativo y no se modificó
+ningún objeto de `CALE_IMMEX` ni de `ANEXO24_DEV`.
 
-**Base de trabajo:** `dev` actualizado con `feature/backend-materials-hardening`.
-**Rama de auditoría:** `feature/backend-products`.
-**Fecha de consulta:** 2026-09-18.
+**Rama:** `feature/backend-products`.
+**Fecha de auditoría:** 2026-09-18.
+**Base auditada:** `CALE_IMMEX`, esquema `dbo`.
+
+## Regla de integración aplicada
+
+Para `GET /api/v1/catalogos/productos` se investigó en este orden:
+
+1. Stored procedures existentes y sus definiciones en `sys.sql_modules`,
+   parámetros en `sys.parameters`, dependencias y metadata del primer result
+   set.
+2. Views existentes y sus definiciones.
+3. No se implementó SQL productivo directo contra tablas.
+
+Las consultas usadas fueron únicamente de metadata (`sys.procedures`,
+`sys.sql_modules`, `sys.parameters`, `sys.objects`, `sys.views`,
+`sys.sql_expression_dependencies` y
+`sys.dm_exec_describe_first_result_set_for_object`) y consultas diagnósticas
+previamente aprobadas. La metadata de algunos procedimientos reportó errores
+estáticos por objetos legacy no resolubles o `xp_cmdshell`; eso no implicó
+invocarlos.
 
 ## Fuente de verdad
 
-La tabla principal confirmada para el catálogo es `dbo.productos` de
-`CALE_IMMEX`.
+`dbo.productos` es la tabla canónica persistente del catálogo en el corte
+consultado. Tiene 204 registros exactos en `CALE_IMMEX`; la auditoría funcional
+histórica reporta aproximadamente 2,630. La discrepancia sigue pendiente de
+reconciliación y no se debe resolver eligiendo otra fuente sin evidencia.
 
-Evidencia:
+La tabla canónica está confirmada por las cargas y procesos que validan o crean
+productos. Sin embargo, bajo la regla nueva **no es todavía una fuente aprobada
+para un adapter de consulta directa**.
 
-- `dbo.productos` existe como tabla de usuario.
-- Tiene 204 registros en la base consultada en esta auditoría.
-- Los procedimientos de carga `CARGA_PRODUCTOS`, `CARGA_FACTURAS`,
-  `CREAPRODUCTOSCARGAFACTURA`, `CARGACONSTANCIAS` y `CARGAPEDIMENTOS` insertan o
-  validan datos contra `dbo.productos`.
-- Las vistas y funciones relacionadas con estructuras, descargos y saldos
-  consumen `dbo.productos`, pero no presentan un contrato de listado paginado
-  de productos.
-- Los procedimientos encontrados son procesos de carga, validación u
-  operación; no se identificó un stored procedure existente que sea una fuente
-  de consulta paginada del catálogo.
+**Estado de integración del caso de uso:**
 
-La auditoría funcional documenta aproximadamente 2,630 productos. La consulta
-actual de `CALE_IMMEX` devolvió 204 registros. La diferencia es un riesgo y queda
-pendiente de reconciliar: puede corresponder a ambiente, fecha de extracción,
-permisos, datos depurados o alcance distinto de la consulta funcional. No debe
-ocultarse mediante una consulta alternativa sin validar el origen.
+> **SIN SP DE CONSULTA — REQUIERE APROBACIÓN PARA SQL DIRECTO**
 
 ## Tablas
 
-| Objeto | Tipo | Registros aproximados/actuales | Uso observado | Estado |
+| Objeto | Tipo | Registros del corte | Uso observado | Estado |
 |---|---|---:|---|---|
-| `dbo.productos` | Tabla principal | 204 exactos | Catálogo persistente de productos | **CONFIRMADO** |
-| `dbo.tmpproductos` | Tabla stage | 0 | Entrada temporal para `CARGA_PRODUCTOS` | **CONFIRMADO** |
-| `dbo.ECargaProducto` | Tabla de errores de carga | 0 | Errores asociados a la carga de productos | **CONFIRMADO** |
-| `dbo.CargaFactura` | Tabla de carga | No se tomó como fuente de catálogo | Alimenta procesos de facturas y altas derivadas | **CONFIRMADO** |
-| `dbo.estructuras` | Tabla de estructuras/BOM | 0 | Versiones de estructura asociadas a producto | **CONFIRMADO** |
-| `dbo.productomaterial` | Tabla detalle de BOM | 0 | Materiales y cantidades por estructura/producto | **CONFIRMADO** |
-| `dbo.cartademateriales` | Stage/entrada de BOM | 0 | Entrada de relaciones producto-material | **CONFIRMADO** |
-| `dbo.material` | Catálogo de materiales | 2 en la consulta actual | Materiales referenciados por BOM | **CONFIRMADO** |
-| `dbo.estructurasML` | Auxiliar de estructuras | 0 | Auxiliar generado por procesos de descarga | **CONFIRMADO** |
+| `dbo.productos` | Tabla canónica | 204 | Catálogo persistente | CONFIRMADO |
+| `dbo.tmpproductos` | Stage | 0 | Entrada de `CARGA_PRODUCTOS` | CONFIRMADO |
+| `dbo.ECargaProducto` | Errores de carga | 0 | Errores de validación de productos | CONFIRMADO |
+| `dbo.CargaFactura` | Stage/carga | No usado como catálogo | Alimenta cargas de facturas | CONFIRMADO |
+| `dbo.estructuras` | BOM | 0 | Versiones de estructura por producto | CONFIRMADO |
+| `dbo.productomaterial` | Detalle BOM | 0 | Materiales por estructura/producto | CONFIRMADO |
+| `dbo.cartademateriales` | Stage BOM | 0 | Entrada para construir estructuras | CONFIRMADO |
+| `dbo.material` | Catálogo de materiales | 2 | Materiales de BOM | CONFIRMADO |
 
-`dbo.v_Estructuras` es una vista de integración de producto, estructura y
-material. No es la fuente recomendada para el catálogo de Productos porque
-puede multiplicar filas por cada componente de una estructura.
+`dbo.v_Estructuras` integra producto, estructura y material; no es fuente de
+catálogo porque puede devolver varias filas por producto, una por componente
+de BOM.
 
 ## Columnas
 
@@ -59,216 +66,328 @@ puede multiplicar filas por cada componente de una estructura.
 
 | Columna | Tipo SQL | Longitud/precisión | Nullable | Evidencia | Estado |
 |---|---|---:|---|---|---|
-| `PRODUCTOKEY` | `numeric(18,0)` | 18,0 | No | Definición de tabla y PK | **CONFIRMADO** |
-| `CVE_PRODUCTO` | `varchar(50)` | 50 | Sí | Cargas, vistas y joins operativos | **CONFIRMADO** como código de producto |
-| `NOMBRE` | `varchar(250)` | 250 | Sí | Cargas y vistas de estructuras | **CONFIRMADO** como nombre/descripción |
-| `UNIDAD` | `varchar(10)` | 10 | Sí | `CARGA_PRODUCTOS` aplica `VALIDUNIT(UNIDAD)` | **CONFIRMADO** como unidad comercial candidata a UMC |
-| `fraccion` | `varchar(12)` | 12 | Sí | Cargas, validaciones y vistas | **CONFIRMADO** |
-| `CVE_PRODUCTO_CLIENTE` | `varchar(30)` | 30 | Sí | `CARGA_PRODUCTOS`, `v_Exportaciones` | **CONFIRMADO** como clave alternativa del cliente |
-| `ALMACENKEY` | `numeric(18,0)` | 18,0 | Sí | Carga mediante `ENTIDAD(DIVISION)` | **CONFIRMADO** como dato auxiliar; significado funcional pendiente |
-| `AUXILIAR` | `varchar(50)` | 50 | Sí | Carga desde `tmpproductos` | **CONFIRMADO** como dato auxiliar |
-| `TIPO` | `varchar(20)` | 20 | Sí | Columna existente | **CONFIRMADO** técnicamente; significado funcional pendiente |
-| `UNIDADT` | `varchar(10)` | 10 | Sí | Columna existente y referencias operativas | **CONFIRMADO** como unidad tarifaria; etiqueta UI pendiente |
-| `NICO` | `varchar(5)` | 5 | Sí | Columna existente y procesos de pedimentos | **CONFIRMADO** técnicamente; fuera del mínimo UI observado |
+| `PRODUCTOKEY` | `numeric(18,0)` | 18,0 | No | PK `PK_productos` | CONFIRMADO |
+| `CVE_PRODUCTO` | `varchar(50)` | 50 | Sí | Cargas, reportes y relaciones operativas | CONFIRMADO como código |
+| `NOMBRE` | `varchar(250)` | 250 | Sí | Cargas y result sets de reportes | CONFIRMADO como descripción |
+| `UNIDAD` | `varchar(10)` | 10 | Sí | `CARGA_PRODUCTOS` valida unidad comercial | CONFIRMADO como unidad comercial |
+| `fraccion` | `varchar(12)` | 12 | Sí | Cargas y validaciones | CONFIRMADO |
+| `CVE_PRODUCTO_CLIENTE` | `varchar(30)` | 30 | Sí | Cargas y exportaciones | CONFIRMADO como clave alternativa |
+| `UNIDADT` | `varchar(10)` | 10 | Sí | Procesos de pedimentos/reportes | CONFIRMADO técnicamente |
+| `NICO` | `varchar(5)` | 5 | Sí | Procesos de pedimentos | CONFIRMADO técnicamente |
+| `TIPO` | `varchar(20)` | 20 | Sí | Definición de tabla | CONFIRMADO técnicamente |
+| `ALMACENKEY` | `numeric(18,0)` | 18,0 | Sí | Carga mediante `ENTIDAD(DIVISION)` | CONFIRMADO como auxiliar |
+| `AUXILIAR` | `varchar(50)` | 50 | Sí | Carga desde stage | CONFIRMADO como auxiliar |
 
-La tabla no tiene defaults relevantes para las columnas del catálogo. La
-consulta de calidad devolvió, para el corte actual:
+Calidad del corte actual: 204 `PRODUCTOKEY` no nulos y distintos; 204
+`CVE_PRODUCTO` no nulos, no blank y distintos. Es una condición de datos, no
+una garantía DDL para `CVE_PRODUCTO`.
 
-- 204 filas.
-- 204 `PRODUCTOKEY` distintos y no nulos.
-- 204 `CVE_PRODUCTO` distintos y no nulos/no blank.
-- Ningún `NOMBRE`, `UNIDAD` o `fraccion` nulo o blank en la muestra actual.
-
-Esas condiciones de datos actuales no sustituyen las restricciones de esquema:
-las columnas funcionales siguen declaradas nullable.
-
-### Matriz de mapeo UI → BD
+### Matriz UI → BD
 
 | Campo UI | Campo BD | Tipo | Evidencia | Estado |
 |---|---|---|---|---|
-| Número de parte / código de producto | `CVE_PRODUCTO` | `varchar(50)` nullable | El sistema y los SP lo usan como código, clave de producto y criterio de existencia | **CONFIRMADO** como código; **INFERIDO** como etiqueta exacta “número de parte” |
-| Descripción | `NOMBRE` | `varchar(250)` nullable | `CARGA_PRODUCTOS` carga `NOMBRE`; vistas lo presentan como descripción | **CONFIRMADO** |
-| Fracción | `fraccion` | `varchar(12)` nullable | `CARGA_PRODUCTOS` valida longitud; procesos y vistas la consultan | **CONFIRMADO** |
-| UMC / unidad comercial | `UNIDAD` | `varchar(10)` nullable | `CARGA_PRODUCTOS` la valida como unidad comercial; procedimientos la usan para operaciones | **CONFIRMADO** como unidad comercial; etiqueta UMC **INFERIDA** |
-| Unidad / unidad tarifaria | `UNIDADT` | `varchar(10)` nullable | Columna explícita y referencias a unidad tarifa en procesos de pedimentos | **CONFIRMADO** técnicamente; etiqueta UI exacta **PENDIENTE DE VALIDAR** |
-| Clave del cliente | `CVE_PRODUCTO_CLIENTE` | `varchar(30)` nullable | Campo alternativo validado por `CARGA_PRODUCTOS` | **CONFIRMADO** como dato auxiliar; no incluir como filtro sin validar UX |
-| Clave técnica | `PRODUCTOKEY` | `numeric(18,0)` NOT NULL | PK clustered única | **CONFIRMADO** |
+| Número de parte / código | `CVE_PRODUCTO` | `varchar(50)` nullable | Se usa como código en cargas, reportes y relaciones operativas | CONFIRMADO como código; etiqueta exacta INFERIDA |
+| Descripción | `NOMBRE` | `varchar(250)` nullable | Carga y reportes lo exponen como descripción | CONFIRMADO |
+| Fracción | `fraccion` | `varchar(12)` nullable | Validación de carga y reportes | CONFIRMADO |
+| UMC / unidad comercial | `UNIDAD` | `varchar(10)` nullable | `CARGA_PRODUCTOS` aplica validación de unidad | CONFIRMADO como unidad; etiqueta UMC INFERIDA |
+| Unidad tarifaria | `UNIDADT` | `varchar(10)` nullable | `PR_INFORME_IMPORTACIONES` la devuelve como unidad de medida tarifa | CONFIRMADO técnicamente; etiqueta UI PENDIENTE DE VALIDAR |
+| Clave técnica | `PRODUCTOKEY` | `numeric(18,0)` NOT NULL | PK clustered y unique | CONFIRMADO |
+| Clave del cliente | `CVE_PRODUCTO_CLIENTE` | `varchar(30)` nullable | Se usa en exportaciones/CTM | CONFIRMADO como alternativa; filtro PENDIENTE |
 
 ## Claves
 
-- **Clave técnica:** `PRODUCTOKEY`.
-  - `NOT NULL`.
-  - `PRIMARY KEY` `PK_productos`.
-  - Índice clustered y unique por ser PK.
-- **Clave funcional:** `CVE_PRODUCTO`, usada por los SP, vistas y relaciones
-  operativas como código/número de producto.
-  - Actualmente todos los 204 valores son distintos y no nulos.
-  - El esquema la declara nullable y no existe una unique constraint.
-  - Por tanto, la unicidad funcional actual es un hecho de datos, no una
-    garantía formal de DDL.
-- `CVE_PRODUCTO_CLIENTE` es una clave alternativa de cliente, no se confirmó
-  como clave funcional global.
+- `PRODUCTOKEY` es la clave técnica: `NOT NULL`, PK `PK_productos`, clustered y
+  unique.
+- `CVE_PRODUCTO` es la clave funcional usada por los procesos; el DDL la declara
+  nullable y no declara unique constraint.
+- No se confirmó una clave funcional alternativa global en
+  `CVE_PRODUCTO_CLIENTE`.
 
 ## Índices
 
-Para `dbo.productos` se confirmó:
+La metadata confirmó únicamente:
 
 | Índice | Tipo | Unique | Columnas | Estado |
 |---|---|---|---|---|
-| `PK_productos` | `CLUSTERED` | Sí | `PRODUCTOKEY` | **CONFIRMADO** |
+| `PK_productos` | Clustered | Sí | `PRODUCTOKEY` | CONFIRMADO |
 
-No se observaron índices secundarios ni unique constraints sobre
-`CVE_PRODUCTO` en la metadata consultada. La única entrada de índice reportada
-para `dbo.productos` fue su PK clustered.
-
-Implicación: los filtros por `CVE_PRODUCTO`, `NOMBRE` y `fraccion` pueden
-requerir scans en el estado actual. No se debe crear un índice desde este
-mapeo; cualquier cambio de DDL requiere una decisión separada del propietario
-de Módulo C.
+No se confirmaron índices secundarios ni unique constraint sobre
+`CVE_PRODUCTO`. No se crea ni propone crear DDL como parte de esta auditoría.
 
 ## Stored procedures
 
-La revisión de `docs/03-diseno/procedimientos-almacenados.md` se contrastó con
-las definiciones actuales de `sys.sql_modules`. Se encontraron 36
-procedimientos con referencia textual a `PRODUCT`/`PRODUCTOS`; 52 aparecieron
-en la búsqueda amplia que también incluyó familias de carga, facturas y
-estructuras. La referencia textual no significa que todos sean fuentes del
-catálogo.
+### Inventario y clasificación de candidatos
 
-### Procedimientos de carga y mantenimiento del catálogo
+La búsqueda amplia encontró 38 procedimientos con nombre o definición
+relacionados con productos, catálogos, consultas, reportes, informes, cargas,
+estructuras, saldos o descargos. La clasificación es estática a partir de la
+definición; no se ejecutaron.
 
-| Procedimiento | Parámetros | Consulta/lee | Modifica | Resultado/objetivo aparente | Estado |
-|---|---|---|---|---|---|
-| `CARGA_PRODUCTOS` | Ninguno | `tmpproductos`, `ECargaProducto`, `unidad`, funciones `VALIDUNIT` y `ENTIDAD` | `ECargaProducto`, `productos` | Valida unidad, fracción, claves, descripción y duplicados; inserta productos válidos desde stage | **CONFIRMADO**, carga |
-| `CARGA_FACTURAS` | Ninguno | `TFACTURA`, `productos`, `TERRORFACTURA`, `FACTURA` | `productos`, `TERRORFACTURA`, `clientes`, `FACTURA`, `SALIDAS`, `PSALIDAS`, `GENERADORES` | Crea productos faltantes desde facturas y continúa el proceso de facturación | **CONFIRMADO**, carga/proceso |
-| `CREAPRODUCTOSCARGAFACTURA` | `@FACTURA varchar(50)` | `CARGAFACTURA`, `productos`, funciones de validación | `productos` | Crea productos faltantes de una factura si unidad, fracción y longitud cumplen | **CONFIRMADO**, carga |
-| `CARGACONSTANCIAS` | Ninguno | `CONSTANCIATRANSF`, `productos`, `settings` | `ERRORCARGA`, `productos`, `IMPORTACIONES`, `PARTIDAS`, `SALIDAS`, `PSALIDAS`, `DIRIGIDO` | Opcionalmente crea productos desde constancias y procesa operaciones | **CONFIRMADO**, carga/proceso |
-| `CARGAPEDIMENTOS` | Ninguno | `CARGAPEDIMENTOSIE`, `productos`, `material`, funciones de unidad/factor | `ERRORCARGA`, `productos`, `material`, `IMPORTACIONES`, `PARTIDAS`, `SALIDAS`, `PSALIDAS`, `DIRIGIDO` | Valida y crea productos/materiales a partir de pedimentos; carga operaciones | **CONFIRMADO**, carga/proceso |
+| Stored procedure | Tipo | Lectura/escritura | Uso observado | Estado |
+|---|---|---|---|---|
+| `BLOQUEA_DOCUMENTO` | COMMAND | WRITE | Bloqueo y cambios operativos | CONFIRMADO |
+| `CARGA_ENCABEZADOS` | IMPORT | WRITE | Importación de encabezados | CONFIRMADO |
+| `CARGA_ESTRUCTURADESENSAMBLE` | IMPORT | WRITE | Carga de desensamble | CONFIRMADO |
+| `CARGA_FACTURAS` | IMPORT | WRITE | Crea productos/clientes y procesa facturas | CONFIRMADO |
+| `CARGA_PRODUCTOS` | IMPORT | WRITE | Valida stage e inserta productos | CONFIRMADO |
+| `CARGA_SUBMAQUILA` | PROCESS | MIXED | Proceso de submaquila | CONFIRMADO |
+| `CARGAACTAS` | PROCESS | MIXED | Carga/proceso de actas; consulta producto como fallback | CONFIRMADO |
+| `CARGACONSTANCIAS` | IMPORT/PROCESS | WRITE | Crea productos desde constancias y procesa salidas | CONFIRMADO |
+| `CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | WRITE | Valida productos y crea salidas | CONFIRMADO |
+| `CARGAPEDIMENTOS` | IMPORT/PROCESS | WRITE | Valida/crea productos y materiales desde pedimentos | CONFIRMADO |
+| `CREAESTRUCTURAS` | PROCESS | WRITE | Construye BOM producto-material | CONFIRMADO |
+| `CREAPRODUCTOSCARGAFACTURA` | IMPORT | WRITE | Crea productos faltantes de una factura | CONFIRMADO |
+| `DESCARGASALIDAPEPS` | PROCESS | WRITE | Explosión de estructuras y descargo PEPS | CONFIRMADO |
+| `DESCARGASCTMF` | PROCESS | WRITE | Genera datos de descarga CTM | CONFIRMADO |
+| `DESCARGATSALIDA1` | PROCESS | WRITE | Descarga general y explosión | CONFIRMADO |
+| `DESCARGATSALIDAFECHA` | PROCESS | WRITE | Descarga hasta una fecha | CONFIRMADO |
+| `DESCARGAXFECHA51` | PROCESS | WRITE | Descarga por fecha y estructuras auxiliares | CONFIRMADO |
+| `ESTRUCTURAS1A1` | PROCESS | WRITE | Genera stage y llama a `CREAESTRUCTURAS` | CONFIRMADO |
+| `INFORME_CONCENTRADOSALDOS` | REPORT | WRITE | Calcula y llena `CONCENTRADOSALDOS` | CONFIRMADO |
+| `INSERTAPEDIMENTO` | COMMAND | WRITE | Inserta/rectifica pedimentos y operaciones | CONFIRMADO |
+| `INSTERTAFACTURASFC` | IMPORT | WRITE | Importa/crea facturas | CONFIRMADO |
+| `LIGACTMFACTURA` | PROCESS | WRITE | Vincula CTM y facturas | CONFIRMADO |
+| `PR_INFORME_ESTRUCTURAS` | REPORT | READ ONLY | Reporte de estructura con producto/material | CONFIRMADO |
+| `PR_INFORME_EXPORTACIONES` | REPORT | READ ONLY | Reporte de exportaciones con líneas de producto | CONFIRMADO |
+| `PR_INFORME_IMPORTACIONES` | REPORT | READ ONLY | Reporte de importaciones con partida/producto | CONFIRMADO |
+| `PR_INFORME_SALDOS` | REPORT | READ ONLY | Reporte de saldos por partida/material | CONFIRMADO |
+| `PROC_DESCARGASF4CTMA` | PROCESS | WRITE | Procesa descargas F4 CTMA | CONFIRMADO |
+| `PROC_HISTORIADESCARGASALIDA` | REPORT/PROCESS | WRITE | Recalcula y llena historial de descargas | CONFIRMADO |
+| `PROC_HISTORIADESCARGASALIDA;1` | REPORT/PROCESS | WRITE | Variante del historial de descargas | CONFIRMADO |
+| `PROC_HISTORIADESCARGASALIDAFALTANTES` | REPORT/PROCESS | WRITE | Historial de faltantes | CONFIRMADO |
+| `SALDOS` | CALCULATION | WRITE | Calcula y registra descargos/saldos | CONFIRMADO |
+| `SALDOS_FAMILIA` | CALCULATION | WRITE | Calcula descargos por familia | CONFIRMADO |
+| `SALDOS2` | CALCULATION | WRITE | Variante del cálculo de saldos | CONFIRMADO |
+| `SALDOSDIRIGIDOS` | CALCULATION | WRITE | Cálculo de descargos dirigidos | CONFIRMADO |
+| `SP_GENERA_TXT_COMPLETO` | EXPORT | MIXED | Normaliza datos, exporta por `bcp` y usa `xp_cmdshell` | CONFIRMADO |
+| `SP_MensajesInicio` | MAINTENANCE | WRITE | Regenera mensajes de calidad, incluidos duplicados | CONFIRMADO |
+| `Trazo_report` | REPORT | WRITE | Regenera `ANALISIS_MATERIALES` | CONFIRMADO |
+| `VALIDA_I_DETALLENP` | VALIDATION | WRITE/MIXED | Valida e inserta errores de pedimentos | CONFIRMADO |
 
-Ninguno de estos procedimientos expone un contrato estable de consulta
-paginada para `GET /api/v1/catalogos/productos`. Sus definiciones contienen
-`INSERT`, `UPDATE`, `DELETE`, tablas de stage o procesos operativos. No deben
-invocarse para resolver un endpoint de lectura.
+### Parámetros confirmados
 
-### Procedimientos de estructuras y relaciones
+Los procedimientos sin parámetros no aparecen en esta tabla. Los tipos son los
+reportados por `sys.parameters`; los valores por defecto no están declarados en
+los parámetros de estos candidatos.
 
-| Procedimiento | Parámetros | Consulta/lee | Modifica | Objetivo aparente | Estado |
-|---|---|---|---|---|---|
-| `CREAESTRUCTURAS` | Ninguno | `cartademateriales`, `productos`, `material`, `estructuras`, funciones de unidad/factor | `estructuras`, `productomaterial`, `alternativo`, `errorCartaMateriales`, `generadores` | Construye estructuras y sus componentes a partir de una carta de materiales | **CONFIRMADO**, proceso de BOM |
-| `ESTRUCTURAS1A1` | Ninguno | `PARTIDAS`, `productomaterial` | `cartademateriales`; invoca `CREAESTRUCTURAS` | Genera una carta auxiliar y dispara la creación de estructuras | **CONFIRMADO**, proceso |
+| Procedimiento | Parámetros de entrada | Parámetros de salida |
+|---|---|---|
+| `BLOQUEA_DOCUMENTO` | `@PEDIMENTO varchar(50)`, `@BLOQUEADO int`, `@FOLIO int` | Ninguno |
+| `CARGAFACTURASENPSALIDAS` | `@PEDIMENTO varchar(50)`, `@FACTURA varchar(50)` | Ninguno |
+| `CREAPRODUCTOSCARGAFACTURA` | `@FACTURA varchar(50)` | Ninguno |
+| `DESCARGASALIDAPEPS` | `@SALIDAKEY int` | Ninguno |
+| `DESCARGATSALIDAFECHA` | `@HASTA datetime` | Ninguno |
+| `DESCARGAXFECHA51` | `@hasta datetime` | Ninguno |
+| `INFORME_CONCENTRADOSALDOS` | `@DESDE date`, `@HASTA date` | Ninguno |
+| `INSERTAPEDIMENTO` | `@ITEM char(30)` | Ninguno |
+| `PR_INFORME_ESTRUCTURAS` | `@PRODUCTO varchar(50)`, `@MATERIAL varchar(50)`, `@DESDE datetime`, `@HASTA datetime` | Ninguno |
+| `PR_INFORME_EXPORTACIONES` | `@DESDE datetime`, `@HASTA datetime`, `@documento varchar(50)` | Ninguno |
+| `PR_INFORME_IMPORTACIONES` | `@DESDE datetime`, `@HASTA datetime`, `@documento varchar(50)` | Ninguno |
+| `PR_INFORME_SALDOS` | `@DESDE datetime`, `@HASTA datetime`, `@documento varchar(50)` | Ninguno |
+| `PROC_DESCARGASF4CTMA` | `@DESDE datetime`, `@HASTA datetime`, `@DOCUMENTO varchar(20)` | Ninguno |
+| `PROC_HISTORIADESCARGASALIDA` | `@DESDE datetime`, `@HASTA datetime`, `@PROD varchar(50)`, `@CLAVE varchar(10)`, `@DOCUMENTO varchar(20)` | Ninguno |
+| `PROC_HISTORIADESCARGASALIDA;1` | Igual que `PROC_HISTORIADESCARGASALIDA` | Ninguno |
+| `PROC_HISTORIADESCARGASALIDAFALTANTES` | `@DESDE datetime`, `@HASTA datetime`, `@PROD varchar(50)`, `@CLAVE varchar(10)`, `@DOCUMENTO varchar(20)` | Ninguno |
+| `SALDOS` | `@ITEM varchar(50)`, `@TOTINCORPORADO numeric(18,6)`, `@TOTDESPERDICIADO numeric(18,6)`, `@TOTMERMADO numeric(18,6)`, `@SALIDALINK bigint`, `@PSALIDALINK bigint`, `@TIPO char(10)`, `@FECHAEXPORT datetime`, `@LINEA bigint`, `@PRODMATKEY bigint` | `@faltodescarga numeric(18,6) OUTPUT` |
+| `SALDOS_FAMILIA` | Igual que `SALDOS` | `@faltodescarga numeric(18,6) OUTPUT` |
+| `SALDOS2` | `@ITEM varchar(50)`, `@TOTINCORPORADO float`, `@TOTDESPERDICIADO float`, `@TOTMERMADO float`, `@SALIDALINK float`, `@PSALIDALINK float`, `@TIPO char(10)`, `@FECHAEXPORT datetime` | Ninguno |
+| `SALDOSDIRIGIDOS` | `@ITEM varchar(50)`, `@TOTINCORPORADO float`, `@TOTDESPERDICIADO float`, `@TOTMERMADO float`, `@SALIDALINK float`, `@PSALIDALINK float`, `@PEDIMENTO varchar(30)`, `@FACTURAI varchar(50)` | Ninguno |
+| `Trazo_report` | `@material varchar(100)` | Ninguno |
+| `VALIDA_I_DETALLENP` | `@PEDIMENTO varchar(50)`, `@TIPO int` | Ninguno |
 
-### Procedimientos operativos que consumen Productos
+### Procedimientos que pueden confundirse con una consulta de Productos
 
-| Procedimientos | Parámetros confirmados | Uso observado | Clasificación |
+#### `CARGA_PRODUCTOS`
+
+- **Tipo:** `IMPORT`.
+- **Lecturas:** `tmpproductos`, `ECargaProducto`, `unidad`, funciones
+  `VALIDUNIT` y `ENTIDAD`.
+- **Escrituras:** borra/inserta `ECargaProducto` e inserta filas en
+  `productos`.
+- **Result set:** no hay result set catalogal confirmado.
+- **Reglas observadas:** valida unidad, longitud de fracción, longitud de clave,
+  longitud de descripción y duplicados; después inserta los registros válidos.
+- **Efecto:** escritura destructiva en tabla de errores y altas en catálogo.
+- **Conclusión:** no se puede invocar para un GET.
+
+#### `CARGA_FACTURAS` y `CREAPRODUCTOSCARGAFACTURA`
+
+Ambos crean productos faltantes durante una carga de factura. Consultan
+`TFACTURA`/`CARGAFACTURA` y `productos`, y escriben en `productos`; además
+`CARGA_FACTURAS` modifica clientes, facturas, salidas y sus detalles.
+`CREAPRODUCTOSCARGAFACTURA` recibe `@FACTURA` y no devuelve el catálogo.
+
+#### `CARGACONSTANCIAS`, `CARGAPEDIMENTOS` y
+`CARGAFACTURASENPSALIDAS`
+
+Validan códigos contra `productos` y, según el proceso, crean productos,
+materiales, importaciones, partidas, salidas, errores o dirigidos. Son
+`IMPORT/PROCESS` con escritura y sin contrato de lectura paginada.
+
+#### `PR_INFORME_ESTRUCTURAS`
+
+- **Tipo:** `REPORT`, read-only.
+- **Parámetros:** producto, material y rango de fechas.
+- **Lee:** `productos`, `estructuras`, `productomaterial`, `material`, `salidas`
+  y `psalidas`.
+- **Result set:** 16 columnas, entre ellas código, descripción, unidad,
+  producto interno, material, cantidades, fracciones, fechas y claves de BOM.
+- **Orden:** código A24 interno, código de producto y fecha de inicio.
+- **Conclusión:** devuelve una fila por relación producto-material/estructura;
+  no devuelve el catálogo de productos sin BOM y no ofrece paginación.
+
+#### `PR_INFORME_IMPORTACIONES`
+
+- **Tipo:** `REPORT`, read-only.
+- **Parámetros:** rango de fechas o documento.
+- **Lee:** `importaciones`, `partidas`, `categorias`, `proveedores` y datos
+  operativos relacionados.
+- **Result set:** 76 columnas; incluye `Numero de parte`, `Descripcion
+  mercancia`, `Fraccion Arancelaria`, `Unidad de medida comercial`, `Cantidad
+  en Unidad Tarifa` y `Unidad de medida tarifa`.
+- **Conclusión:** es un reporte de partidas de importación; puede repetir un
+  producto y no es un catálogo estable ni paginado.
+
+#### `PR_INFORME_EXPORTACIONES` y `PR_INFORME_SALDOS`
+
+Son reportes read-only con parámetros de fecha/documento. Devuelven líneas de
+operación o saldos, no filas canónicas de `productos`. `PR_INFORME_EXPORTACIONES`
+incluye código, descripción, fracción y unidad provenientes de salidas;
+`PR_INFORME_SALDOS` incluye clave, descripción, fracción, unidad y saldo por
+partida. Ninguno tiene filtro de catálogo ni paginación.
+
+#### `SP_GENERA_TXT_COMPLETO`
+
+Contiene una extracción `bcp` de `PRODUCTOS` con `PRODUCTOKEY`,
+`CVE_PRODUCTO`, `NOMBRE`, `UNIDAD`, `FRACCION` y `UNIDADT`, pero no es una API de
+consulta: primero ejecuta varios `UPDATE`, usa `xp_cmdshell`, genera archivos en
+una ruta del servidor y exporta otros dominios. Se clasifica `EXPORT/MIXED` y no
+debe ser invocado por el backend para un GET.
+
+### Result sets conocidos
+
+| Procedimiento/familia | Result set | Paginación | Efectos |
 |---|---|---|---|
-| `CARGAFACTURASENPSALIDAS` | `@PEDIMENTO varchar(50)`, `@FACTURA varchar(50)` | Valida código, fracción y unidad contra `productos`; inserta `PSALIDAS` y errores | **CONFIRMADO**, proceso |
-| `CARGA_SUBMAQUILA` | Ninguno | Consulta `productos` para completar fracción de `PSALIDAS`; modifica salidas | **CONFIRMADO**, proceso |
-| `CARGAACTAS` | Ninguno | Usa `productos` como fallback cuando no encuentra datos en `material` | **CONFIRMADO**, proceso |
-| `DESCARGASALIDAPEPS` | No confirmado en esta extracción | Usa producto, estructura y `productomaterial` para explosión de descargos | **CONFIRMADO** por definición; parámetros/resultados exactos **PENDIENTES** |
-| `DESCARGASCTMF` | Ninguno | Genera salida de CTM y consulta datos asociados a producto | **CONFIRMADO**, proceso |
-| `DESCARGATSALIDA1`, `DESCARGATSALIDAFECHA`, `DESCARGAXFECHA51` | Ninguno / fecha en `DESCARGATSALIDAFECHA` | Procesan descargos, estructuras y auxiliares; no son catálogo | **CONFIRMADO**, proceso |
-| `LIGACTMFACTURA` | Ninguno | Consulta `PRODUCTOS.CVE_PRODUCTO_CLIENTE` para reportar CTM | **CONFIRMADO**, proceso |
+| `PR_INFORME_ESTRUCTURAS` | Conocido, 16 columnas de BOM | No | Read-only |
+| `PR_INFORME_EXPORTACIONES` | Conocido, 49 columnas operativas | No | Read-only |
+| `PR_INFORME_IMPORTACIONES` | Conocido, 76 columnas de partidas | No | Read-only |
+| `PR_INFORME_SALDOS` | Conocido, 37 columnas de saldos | No | Read-only |
+| Cargas/procesos restantes | No hay contrato de result set catalogal confirmado | No | Escrituras, cursores o procesos |
+| `SP_GENERA_TXT_COMPLETO` | Exportación por archivos, no result set API | No | `UPDATE` + `xp_cmdshell` |
 
-### Inventario completo de referencias textuales
+La metadata del primer result set no pudo determinar resultado para
+`CARGA_ENCABEZADOS` por una referencia a `dbo.NP`, para `INSERTAPEDIMENTO` por
+una referencia a `PEDIMENTOS` y para `SP_GENERA_TXT_COMPLETO` por
+`xp_cmdshell`. Esto es una limitación de metadata; no se ejecutaron para
+averiguarlo.
 
-Los siguientes procedimientos también contienen referencias textuales a
-Productos, pero no fueron considerados fuente de consulta del catálogo:
+## Dependencias
 
-`BLOQUEA_DOCUMENTO`, `CARGA_ENCABEZADOS`, `CARGA_ESTRUCTURADESENSAMBLE`,
-`CARGA_FACTURAS`, `CARGA_PRODUCTOS`, `CARGA_SUBMAQUILA`, `CARGAACTAS`,
-`CARGACONSTANCIAS`, `CARGAFACTURASENPSALIDAS`, `CARGAPEDIMENTOS`,
-`CREAESTRUCTURAS`, `CREAPRODUCTOSCARGAFACTURA`, `DESCARGASALIDAPEPS`,
-`DESCARGASCTMF`, `DESCARGATSALIDA1`, `DESCARGATSALIDAFECHA`,
-`DESCARGAXFECHA51`, `ESTRUCTURAS1A1`, `INSERTAPEDIMENTO`, `INSTERTAFACTURASFC`,
-`LIGACTMFACTURA`, `PR_INFORME_ESTRUCTURAS`, `PR_INFORME_EXPORTACIONES`,
-`PR_INFORME_SALDOS`, `PROC_DESCARGASF4CTMA`, `PROC_HISTORIADESCARGASALIDA`,
-`PROC_HISTORIADESCARGASALIDA;1`, `PROC_HISTORIADESCARGASALIDAFALTANTES`,
-`SALDOS`, `SALDOS_FAMILIA`, `SALDOS2`, `SALDOSDIRIGIDOS`,
-`SP_GENERA_TXT_COMPLETO`, `SP_MensajesInicio`, `Trazo_report` y
-`VALIDA_I_DETALLENP`.
-
-Para los procedimientos operativos secundarios la metadata comprobó la
-referencia, pero esta auditoría no los propone para el endpoint ni reimplementa
-sus reglas. Sus parámetros, result sets y tablas exactas deben revisarse en la
-fase del módulo que los necesite. Estado: **INFERIDO/PENDIENTE DE VALIDAR**
-según el caso.
-
-## Relaciones
-
-### Relaciones comprobables por DDL
-
-La consulta a `sys.foreign_keys` no devolvió foreign keys que involucren
-`productos`, `estructuras`, `productomaterial` o `material`. Por lo tanto, no
-existe una relación referencial declarada que pueda reportarse como FK real.
-
-### Relaciones inferidas por columnas y SQL existente
+### Dependencias comprobadas relevantes
 
 ```text
-productos.PRODUCTOKEY
-        │  (referenciado por nombre PRODUCTOLINK)
-        ▼
-estructuras.PRODUCTOLINK
-        │  (referenciado por nombre ESTRUCTURALINK)
-        ▼
-productomaterial.ESTRUCTURALINK
-        │
-        └── productomaterial.PRODUCTOLINK ──► productos.PRODUCTOKEY
+ESTRUCTURAS1A1
+    └── CREAESTRUCTURAS
+          ├── dbo.productos
+          ├── dbo.material
+          ├── dbo.estructuras
+          ├── dbo.productomaterial
+          ├── dbo.cartademateriales
+          ├── dbo.VALIDUNIT
+          ├── dbo.EXISTEFACTOR
+          └── dbo.FACTOR
 
-productomaterial.CVE_MATERIAL ──► material.CLAVE
+DESCARGASALIDAPEPS / DESCARGATSALIDA1 / DESCARGATSALIDAFECHA
+    ├── GETPRODUCTSTRUCT
+    │     ├── dbo.productos
+    │     └── dbo.estructuras
+    └── SALDOS
+          ├── dbo.productomaterial
+          ├── dbo.material
+          ├── dbo.partidas
+          └── dbo.descarga
 
-cartademateriales.CODIGODEPRODUCTO ──(por CREAESTRUCTURAS)──► productos.CVE_PRODUCTO
-cartademateriales.CODIGODEMATERIAL1 ──(por CREAESTRUCTURAS)──► material.CLAVE
+PR_INFORME_ESTRUCTURAS
+    ├── dbo.productos
+    ├── dbo.estructuras
+    ├── dbo.productomaterial
+    ├── dbo.material
+    ├── dbo.salidas
+    └── dbo.psalidas
 ```
 
-- `productos → estructuras` está inferido por `ESTRUCTURAS.PRODUCTOLINK` y
-  por `CREAESTRUCTURAS`.
-- `estructuras → productomaterial` está inferido por
-  `PRODUCTOMATERIAL.ESTRUCTURALINK` y por las vistas/procedimientos.
-- `productomaterial → material` está inferido por `CVE_MATERIAL` frente a
-  `material.CLAVE`; no es FK DDL.
-- La relación de `cartademateriales` es una relación de stage por códigos y
-  reglas del procedimiento, no una FK.
+`CARGA_PRODUCTOS` usa funciones de validación y escribe el catálogo; las cargas
+de facturas/constancias/pedimentos dependen de `productos` para validaciones y
+altas. Las referencias obtenidas de `sys.sql_expression_dependencies` no
+representan FKs ni garantizan que la dependencia dinámica esté completamente
+resuelta.
 
-No se implementará Estructuras en esta fase.
+No se confirmó una cadena `SP de catálogo → otro SP de catálogo` que pudiera
+adaptarse a `GET /api/v1/catalogos/productos`.
 
-## Mapeo UI → BD
+## Views relacionadas
 
-El sistema legado documentó para Productos: fracción, descripción, unidad, UMC
-y número de parte. El mapeo técnico queda así:
+La búsqueda encontró estas views con referencias a productos o a procesos que
+los presentan:
 
-- `CVE_PRODUCTO` es el código funcional usado por el sistema para identificar
-  el producto; se propone como número de parte de consulta, pero la equivalencia
-  exacta del texto de la pantalla queda **INFERIDA**.
-- `NOMBRE` corresponde a descripción.
-- `fraccion` corresponde a fracción arancelaria.
-- `UNIDAD` es la unidad comercial validada por `CARGA_PRODUCTOS` y es la mejor
-  correspondencia confirmada para UMC.
-- `UNIDADT` es la unidad tarifaria; no se confirmó qué etiqueta visible del
-  legado la mostraba como “unidad”.
-- `CVE_PRODUCTO_CLIENTE` es una clave de cliente y no debe confundirse con el
-  número de parte global sin una validación de UX/negocio.
+| View | Tipo de datos | Por qué no sirve como catálogo |
+|---|---|---|
+| `dbo.v_Estructuras` | Producto + estructura + material | Multiplica filas por BOM; no es catálogo |
+| `dbo.INFORME_CARGA_CARTA` | Stage/error de carta de materiales | Es diagnóstico de carga |
+| `dbo.Explosion` | Explosión de descargos | Operación; mezcla producto y material |
+| `dbo.v_Exportaciones` | Exportaciones | Filas operativas y sin paginación de catálogo |
+| `dbo.v_saldos` | Saldos | Reporte por partida/saldo |
+| `dbo.INFORMEDESCARGOS` | Descargos | Reporte operativo |
+| `dbo.V_INFORMEDESCARGAS` | Descargas | Reporte operativo |
+| `dbo.V_STATUS_DESCARGAS` | Estado de descargas | Estado/BOM, no catálogo |
+| `dbo.V_INFORME_F4_CTMAPAA` | CTM | Reporte operativo |
+| `dbo.VReporteAplicaciondesperdicios` | Desperdicios | Reporte operativo |
+| `dbo.v_descarga` | Descargos | Cálculos de descarga |
+
+No se identificó una view dedicada al catálogo de productos con contrato de
+filtros y paginación. En particular, `v_Estructuras` e `INFORME_CARGA_CARTA`
+requieren datos/relaciones de BOM o stage que no representan todos los productos.
+
+## Caso de uso y fuente recomendada
+
+**Caso de uso:** Consulta de productos.
+
+**Endpoint:** `GET /api/v1/catalogos/productos`.
+
+**Resultado de la investigación:**
+
+- **SP adecuado:** no existe uno confirmado.
+- **View adecuada:** no existe una view canónica confirmada.
+- **Fuente canónica de datos:** `dbo.productos`, confirmada como tabla, pero no
+  autorizada todavía para SQL productivo directo.
+- **Decisión:** detener implementación y solicitar aprobación explícita antes de
+  crear `ProductoJdbcAdapter` con SQL directo.
+
+La opción de consulta directa sería técnicamente una consulta parametrizada sobre
+`dbo.productos` con `COUNT(*)`, filtros y `ORDER BY CVE_PRODUCTO, PRODUCTOKEY`,
+pero queda como propuesta, no como implementación aprobada.
 
 ## Filtros
 
-Filtros propuestos únicamente con evidencia suficiente:
+Filtros funcionales respaldados por la auditoría previa:
 
-| Filtro API propuesto | Columna | Estado | Observación |
-|---|---|---|---|
-| `filtro` para número de parte/código | `CVE_PRODUCTO` | **INFERIDO**, respaldado por uso operativo | Buscar por coincidencia parcial si se conserva el patrón de Materiales |
-| `filtro` para descripción | `NOMBRE` | **CONFIRMADO** por mapeo de columna | La pantalla histórica documenta descripción |
-| `filtro` para fracción | `fraccion` | **CONFIRMADO** | La pantalla histórica documenta fracción |
+| Filtro propuesto | Columna | Estado |
+|---|---|---|
+| Número de parte/código | `CVE_PRODUCTO` | INFERIDO como etiqueta; columna confirmada |
+| Descripción | `NOMBRE` | CONFIRMADO |
+| Fracción | `fraccion` | CONFIRMADO |
 
-No se propone aún un filtro separado por `CVE_PRODUCTO_CLIENTE`, `UNIDADT`,
-`NICO`, `TIPO` o `ALMACENKEY` porque no están confirmados como filtros del
-catálogo legado.
+No se propone todavía filtrar por `CVE_PRODUCTO_CLIENTE`, `UNIDADT`, `NICO`,
+`TIPO` o `ALMACENKEY`. Los SP auditados no ofrecen estos filtros como contrato
+de catálogo.
 
 ## Paginación
 
-El contrato propuesto conserva el patrón aprobado para Materiales:
+Si se aprueba SQL directo, la API conservaría el contrato de Materiales:
 
 - `pagina >= 1`.
 - `1 <= tamano <= 100`.
-- Sin normalización silenciosa de valores inválidos.
+- `pagina` por defecto 1 y `tamano` por defecto 20.
 - Respuesta:
 
 ```json
@@ -280,71 +399,61 @@ El contrato propuesto conserva el patrón aprobado para Materiales:
 }
 ```
 
-Orden determinista propuesto para la consulta directa:
+Los procedimientos y views auditados no exponen paginación SQL para este caso.
+No se debe envolver ni modificar un SP existente automáticamente.
+
+Si se autoriza consulta directa, el orden determinista propuesto es:
 
 ```sql
 ORDER BY CVE_PRODUCTO, PRODUCTOKEY
 ```
 
-Justificación:
-
-- `CVE_PRODUCTO` es la clave funcional y el orden visible esperado.
-- `PRODUCTOKEY` es `NOT NULL`, PK, unique y clustered; desempata códigos
-  funcionales repetidos o futuros datos sin unique constraint.
-- `CVE_PRODUCTO` está declarado nullable, por lo que el código debe tolerar
-  nulos aunque el corte actual no contiene ninguno.
-- No se propone ordenar por `NOMBRE`, `fraccion` o `CVE_PRODUCTO_CLIENTE` porque
-  no son claves únicas y pueden cambiar o repetirse.
+`CVE_PRODUCTO` refleja el orden funcional y `PRODUCTOKEY` es el desempate
+estable. El orden no se ha implementado.
 
 ## Seguridad
 
-El permiso `PRODUCTOS_CONSULTAR` existe en el seed de `app24` y fue confirmado
-contra `ANEXO24_DEV`:
-
-- clave: `PRODUCTOS_CONSULTAR`;
-- recurso: `productos`;
-- acción: `CONSULTAR`;
-- perfiles asignados en la consulta: 2.
-
-No se agrega ningún permiso nuevo.
+El permiso `PRODUCTOS_CONSULTAR` existe en `ANEXO24_DEV` / esquema `app24`,
+tiene dos perfiles asignados y no se agrega ningún permiso nuevo. El futuro
+endpoint deberá usar ese permiso.
 
 ## Endpoint propuesto
 
-```text
+```http
 GET /api/v1/catalogos/productos
 ```
 
-Parámetros propuestos:
-
-- `filtro` opcional, aplicado a `CVE_PRODUCTO`, `NOMBRE` y `fraccion` según el
-  contrato final aprobado;
-- `pagina`, base 1, default 1;
-- `tamano`, default 20 y máximo 100.
-
-La autoridad requerida será `PRODUCTOS_CONSULTAR`.
-
-Flujo previsto, sujeto a aprobación:
+El flujo backend queda bloqueado hasta decidir la fuente:
 
 ```text
 Caso de uso
     ↓
-GET /api/v1/catalogos/productos
+Endpoint
     ↓
 Use Case
     ↓
 Repository Port
     ↓
-JDBC Adapter
+StoredProcedureAdapter o ViewAdapter
     ↓
-dbo.productos en CALE_IMMEX
+SP/View aprobado
 ```
 
-El endpoint no debe invocar `CARGA_PRODUCTOS`, `CARGA_FACTURAS`,
-`CREAESTRUCTURAS` ni otro SP de proceso.
+La alternativa directa queda deliberadamente detenida:
+
+```text
+No hay SP adecuado
+    ↓
+No hay View adecuada
+    ↓
+STOP
+    ↓
+Aprobación explícita para SQL directo
+```
 
 ## DTO propuesto
 
-El DTO público inicial propuesto es:
+Solo como propuesta de contrato, no implementado:
 
 ```text
 productokey          numeric(18,0)
@@ -352,100 +461,89 @@ cveProducto          varchar(50)
 nombre               varchar(250)
 unidad                varchar(10)
 fraccion             varchar(12)
-cveProductoCliente   varchar(30)
-unidadt               varchar(10)
+cveProductoCliente   varchar(30)  // sujeto a validación
+unidadt              varchar(10)  // sujeto a validación
 ```
 
-`productokey`, `cveProducto`, `nombre`, `unidad` y `fraccion` cubren la consulta
-mínima. `cveProductoCliente` y `unidadt` se proponen como campos técnicos
-útiles, pero su exposición final depende de validar la pantalla y el contrato
-funcional. `NICO`, `TIPO`, `ALMACENKEY` y `AUXILIAR` quedan fuera del DTO inicial
-salvo nueva evidencia.
+`NICO`, `TIPO`, `ALMACENKEY` y `AUXILIAR` quedan fuera hasta contar con una
+necesidad funcional confirmada.
 
 ## Riesgos
 
-1. **Diferencia de volumen:** la auditoría funcional reporta aproximadamente
-   2,630 productos y la base consultada contiene 204. No implementar filtros o
-   paginación asumiendo que ambos cortes son equivalentes.
-2. **Sin FK reales:** las relaciones producto-estructura-material dependen de
-   convenciones de nombres, procesos y datos, no de integridad referencial DDL.
-3. **Clave funcional nullable:** `CVE_PRODUCTO` no tiene `NOT NULL` ni unique
-   constraint, aunque todos los registros actuales cumplen ambas condiciones.
-4. **Índices:** solo se confirmó la PK clustered; los filtros de catálogo pueden
+1. **No existe contrato de consulta:** implementar SELECT directo sin aprobación
+   rompería la estrategia `STORED PROCEDURE FIRST`.
+2. **Diferencia de volumen:** 204 filas actuales frente a aproximadamente 2,630
+   históricas.
+3. **Reportes no son catálogos:** los SP de informes pueden duplicar productos,
+   limitarse a operaciones o excluir productos sin movimientos/BOM.
+4. **Efectos secundarios:** cargas, descargos, saldos y exportaciones escriben o
+   invocan procesos mutables.
+5. **`SP_GENERA_TXT_COMPLETO`:** contiene `xp_cmdshell`, `bcp`, updates y rutas
+   del servidor; no es reutilizable como endpoint de lectura.
+6. **Sin FKs:** Producto/BOM/Material depende de convenciones y procesos, no de
+   integridad referencial declarada.
+7. **Clave funcional nullable:** `CVE_PRODUCTO` no tiene `NOT NULL` ni unique DDL.
+8. **Índices:** solo se confirmó la PK clustered; filtros directos podrían
    requerir scans.
-5. **Reglas dispersas:** las validaciones de carga viven en SP y funciones
-   antiguas; una consulta de catálogo no debe reimplementar reglas de carga.
-6. **Unidades:** la diferencia entre unidad comercial (`UNIDAD`) y unidad
-   tarifaria (`UNIDADT`) debe confirmarse contra la UI antes de fijar nombres
-   públicos.
-7. **Stage vacío:** `tmpproductos` y `ECargaProducto` están vacíos en el corte,
-   por lo que no se pudo observar una corrida de carga activa.
-8. **Permisos cruzados:** el datasource de Módulo C y `ANEXO24_DEV` son bases
-   distintas; el backend debe conservar la separación de datasources ya usada
-   por Materiales.
+9. **Unidades:** falta confirmar la etiqueta UI exacta de `UNIDAD` y `UNIDADT`.
+10. **Transacciones legacy:** los procesos existentes controlan sus propias
+    escrituras; el backend no debe envolverlos con `@Transactional` sin análisis.
 
 ## Confirmado
 
-- Base de consulta: `CALE_IMMEX`, esquema `dbo`.
-- Tabla principal: `dbo.productos`.
-- PK: `PK_productos` sobre `PRODUCTOKEY`, clustered y unique.
-- `PRODUCTOKEY` es `numeric(18,0) NOT NULL`.
-- Columnas del catálogo: `CVE_PRODUCTO`, `NOMBRE`, `UNIDAD`, `fraccion`.
-- Columnas auxiliares existentes: `CVE_PRODUCTO_CLIENTE`, `UNIDADT`, `NICO`,
-  `TIPO`, `ALMACENKEY`, `AUXILIAR`.
-- No hay FKs declaradas hacia o desde los objetos producto/BOM revisados.
+- `CALE_IMMEX.dbo.productos` es la tabla canónica observada.
+- `PRODUCTOKEY` es PK clustered, unique y `numeric(18,0) NOT NULL`.
+- `CVE_PRODUCTO`, `NOMBRE`, `UNIDAD` y `fraccion` existen con los tipos indicados.
+- Se revisaron 38 SP candidatos por metadata y definición.
+- Los SP que crean/validan productos son de carga o proceso y escriben datos.
+- Los SP de informe que contienen campos de producto no son catálogos paginados.
+- `SP_GENERA_TXT_COMPLETO` es un exportador con escritura y `xp_cmdshell`.
+- No existe un SP de consulta de catálogo confirmado.
+- No existe una view dedicada y adecuada para el catálogo.
 - `PRODUCTOS_CONSULTAR` existe en `ANEXO24_DEV`.
-- Los SP de carga modifican datos y no son fuentes de lectura paginada.
+- No se ejecutó ningún SP mutable.
 
 ## Inferido
 
-- `CVE_PRODUCTO` es el número de parte visible en el legado.
-- `UNIDAD` es la UMC mostrada por el legado.
-- `CVE_PRODUCTO_CLIENTE` es una clave alternativa, no el identificador global.
-- La relación producto-estructura-material se realiza mediante
+- `CVE_PRODUCTO` es el número de parte visible en la pantalla histórica.
+- `UNIDAD` corresponde a UMC.
+- `ORDER BY CVE_PRODUCTO, PRODUCTOKEY` sería determinista si se aprueba SQL
+  directo.
+- Las relaciones Producto → Estructura → Material se realizan mediante
   `PRODUCTOKEY`, `PRODUCTOLINK`, `ESTRUCTURAKEY`, `ESTRUCTURALINK`,
-  `CVE_MATERIAL` y `CLAVE`.
-- La consulta directa a `dbo.productos` es la alternativa de menor riesgo para
-  el catálogo porque no duplica lógica de carga ni mezcla filas de BOM.
-- `ORDER BY CVE_PRODUCTO, PRODUCTOKEY` es el orden determinista apropiado.
+  `CVE_MATERIAL` y `CLAVE`, pero no son FKs.
 
 ## Pendiente de validar
 
-- Reconciliar los 204 registros actuales contra los aproximadamente 2,630 de la
-  auditoría funcional.
-- Confirmar con negocio/UI las etiquetas exactas de `UNIDAD` y `UNIDADT`.
-- Confirmar si el número de parte debe buscar `CVE_PRODUCTO`,
-  `CVE_PRODUCTO_CLIENTE` o ambos.
-- Confirmar si `CVE_PRODUCTO` debe convertirse en `NOT NULL`/unique en Módulo C;
-  no modificar DDL como parte de esta iniciativa.
-- Confirmar necesidad de índices secundarios con el propietario de la base y
-  mediciones reales.
-- Validar permisos efectivos del usuario técnico del backend en `dbo.productos`
-  y en los metadatos requeridos.
-- Revisar los result sets exactos de los procedimientos secundarios si otro
-  módulo necesita consumirlos.
-- Confirmar si `NICO` debe ser visible en una futura versión del DTO.
+- Reconciliar 204 contra aproximadamente 2,630 productos.
+- Confirmar con negocio/UI las etiquetas de `UNIDAD` y `UNIDADT`.
+- Confirmar si número de parte filtra `CVE_PRODUCTO`, `CVE_PRODUCTO_CLIENTE` o
+  ambos.
+- Confirmar si el dueño de Módulo C autoriza consulta directa ante la ausencia de
+  SP/View.
+- Confirmar permisos efectivos del usuario técnico en la tabla, si se aprueba
+  SQL directo.
+- Medir planes y volumen antes de decidir índices; no modificar DDL aquí.
+- Confirmar DTO final y exposición de `CVE_PRODUCTO_CLIENTE`/`UNIDADT`.
+- Revisar contratos de otros SP únicamente cuando se implemente su caso de uso.
 
-## Plan exacto para implementar después de aprobación
+## Plan exacto después de aprobación
 
-1. Aprobar este mapeo y resolver la discrepancia de volumen.
-2. Confirmar las etiquetas de unidad y el filtro de número de parte con negocio.
-3. Crear únicamente el modelo de dominio `Producto` con los campos aprobados,
-   sin dependencias de Spring/JDBC.
-4. Crear el puerto `ProductoRepository` para consulta paginada.
-5. Crear `ListarProductosUseCase` con normalización de filtro y validación
-   `pagina >= 1`, `1 <= tamano <= 100`.
-6. Crear `ProductoJdbcAdapter` con `@Qualifier("jdbcTemplate")`, consulta
-   parametrizada directa a `dbo.productos`, `COUNT(*)`, filtros aprobados y
-   `ORDER BY CVE_PRODUCTO, PRODUCTOKEY`.
-7. Crear DTO/mapper y `ProductController` con
-   `GET /api/v1/catalogos/productos`.
-8. Aplicar `@PreAuthorize` para `PRODUCTOS_CONSULTAR` y conservar los contratos
-   400/401/403/503 de Materiales.
-9. Crear tests unitarios del caso de uso y adapter, y tests MockMvc del
-   controlador/security.
-10. Ejecutar `clean test` y `build`, revisar el plan SQL en un ambiente
-    controlado y comparar conteos/muestras contra el legado.
+1. Obtener aprobación explícita para SQL directo o una instrucción del dueño de
+   Módulo C que defina un SP/View de consulta.
+2. Si aparece un SP adecuado, documentar su contrato completo y diseñar un
+   `ProductoStoredProcedureAdapter`; no copiar lógica SQL a Java.
+3. Si aparece una view adecuada, documentar columnas, filtros y cardinalidad y
+   diseñar un `ProductoViewAdapter`.
+4. Solo si se aprueba SQL directo, crear `Producto`, `ProductoRepository`,
+   `ListarProductosUseCase` y un adapter JDBC parametrizado contra
+   `dbo.productos`.
+5. Mantener validación `pagina >= 1`, `1 <= tamano <= 100`, el orden aprobado y
+   el permiso `PRODUCTOS_CONSULTAR`.
+6. Agregar cobertura 200/400/401/403/503 y pruebas del contrato de fuente.
+7. Ejecutar `clean test` y `build` después de implementar.
 
-No se implementan en esta etapa Productos, Estructuras, Entradas, Salidas,
-Materiales utilizados, Saldos, Reportes ni frontend.
+No se implementa todavía `ProductController`, `ProductoRepository`,
+`ProductoJdbcAdapter`, `ListarProductosUseCase`, DTO, mapper, frontend ni tests
+funcionales de Productos. Tampoco se implementan Estructuras, Entradas, Salidas,
+Materiales utilizados, Descargos, Saldos, Reportes o Facturación.
