@@ -59,6 +59,15 @@ public class JwtTokenService {
     }
 
     /**
+     * Devuelve la vigencia configurada para informar al cliente.
+     *
+     * @return minutos de vigencia del token
+     */
+    public long expirationMinutes() {
+        return expiration.toMinutes();
+    }
+
+    /**
      * Valida y extrae las declaraciones del token.
      *
      * @param token token JWT

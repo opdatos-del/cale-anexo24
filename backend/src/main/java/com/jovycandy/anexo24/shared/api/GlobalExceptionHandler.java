@@ -4,11 +4,16 @@ import com.jovycandy.anexo24.security.CredencialesInvalidasException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +47,65 @@ public class GlobalExceptionHandler {
         ApiError body = new ApiError("CREDENCIALES_INVALIDAS",
                 ex.getMessage(), correlationId);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    /**
+     * Maneja accesos autenticados sin permisos suficientes.
+     *
+     * @param ex excepción de autorización
+     * @param request solicitud HTTP actual
+     * @return 403 con mensaje genérico y correlación
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex,
+                                                        HttpServletRequest request) {
+        return response(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
+                "No tienes permisos para realizar esta operación.", request);
+    }
+
+    /**
+     * Maneja solicitudes no autenticadas.
+     *
+     * @param ex excepción de autenticación
+     * @param request solicitud HTTP actual
+     * @return 401 con mensaje genérico y correlación
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex,
+                                                          HttpServletRequest request) {
+        return response(HttpStatus.UNAUTHORIZED, "AUTENTICACION_REQUERIDA",
+                "Se requiere una autenticación válida.", request);
+    }
+
+    /**
+     * Maneja JSON inválido o parámetros con tipo incorrecto.
+     *
+     * @param ex excepción de formato o conversión
+     * @param request solicitud HTTP actual
+     * @return 400 con mensaje accionable y correlación
+     */
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiError> handleMalformedRequest(Exception ex,
+                                                            HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",
+                "La solicitud tiene un formato o parámetro inválido.", request);
+    }
+
+    /**
+     * Maneja indisponibilidad de una dependencia de datos.
+     *
+     * @param ex excepción de acceso a datos
+     * @param request solicitud HTTP actual
+     * @return 503 sin detalles internos
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ApiError> handleDataAccess(DataAccessException ex,
+                                                      HttpServletRequest request) {
+        String correlationId = correlationIdOf(request);
+        log.error("Error de acceso a datos [{}] en {} {}", correlationId,
+                request.getMethod(), request.getRequestURI(), ex);
+        return response(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCIA_NO_DISPONIBLE",
+                "El servicio de datos no está disponible. Reporte el identificador de correlación.", request);
     }
 
     /**
@@ -79,6 +143,21 @@ public class GlobalExceptionHandler {
                 "Ocurrió un error inesperado. Reporte el identificador de correlación.",
                 correlationId, null, null);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    /**
+     * Construye una respuesta de error estándar.
+     *
+     * @param status estado HTTP
+     * @param code código estable de error
+     * @param message mensaje público
+     * @param request solicitud HTTP actual
+     * @return respuesta estándar de API
+     */
+    private ResponseEntity<ApiError> response(HttpStatus status, String code,
+                                               String message, HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(new ApiError(code, message, correlationIdOf(request)));
     }
 
     /**

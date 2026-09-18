@@ -75,6 +75,6 @@ tasks.named<BootRun>("bootRun") {
 }
 
 tasks.withType<Test> {
-    environment(loadDotEnv())
+    // Los tests deben usar application-test.yml y no depender de credenciales reales.
     useJUnitPlatform()
 }

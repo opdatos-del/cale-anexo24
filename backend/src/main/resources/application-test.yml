@@ -13,3 +13,24 @@ spring:
   sql:
     init:
       mode: never
+
+app:
+  datasource:
+    url: ${APP_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=ANEXO24_TEST;encrypt=true;trustServerCertificate=true}
+    username: ${APP_DB_USERNAME:test}
+    password: ${APP_DB_PASSWORD:test}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 1
+      connection-timeout: 10000
+
+  cors:
+    allowed-origin-patterns:
+      - http://localhost:*
+      - http://127.0.0.1:*
+
+jwt:
+  secret: ${JWT_SECRET:test-secret-for-tests-must-have-at-least-32-chars}
+  expiration-minutes: ${JWT_EXPIRATION_MINUTES:15}

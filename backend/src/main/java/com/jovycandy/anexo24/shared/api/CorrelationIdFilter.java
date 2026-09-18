@@ -36,7 +36,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String correlationId = request.getHeader(HEADER_NAME);
-        if (correlationId == null || correlationId.isBlank()) {
+        if (correlationId == null || !correlationId.matches("[A-Za-z0-9._-]{1,40}")) {
             correlationId = UUID.randomUUID().toString();
         }
         request.setAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR, correlationId);

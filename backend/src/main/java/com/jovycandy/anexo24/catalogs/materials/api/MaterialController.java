@@ -2,7 +2,7 @@ package com.jovycandy.anexo24.catalogs.materials.api;
 
 import com.jovycandy.anexo24.catalogs.materials.api.dto.MaterialDto;
 import com.jovycandy.anexo24.catalogs.materials.domain.model.Material;
-import com.jovycandy.anexo24.catalogs.materials.domain.port.MaterialRepository;
+import com.jovycandy.anexo24.catalogs.materials.application.query.ListarMaterialesUseCase;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,15 +21,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/catalogos/materiales")
 public class MaterialController {
 
-    private final MaterialRepository materialRepository;
+    private final ListarMaterialesUseCase listarMaterialesUseCase;
 
     /**
      * Constructor con el puerto de materiales.
      *
-     * @param materialRepository puerto de consulta de materiales
+     * @param listarMaterialesUseCase caso de uso de consulta de materiales
      */
-    public MaterialController(MaterialRepository materialRepository) {
-        this.materialRepository = materialRepository;
+    public MaterialController(ListarMaterialesUseCase listarMaterialesUseCase) {
+        this.listarMaterialesUseCase = listarMaterialesUseCase;
     }
 
     /**
@@ -46,9 +46,7 @@ public class MaterialController {
             @RequestParam(required = false) String filtro,
             @RequestParam(defaultValue = "1") int pagina,
             @RequestParam(defaultValue = "20") int tamano) {
-        int tamanoReal = Math.min(Math.max(tamano, 1), 100);
-        int paginaReal = Math.max(pagina, 1);
-        Pagina<Material> paginaDominio = materialRepository.findPage(filtro, paginaReal, tamanoReal);
+        Pagina<Material> paginaDominio = listarMaterialesUseCase.ejecutar(filtro, pagina, tamano);
         Pagina<MaterialDto> paginaDto = new Pagina<>(
                 paginaDominio.items().stream().map(MaterialDto::from).toList(),
                 paginaDominio.total(),

@@ -8,6 +8,17 @@ IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'app24')
     EXEC('CREATE SCHEMA app24');
 GO
 
+-- Reinicio seguro para desarrollo: elimina dependencias antes de tablas padre.
+IF OBJECT_ID('app24.ErrorCarga', 'U') IS NOT NULL DROP TABLE app24.ErrorCarga;
+IF OBJECT_ID('app24.CargaFacturacion', 'U') IS NOT NULL DROP TABLE app24.CargaFacturacion;
+IF OBJECT_ID('app24.BitacoraEvento', 'U') IS NOT NULL DROP TABLE app24.BitacoraEvento;
+IF OBJECT_ID('app24.UsuarioApp', 'U') IS NOT NULL DROP TABLE app24.UsuarioApp;
+IF OBJECT_ID('app24.PerfilActividad', 'U') IS NOT NULL DROP TABLE app24.PerfilActividad;
+IF OBJECT_ID('app24.ConfiguracionPlantilla', 'U') IS NOT NULL DROP TABLE app24.ConfiguracionPlantilla;
+IF OBJECT_ID('app24.Actividad', 'U') IS NOT NULL DROP TABLE app24.Actividad;
+IF OBJECT_ID('app24.PerfilApp', 'U') IS NOT NULL DROP TABLE app24.PerfilApp;
+GO
+
 -- ------------------------------------------------------------------
 -- Seguridad
 -- ------------------------------------------------------------------

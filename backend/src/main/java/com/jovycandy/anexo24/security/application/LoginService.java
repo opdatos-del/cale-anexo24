@@ -57,6 +57,6 @@ public class LoginService {
 
         List<String> permisos = usuarioRepository.findPermisosByUsuario(usuario.id());
         String token = tokenService.generateToken(usuario.id(), usuario.clave(), permisos);
-        return new LoginResponse(token, 480, usuario.nombre(), permisos);
+        return new LoginResponse(token, tokenService.expirationMinutes(), usuario.nombre(), permisos);
     }
 }
