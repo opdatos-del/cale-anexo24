@@ -29,7 +29,7 @@ public class SystemStatusController {
      * @param applicationJdbcTemplate plantilla del esquema app24
      */
     public SystemStatusController(
-            JdbcTemplate moduleCJdbcTemplate,
+            @Qualifier("jdbcTemplate") JdbcTemplate moduleCJdbcTemplate,
             @Qualifier("appJdbcTemplate") JdbcTemplate applicationJdbcTemplate) {
         this.moduleCJdbcTemplate = moduleCJdbcTemplate;
         this.applicationJdbcTemplate = applicationJdbcTemplate;
