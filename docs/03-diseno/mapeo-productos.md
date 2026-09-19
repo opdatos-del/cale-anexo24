@@ -438,7 +438,7 @@ El permiso `PRODUCTOS_CONSULTAR` existe en `ANEXO24_DEV` / esquema `app24`,
 tiene dos perfiles asignados y no se agrega ningún permiso nuevo. El endpoint
 implementado usa ese permiso.
 
-## Endpoint propuesto
+## Endpoint implementado
 
 ```http
 GET /api/v1/catalogos/productos
@@ -478,7 +478,7 @@ dbo.APP24_Q_PRODUCTOS_LISTAR
 dbo.productos
 ```
 
-## DTO propuesto
+## DTO implementado
 
 Implementado como `ProductoDto` con el contrato inicial autorizado:
 
@@ -555,17 +555,20 @@ necesidad funcional confirmada.
 - Confirmar DTO final y eventual exposición de `CVE_PRODUCTO_CLIENTE`/`UNIDADT`.
 - Revisar contratos de otros SP únicamente cuando se implemente su caso de uso.
 
-## Plan exacto de seguimiento
+## Validación realizada
 
-1. Ejecutar `infra/sql/procedures/queries/APP24_Q_PRODUCTOS_LISTAR.sql` en el
-   ambiente autorizado de desarrollo.
-2. Validar el SP sin filtro, por clave, por descripción y por fracción.
-3. Validar página 1, segunda página si existen datos, `@Total` y el orden
-   `CVE_PRODUCTO, PRODUCTOKEY`.
-4. Comparar `@Total` contra un `SELECT COUNT(*)` diagnóstico, sin modificar datos.
-5. Ejecutar `clean test` y `build`.
-6. Probar el endpoint HTTP con `PRODUCTOS_CONSULTAR` mediante un usuario
-   autenticado contra el ambiente de desarrollo.
+- `APP24_Q_PRODUCTOS_LISTAR` desplegado en desarrollo.
+- Validación sin filtro.
+- Validación por clave.
+- Validación por descripción.
+- Validación por fracción.
+- Segunda página validada.
+- `@Total` sin filtro = 204.
+- `COUNT_BIG(*)` = 204.
+- `clean test`: `BUILD SUCCESSFUL`.
+- `build`: `BUILD SUCCESSFUL`.
+- HTTP 401 real sin token validado.
+- HTTP autenticado pendiente por falta de credenciales autorizadas.
 
 No se implementan Estructuras, Entradas, Salidas, Materiales utilizados,
 Descargos, Saldos, Reportes o Facturación.
