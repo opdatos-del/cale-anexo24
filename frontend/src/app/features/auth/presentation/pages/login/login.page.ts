@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
+import { AppBrandLoaderComponent } from '../../../../../core/ui/app-brand-loader/app-brand-loader.component';
 
 /**
  * Pantalla de inicio de sesión (CU-001).
@@ -11,10 +12,12 @@ import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.co
  * {@link AuthService}. El componente no ejecuta llamadas HTTP.
  */
 @Component({
-  imports: [AppAlertComponent, ReactiveFormsModule],
+  imports: [AppAlertComponent, AppBrandLoaderComponent, ReactiveFormsModule],
   selector: 'app-login',
   template: `
     <div class="relative min-h-screen w-full overflow-hidden">
+      <app-brand-loader [visible]="isLoading()" label="Iniciando sesión..." />
+
       <!-- FONDO: cubre todo el viewport -->
       <div class="absolute inset-0">
         <!-- Imagen: public/assets/login-bg.jpg (sustituir por fotografía corporativa propia).
@@ -33,27 +36,8 @@ import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.co
         >
           <!-- HEADER -->
           <header class="text-center">
-            <div
-              class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="h-7 w-7 text-white"
-                aria-hidden="true"
-              >
-                <path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z" />
-                <path d="M6 18h12" />
-                <path d="M6 14h12" />
-                <rect width="12" height="12" x="6" y="10" />
-              </svg>
-            </div>
-            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Anexo 24</h1>
+            <img class="mx-auto h-24 w-64 object-contain" src="/logo_sin_fondo.png" alt="Anexo 24" />
+            <p class="mt-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Control de inventarios</p>
             <p class="mt-4 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
           </header>
 
@@ -152,13 +136,7 @@ import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.co
               class="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               @if (isLoading()) {
-                <span class="flex items-center justify-center gap-2">
-                  <span
-                    class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                    aria-hidden="true"
-                  ></span>
-                  <span>Iniciando sesión...</span>
-                </span>
+                <span>Iniciando sesión...</span>
               } @else {
                 <span>Iniciar sesión</span>
               }
