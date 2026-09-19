@@ -6,7 +6,7 @@ revisión se ejecutó sobre `CALE_IMMEX` en la instancia configurada por el
 proyecto. No se ejecutó ningún stored procedure operativo y no se modificó
 ningún objeto de `CALE_IMMEX` ni de `ANEXO24_DEV`.
 
-**Rama:** `feature/backend-products`.
+**Rama:** `feature/backend-products-clean`.
 **Fecha de auditoría:** 2026-09-18.
 **Base auditada:** `CALE_IMMEX`, esquema `dbo`.
 
