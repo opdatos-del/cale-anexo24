@@ -54,6 +54,7 @@ class EstructuraStoredProcedureAdapterTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked") // Mockito expone forClass con Class sin genérico para List.
     void invocaSpMapeaResultSetYLeeTotal() throws Exception {
         EstructuraDetalle detalle = detalleEjemplo();
         when(jdbcTemplate.call(any(CallableStatementCreator.class), anyList()))
