@@ -24,9 +24,11 @@ lectura.
 | Productos | Exportación de datos | SP | `dbo.SP_GENERA_TXT_COMPLETO` | EXPORT | Sí | Sí | CONFIRMADO; usa `bcp`/`xp_cmdshell`, no usar para GET |
 | Productos | Campos dentro de informe de importaciones | SP | `dbo.PR_INFORME_IMPORTACIONES` | REPORT | Sí | No | CONFIRMADO; no es catálogo ni paginado |
 | Productos | Campos dentro de informe de exportaciones | SP | `dbo.PR_INFORME_EXPORTACIONES` | REPORT | Sí | No | CONFIRMADO; no es catálogo ni paginado |
-| Estructuras | Consulta de BOM | VIEW/SP | `dbo.v_Estructuras` / `dbo.PR_INFORME_ESTRUCTURAS` | REPORT | Sí | No | CONFIRMADO como fuente operativa; no implementar ahora |
-| Estructuras | Construcción de BOM | SP | `dbo.CREAESTRUCTURAS` | PROCESS | Sí | Sí | CONFIRMADO |
-| Estructuras | Preparación 1 a 1 | SP | `dbo.ESTRUCTURAS1A1` | PROCESS | Sí | Sí | CONFIRMADO; llama `CREAESTRUCTURAS` |
+| Estructuras | Consulta de BOM | SP PROPIO | `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY |
+| Estructuras | Consulta de detalle legacy | SP LEGACY | `dbo.PR_INFORME_ESTRUCTURAS` | REPORT/QUERY | Sí | No | CONFIRMADO como referencia read-only; sin paginación y `@DESDE/@HASTA` sin efecto |
+| Estructuras | Consulta de detalle legacy | VIEW LEGACY | `dbo.v_Estructuras` | REPORT/QUERY | Sí | No | CONFIRMADO como referencia read-only; sin filtros/IDs/paginación; ORDER BY no contractual |
+| Estructuras | Construcción de BOM | SP | `dbo.CREAESTRUCTURAS` | PROCESS | Sí | Sí | CONFIRMADO; mutable, no usar para GET |
+| Estructuras | Preparación 1 a 1 | SP | `dbo.ESTRUCTURAS1A1` | PROCESS | Sí | Sí | CONFIRMADO; mutable y llama `CREAESTRUCTURAS` |
 | Entradas/importaciones | Carga de pedimentos | SP | `dbo.CARGAPEDIMENTOS` | IMPORT | Sí | Sí | CONFIRMADO; pendiente de auditoría de módulo |
 | Entradas/importaciones | Informe de importaciones | SP | `dbo.PR_INFORME_IMPORTACIONES` | REPORT | Sí | No | CONFIRMADO; pendiente de diseño de módulo |
 | Salidas/exportaciones | Carga de facturas en salidas | SP | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; pendiente de auditoría de módulo |
