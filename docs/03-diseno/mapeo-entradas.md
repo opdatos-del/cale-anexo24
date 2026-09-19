@@ -5,7 +5,7 @@ Auditoría técnica de solo lectura del flujo de Entradas e Importaciones en
 
 - **Rama:** `feature/backend-entries`
 - **Base auditada:** `CALE_IMMEX`
-- **Estado:** contrato funcional V1 de consulta documentado; backend todavía no implementado.
+- **Estado:** consulta V1 read-only implementada mediante `APP24_Q_ENTRADAS_LISTAR`; procesos de carga permanecen fuera de alcance.
 - **Estrategia:** STORED PROCEDURE FIRST.
 - **Procedimientos mutables:** no ejecutados.
 - **Datos:** no modificados.
@@ -36,11 +36,11 @@ Entradas exclusivamente.
 
 | Caso de uso | Estado de auditoría |
 |---|---|
-| Consultar entradas/importaciones | Candidato read-only: `PR_INFORME_IMPORTACIONES` |
-| Consultar detalle de una entrada/pedimento | Candidato read-only por `@documento` |
+| Consultar entradas/importaciones | Implementado como listado plano paginado mediante `APP24_Q_ENTRADAS_LISTAR` |
+| Consultar detalle de una entrada/pedimento | Pendiente; no se implementa endpoint por identificador |
 | Importar/cargar pedimentos | `CARGAPEDIMENTOS`, mutable |
 | Validar pedimento | `VALIDAPEDIMENTO`, mutable/mixto |
-| Consultar partidas | Incluido en `PR_INFORME_IMPORTACIONES`; no hay endpoint propio confirmado |
+| Consultar partidas | Incluido como líneas en `APP24_Q_ENTRADAS_LISTAR` |
 | Relacionar partida con material/producto | Relación lógica usada por procesos; sin FK DDL |
 | Consultar saldos derivados | Fuera de este módulo; intervienen `SALDOS` y procesos de descargo |
 
@@ -607,7 +607,7 @@ anteriores. Estos cálculos pertenecen al reporte de importaciones/vigencias o a
 un futuro módulo de vencimientos, no al contrato V1 de consulta de Entradas.
 No se copian a Java ni se reinterpretan en esta fase.
 
-## Contrato funcional V1 propuesto
+## Contrato funcional V1 implementado
 
 El primer corte debe ser un listado plano paginado de líneas de entrada:
 
@@ -630,7 +630,7 @@ numeroParte
 fechaPago
 ```
 
-Tipos candidatos:
+Tipos implementados:
 
 | Campo | Tipo candidato |
 |---|---|
@@ -654,18 +654,19 @@ los dos IDs técnicos.
 
 | Filtro | Estado y evidencia |
 |---|---|
-| `desde` | CONFIRMADO POR UI y CONFIRMADO POR SQL (`@DESDE`); obligatorio candidato |
-| `hasta` | CONFIRMADO POR UI y CONFIRMADO POR SQL (`@HASTA`); obligatorio candidato |
-| `pedimento` | CONFIRMADO POR UI; equivalente SQL `@documento`, con semántica de prioridad sobre fechas |
-| `clavePedimento` | CONFIRMADO POR UI; el SP devuelve el campo, pero no lo acepta como filtro |
-| `fraccion` | CONFIRMADO POR UI; el SP devuelve el campo, pero no lo acepta como filtro |
-| `numeroParte` | CONFIRMADO POR UI; el SP devuelve `Numero de parte`, pero no lo acepta como filtro |
-| `pagina`, `tamano` | NECESARIO PARA LA API; no existe en las fuentes legacy |
+| `desde` | Obligatorio; filtra `Importaciones.Fecha` desde el inicio del día |
+| `hasta` | Obligatorio; filtra `Importaciones.Fecha` hasta el final del día |
+| `pedimento` | Opcional; filtro acumulativo sobre `Importaciones.Numero_ped` |
+| `clavePedimento` | Opcional; filtro acumulativo sobre `Importaciones.Cve_pedimento` |
+| `fraccion` | Opcional; filtro acumulativo sobre `Partidas.Fraccion` |
+| `numeroParte` | Opcional; filtro acumulativo sobre `Partidas.Clave` |
+| `pagina`, `tamano` | Implementados; página base 1 y tamaño entre 1 y 100 |
 
-La obligatoriedad de `desde`/`hasta` proviene de la UI histórica y debe
-conservarse en el contrato V1, salvo decisión funcional posterior. No se debe
-heredar el comportamiento de `@documento` que omite el rango sin documentarlo
-explícitamente.
+La obligatoriedad de `desde`/`hasta` proviene de la UI histórica y quedó
+implementada. Todos los filtros son acumulativos: `pedimento` no desactiva ni
+modifica el rango de fechas. El rango se aplica a `Importaciones.Fecha`, que
+representa `fechaPago`; `fechaEntrada` se devuelve desde `Importaciones.Fecha_ad`
+pero no es el eje temporal de V1.
 
 ## Decisión de fuente
 
@@ -673,16 +674,71 @@ explícitamente.
 |---|---|---|
 | `PR_INFORME_IMPORTACIONES` | Read-only, IDs técnicos, ocho campos confirmados, rango de fechas y documento | 76 columnas, sin paginación/total, filtros incompletos y cálculos dinámicos ajenos |
 | `v_Importaciones` | Read-only, proyección visual cercana y ocho campos disponibles | 70 columnas, sin parámetros, sin paginación/total, no contrato estable |
-| `APP24_Q_ENTRADAS_LISTAR` | Puede fijar ocho campos, IDs, filtros, fechas obligatorias, orden, paginación y `@Total` | Todavía no existe; requiere diseño SQL posterior y validación de negocio |
+| `APP24_Q_ENTRADAS_LISTAR` | Fija ocho campos, IDs, filtros acumulativos, fechas obligatorias, orden, paginación y `@Total` | No incluye campos de reporte ajenos al contrato V1 |
 
-**Recomendación:** no consumir directamente `PR_INFORME_IMPORTACIONES` ni
-`v_Importaciones` como contrato público V1. Ambos quedan como referencias
-legacy y evidencia funcional. Para el listado paginado con total y filtros de
-la API se recomienda posteriormente `dbo.APP24_Q_ENTRADAS_LISTAR`, estrictamente
-read-only, sin copiar los cálculos dinámicos de temporalidad/saldo salvo que el
-negocio los incluya expresamente.
+**Decisión implementada:** `dbo.APP24_Q_ENTRADAS_LISTAR` es la fuente del
+contrato HTTP V1. `PR_INFORME_IMPORTACIONES` y `v_Importaciones` permanecen como
+referencias legacy, no como contratos públicos. El SP propio es estrictamente
+read-only y no copia cálculos dinámicos de temporalidad, saldo o vencimiento.
 
-No se crea el SP, ni se implementa backend, en esta fase.
+## Implementación read-only
+
+### `dbo.APP24_Q_ENTRADAS_LISTAR`
+
+Fuente implementada para `GET /api/v1/operaciones/entradas`.
+
+- Tipo: `QUERY`.
+- Escrituras: ninguna; no ejecuta SP legacy ni funciones mutables.
+- Tablas leídas: `dbo.Importaciones` y `dbo.Partidas`.
+- Relación: `Partidas.Importacionlink = Importaciones.Ipedimentokey`.
+- Parámetros: `@Desde DATE`, `@Hasta DATE`, `@Pedimento VARCHAR(20)`,
+  `@ClavePedimento VARCHAR(5)`, `@Fraccion VARCHAR(15)`,
+  `@NumeroParte VARCHAR(50)`, `@Pagina INT`, `@Tamano INT` y `@Total BIGINT OUTPUT`.
+- Rango: `Importaciones.Fecha >= @Desde` y `< DATEADD(DAY, 1, @Hasta)`.
+- Filtros de texto: acumulativos, parametrizados y con normalización de blank a
+  `NULL`; no se utiliza `LIKE` ni SQL dinámico.
+- Orden: fecha, documento, ID de importación, secuencia y ID de partida.
+- Paginación: `OFFSET/FETCH` con operandos `BIGINT` para evitar overflow.
+
+El result set tiene sólo estos diez campos:
+
+```text
+IMPORTACION_ID       numeric(18,0)
+PARTIDA_ID           numeric(18,0)
+PEDIMENTO            varchar(20)
+CLAVE_PEDIMENTO     varchar(5)
+FECHA_ENTRADA        datetime
+FRACCION            varchar(15)
+UNIDAD_COMERCIAL    varchar(10)
+CANTIDAD_COMERCIAL  numeric(18,4)
+NUMERO_PARTE        varchar(50)
+FECHA_PAGO          datetime
+```
+
+No se incluyen saldo, estado, días restantes, temporalidad, vencimiento,
+valores fiscales, proveedor, factura, `GETDATE()` ni `BUSCATIPOM`.
+
+### Validación SQL del SP implementado
+
+El procedimiento fue desplegado únicamente en `CALE_IMMEX`. No se crearon datos
+ni se ejecutaron procesos mutables.
+
+| Caso | Resultado `@Total` | Resultado |
+|---|---:|---|
+| A. Rango completo actual | 2 | dos líneas |
+| B. Fecha de la primera importación | 1 | `Ipedimentokey=1001`, `Partidakey=2001` |
+| C. Fecha de la segunda importación | 1 | `Ipedimentokey=1002`, `Partidakey=2002` |
+| D. Pedimento existente dentro del rango | 1 | una línea |
+| E. Mismo pedimento fuera del rango | 0 | confirma que el pedimento no desactiva fechas |
+| F. Clave de pedimento existente | 2 | dos líneas |
+| G. Fracción existente | 2 | dos líneas |
+| H. Número de parte existente | 1 | una línea |
+| I. Combinación de filtros válidos | 1 | una línea |
+| J. Página `2147483647`, tamaño 100 | 2 | result set vacío, sin overflow |
+
+La metadata obtenida con `sys.dm_exec_describe_first_result_set_for_object`
+coincide exactamente con el RowMapper del adapter: aliases, tipos y
+nullability fueron comprobados para los diez campos.
 
 ## Seguridad
 
@@ -733,6 +789,7 @@ agregan permisos en esta fase.
 - `CARGAPEDIMENTOSIE` es staging y actualmente tiene 2 filas.
 - `IMPORTACIONES` tiene 2 filas y `PARTIDAS` tiene 2 filas.
 - No se ejecutó ningún proceso mutable.
+- `APP24_Q_ENTRADAS_LISTAR` fue desplegado y validado en solo lectura.
 - No se modificaron datos, tablas, views, funciones ni SP legacy.
 
 ## Inferido
@@ -747,26 +804,25 @@ agregan permisos en esta fase.
 
 ## Pendiente de validar
 
-- Aprobación funcional definitiva de la obligatoriedad de `desde`/`hasta` en la
-  API y de los filtros adicionales.
+- `planta` y `periodo`, observados en flujos ampliados pero sin mapeo confirmado
+  para este contrato V1.
+- Endpoint de detalle por `importacionId`.
 - Semántica pública de saldo y temporalidad.
 - Correspondencia funcional definitiva entre tipo de operación, producto y
   material.
 - Relación con pedimentos alternos, rectificaciones y retornos.
 - Datos reales suficientes para validar 1:N y casos con múltiples partidas.
-- Diseño y autorización operativa de `APP24_Q_ENTRADAS_LISTAR`; las fuentes
-  legacy no satisfacen por sí solas paginación, total y contrato estable.
 
 ## Estado
 
 ```text
-SIN IMPLEMENTACIÓN — CONTRATO FUNCIONAL V1 CERRADO
+CONSULTA V1 IMPLEMENTADA — APP24 QUERY READ-ONLY
 
-PR_INFORME_IMPORTACIONES:
-REFERENCIA LEGACY READ-ONLY; NO SATISFACE EL CONTRATO PAGINADO V1
+FUENTE HTTP:
+APP24_Q_ENTRADAS_LISTAR
 
-FUENTE RECOMENDADA PARA LA API:
-APP24_Q_ENTRADAS_LISTAR — PROPUESTA, NO CREADA
+REFERENCIAS LEGACY:
+PR_INFORME_IMPORTACIONES y v_Importaciones — NO SON CONTRATO HTTP
 
 CARGAPEDIMENTOS:
 PROCESO MUTABLE — NO USAR EN GET
