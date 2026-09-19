@@ -12,10 +12,13 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.SqlReturnResultSet;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +83,44 @@ class ProductoStoredProcedureAdapterTest {
                 .extracting(SqlParameter::getName)
                 .containsExactly("Filtro", "Pagina", "Tamano", "Total", "items");
         assertThat(declarations.getValue().get(3)).isInstanceOf(SqlOutParameter.class);
+    }
+
+    @Test
+    void rowMapperConvierteColumnasSqlAProductoSemantico() throws Exception {
+        ResultSet resultSet = org.mockito.Mockito.mock(ResultSet.class);
+        when(resultSet.getBigDecimal("PRODUCTOKEY"))
+                .thenReturn(new java.math.BigDecimal("42"));
+        when(resultSet.getString("CVE_PRODUCTO")).thenReturn("200060");
+        when(resultSet.getString("NOMBRE")).thenReturn("LIMONAZO");
+        when(resultSet.getString("fraccion")).thenReturn("17049099");
+        when(resultSet.getString("UNIDAD")).thenReturn("CAJA");
+        when(resultSet.getString("UNIDADT")).thenReturn("CAJA");
+        when(jdbcTemplate.call(any(CallableStatementCreator.class), anyList()))
+                .thenAnswer(invocation -> {
+                    @SuppressWarnings("unchecked")
+                    List<SqlParameter> declared = invocation.getArgument(1, List.class);
+                    SqlReturnResultSet resultSetParameter = declared.stream()
+                            .filter(SqlReturnResultSet.class::isInstance)
+                            .map(SqlReturnResultSet.class::cast)
+                            .findFirst()
+                            .orElseThrow();
+                    @SuppressWarnings("unchecked")
+                    RowMapper<Producto> mapper =
+                            (RowMapper<Producto>) resultSetParameter.getRowMapper();
+                    Producto mapped = mapper.mapRow(resultSet, 1);
+                    return Map.of("items", List.of(mapped), "Total", 1L);
+                });
+
+        Pagina<Producto> resultado = adapter.findPage(null, 1, 20);
+
+        assertThat(resultado.items()).singleElement().satisfies(producto -> {
+            assertThat(producto.id()).isEqualByComparingTo("42");
+            assertThat(producto.clave()).isEqualTo("200060");
+            assertThat(producto.descripcion()).isEqualTo("LIMONAZO");
+            assertThat(producto.fraccion()).isEqualTo("17049099");
+            assertThat(producto.unidadComercial()).isEqualTo("CAJA");
+            assertThat(producto.unidadTarifaria()).isEqualTo("CAJA");
+        });
     }
 
     @Test
