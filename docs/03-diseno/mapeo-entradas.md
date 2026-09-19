@@ -5,7 +5,7 @@ Auditoría técnica de solo lectura del flujo de Entradas e Importaciones en
 
 - **Rama:** `feature/backend-entries`
 - **Base auditada:** `CALE_IMMEX`
-- **Estado:** auditoría de ingeniería inversa; no se implementa backend en esta iteración.
+- **Estado:** contrato funcional V1 de consulta documentado; backend todavía no implementado.
 - **Estrategia:** STORED PROCEDURE FIRST.
 - **Procedimientos mutables:** no ejecutados.
 - **Datos:** no modificados.
@@ -295,8 +295,8 @@ AND Importaciones.Numero_ped = COALESCE(@documento, Importaciones.Numero_ped)
 - no usa cursor, transacción ni tablas temporales persistentes;
 - no modifica tablas persistentes.
 
-**Estado:** mejor candidato legacy read-only para consulta de entradas/detalle,
-pero no satisface por sí solo un contrato paginado.
+**Estado:** referencia legacy read-only para consulta de entradas/detalle; no
+satisface por sí solo el contrato paginado V1.
 
 ## Result set de `PR_INFORME_IMPORTACIONES`
 
@@ -524,92 +524,165 @@ La búsqueda por nombre/definición detectó, entre otros:
 
 Estos procedimientos quedan fuera de una futura consulta GET.
 
-## Fuente candidata para consulta
+## Validación funcional controlada
 
-### Prioridad 1: `PR_INFORME_IMPORTACIONES`
+La ejecución de `dbo.PR_INFORME_IMPORTACIONES` se realizó únicamente contra
+`CALE_IMMEX` y no produjo escrituras persistentes.
 
-Es el mejor candidato legacy para consulta porque:
+### Dataset actual
 
-- es read-only sobre tablas persistentes;
-- acepta rango de fechas y documento;
-- devuelve datos de encabezado y partida en una sola fila plana;
-- calcula estado, temporalidad y vencimiento ya usados por el legado;
-- tiene un orden explícito.
+| Evidencia | Resultado |
+|---|---:|
+| Importaciones | 2 |
+| Partidas | 2 |
+| `MIN(Importaciones.Fecha)` | `2025-09-23 00:00:00` |
+| `MAX(Importaciones.Fecha)` | `2026-05-28 00:00:00` |
+| Documentos existentes | `5003971`, `6001720` |
+| Partidas por importación | 1 y 1 en el dataset actual |
 
-Limitaciones:
+### Casos ejecutados
 
-- no tiene paginación SQL;
-- devuelve 76 columnas heterogéneas;
-- no ofrece total;
-- mezcla datos fiscales, operativos y de saldo;
-- el filtro `@documento` desactiva el rango de fechas;
-- no se ejecutó durante esta auditoría.
+| Caso | Parámetros | Filas | Resultado |
+|---|---|---:|---|
+| A | rango `2025-09-23` a `2026-05-28`, `@documento = NULL` | 2 | devuelve ambas partidas |
+| B | documento `5003971`, fechas `NULL` | 1 | devuelve la partida del documento |
+| C | documento `5003971`, rango `1925-09-23` a `1926-09-23` | 1 | el documento prevalece y desactiva el rango |
 
-### Prioridad 2: `v_Importaciones`
+El caso C confirma empíricamente el comportamiento de la definición: cuando
+`@documento` tiene valor, el procedimiento pone `@DESDE` y `@HASTA` en `NULL`.
+El procedimiento devuelve una fila plana por partida e incluye
+`partidakey` e `ipedimentokey`.
 
-Es read-only y tiene una forma cercana al informe, pero no tiene parámetros,
-no pagina y no constituye por sí misma un contrato estable para la API.
+### Identidad de encabezado y partida
 
-### Alternativa futura
+Para las filas actuales se confirmó:
 
-Si el endpoint paginado exige filtros y response estable que las fuentes legacy no
-pueden ofrecer, la alternativa sería un SP propio read-only:
+| `Ipedimentokey` | `Partidakey` | `Importacionlink` |
+|---:|---:|---:|
+| 1001 | 2001 | 1001 |
+| 1002 | 2002 | 1002 |
 
-```text
-APP24_Q_ENTRADAS_LISTAR
-```
+`Ipedimentokey` es único en `IMPORTACIONES`, `Partidakey` es único en
+`PARTIDAS` y `Importacionlink` relaciona el detalle con su encabezado. No se
+observaron duplicados de esas claves ni duplicados de filas en los tres casos.
+El ambiente actual muestra una partida por importación, pero el proceso y el
+modelo siguen permitiendo `1 pedimento → N partidas`; no se debe modelar la
+entrada con una sola clave plana.
 
-No se crea en esta fase.
+### Mapeo de los ocho campos históricos
 
-## Endpoint y response candidatos
+La definición desplegada y la ejecución confirman el siguiente mapeo:
 
-Propuesta no implementada:
+| Pantalla/Excel | `PR_INFORME_IMPORTACIONES` | Tabla fuente | Estado |
+|---|---|---|---|
+| pedimento | `Documento` | `Importaciones.Numero_ped` | CONFIRMADO |
+| clave pedimento | `Clave de Pedimento` | `Importaciones.Cve_pedimento` | CONFIRMADO |
+| fecha de entrada | `Fecha de entrada` | `Importaciones.Fecha_ad` | CONFIRMADO |
+| fracción | `Fraccion Arancelaria` | `Partidas.Fraccion` | CONFIRMADO |
+| UMC | `Unidad de medida comercial` | `Partidas.Unidad` | CONFIRMADO |
+| cantidad | `Cantidad importada comercial` | `Partidas.Cantidad` | CONFIRMADO |
+| número de parte | `Numero de parte` | `Partidas.Clave` | CONFIRMADO |
+| fecha de pago | `Fecha de pago` | `Importaciones.Fecha` | CONFIRMADO |
+
+Las cantidades se exponen como `numeric(18,4)` en el contrato del reporte; el
+futuro contrato Java debe usar `BigDecimal`, no `float` ni `double`. Los IDs
+`partidakey` e `ipedimentokey` son `numeric(18,0)` y deben conservarse como
+`BigDecimal` o un tipo entero equivalente, nunca como flotante.
+
+### Comparación con `v_Importaciones`
+
+`dbo.v_Importaciones` reproduce los ocho campos con los mismos orígenes
+funcionales y también expone `partidakey` e `ipedimentokey`. Sin embargo,
+publica 70 columnas, no recibe parámetros, no pagina y no devuelve total.
+Además, conserva cálculos/reportes como saldos, valores derivados y
+`BUSCATIPOM`. Es una referencia visual legacy, no un contrato API parametrizado.
+
+### Campos calculados dependientes de `GETDATE()`
+
+`PR_INFORME_IMPORTACIONES` calcula `TEMPORALIDAD EN MESES`, `FECHA VENCIMIENTO`,
+`DIAS RESTANTES` y `ESTADO`. Los días restantes y el estado asociado a la
+vigencia cambian con `GETDATE()`, por lo que no son datos históricos estables.
+La evidencia de la pantalla básica de Entradas sólo requiere los ocho campos
+anteriores. Estos cálculos pertenecen al reporte de importaciones/vigencias o a
+un futuro módulo de vencimientos, no al contrato V1 de consulta de Entradas.
+No se copian a Java ni se reinterpretan en esta fase.
+
+## Contrato funcional V1 propuesto
+
+El primer corte debe ser un listado plano paginado de líneas de entrada:
 
 ```http
 GET /api/v1/operaciones/entradas
-GET /api/v1/operaciones/entradas/{documento}
 ```
 
-Filtros candidatos:
-
-| Filtro | Estado |
-|---|---|
-| `desde` | CONFIRMADO por `@DESDE` |
-| `hasta` | CONFIRMADO por `@HASTA` |
-| `documento` | CONFIRMADO por `@documento` |
-| producto/material | PENDIENTE; el SP reporta `Numero de parte`, pero no los recibe como filtros |
-| página/tamaño | PENDIENTE; no existen en fuentes legacy |
-
-Response inicial candidato, pendiente de aprobación:
+Cada fila conserva ambos niveles de identidad:
 
 ```text
-pedimento
-aduana
-patente
-fechaPago
-fechaEntrada
-clavePedimento
-tipoOperacion
-proveedor
-numeroParte
-descripcion
-fraccion
-cantidadComercial
-unidadComercial
-cantidadTarifa
-unidadTarifa
-valorAduana
-valorDolares
-valorComercial
-saldoUnidadComercial
-partidaId
 importacionId
-estado
-fechaVencimiento
+partidaId
+pedimento
+clavePedimento
+fechaEntrada
+fraccion
+unidadComercial
+cantidadComercial
+numeroParte
+fechaPago
 ```
 
-No se debe exponer automáticamente el result set completo de 76 columnas sin
-una decisión de contrato y de nombres públicos.
+Tipos candidatos:
+
+| Campo | Tipo candidato |
+|---|---|
+| `importacionId` | `BigDecimal` para `numeric(18,0)` |
+| `partidaId` | `BigDecimal` para `numeric(18,0)` |
+| `pedimento` | `String` |
+| `clavePedimento` | `String` |
+| `fechaEntrada` | `LocalDateTime` |
+| `fraccion` | `String` |
+| `unidadComercial` | `String` |
+| `cantidadComercial` | `BigDecimal` para `numeric(18,4)` |
+| `numeroParte` | `String` |
+| `fechaPago` | `LocalDateTime` |
+
+`GET /api/v1/operaciones/entradas/{importacionId}` puede quedar para una
+segunda iteración de detalle. No se justifica introducir header/detail en V1
+cuando la pantalla histórica trabaja con líneas y el listado puede preservar
+los dos IDs técnicos.
+
+### Filtros V1
+
+| Filtro | Estado y evidencia |
+|---|---|
+| `desde` | CONFIRMADO POR UI y CONFIRMADO POR SQL (`@DESDE`); obligatorio candidato |
+| `hasta` | CONFIRMADO POR UI y CONFIRMADO POR SQL (`@HASTA`); obligatorio candidato |
+| `pedimento` | CONFIRMADO POR UI; equivalente SQL `@documento`, con semántica de prioridad sobre fechas |
+| `clavePedimento` | CONFIRMADO POR UI; el SP devuelve el campo, pero no lo acepta como filtro |
+| `fraccion` | CONFIRMADO POR UI; el SP devuelve el campo, pero no lo acepta como filtro |
+| `numeroParte` | CONFIRMADO POR UI; el SP devuelve `Numero de parte`, pero no lo acepta como filtro |
+| `pagina`, `tamano` | NECESARIO PARA LA API; no existe en las fuentes legacy |
+
+La obligatoriedad de `desde`/`hasta` proviene de la UI histórica y debe
+conservarse en el contrato V1, salvo decisión funcional posterior. No se debe
+heredar el comportamiento de `@documento` que omite el rango sin documentarlo
+explícitamente.
+
+## Decisión de fuente
+
+| Fuente | Ventajas | Limitaciones para V1 |
+|---|---|---|
+| `PR_INFORME_IMPORTACIONES` | Read-only, IDs técnicos, ocho campos confirmados, rango de fechas y documento | 76 columnas, sin paginación/total, filtros incompletos y cálculos dinámicos ajenos |
+| `v_Importaciones` | Read-only, proyección visual cercana y ocho campos disponibles | 70 columnas, sin parámetros, sin paginación/total, no contrato estable |
+| `APP24_Q_ENTRADAS_LISTAR` | Puede fijar ocho campos, IDs, filtros, fechas obligatorias, orden, paginación y `@Total` | Todavía no existe; requiere diseño SQL posterior y validación de negocio |
+
+**Recomendación:** no consumir directamente `PR_INFORME_IMPORTACIONES` ni
+`v_Importaciones` como contrato público V1. Ambos quedan como referencias
+legacy y evidencia funcional. Para el listado paginado con total y filtros de
+la API se recomienda posteriormente `dbo.APP24_Q_ENTRADAS_LISTAR`, estrictamente
+read-only, sin copiar los cálculos dinámicos de temporalidad/saldo salvo que el
+negocio los incluya expresamente.
+
+No se crea el SP, ni se implementa backend, en esta fase.
 
 ## Seguridad
 
@@ -634,7 +707,8 @@ agregan permisos en esta fase.
 5. El result set legacy usa nombres con espacios y mezcla tipos `float`,
    `numeric`, `char` y `varchar`.
 6. El SP no pagina y no devuelve total.
-7. No se ha confirmado si el contrato nuevo debe ser plano o header/detail.
+7. Los cálculos de vigencia dependen de `GETDATE()` y no son parte del listado
+   histórico básico.
 8. El ambiente actual sólo contiene dos importaciones y dos partidas; no permite
    validar cardinalidades amplias.
 9. La rama de `TIPOOPERACION = 2` procesa salidas dentro de `CARGAPEDIMENTOS`,
@@ -647,8 +721,13 @@ agregan permisos en esta fase.
 - `CARGAPEDIMENTOS` existe, no recibe parámetros y es mutable.
 - `PR_INFORME_IMPORTACIONES` existe, recibe fechas/documento y es read-only sobre
   tablas persistentes.
+- La ejecución controlada devolvió 2 filas por rango, 1 por documento con fechas
+  nulas y 1 por documento con rango no coincidente.
+- El documento existente desactiva efectivamente el rango de fechas.
 - El result set de `PR_INFORME_IMPORTACIONES` tiene 76 columnas confirmadas por
   metadata.
+- Los ocho campos históricos de Entradas tienen mapeo confirmado en el SP y sus
+  tablas fuente.
 - `Importaciones.Ipedimentokey = Partidas.Importacionlink` es la relación usada.
 - Las tablas auditadas no tienen FKs DDL entre sí.
 - `CARGAPEDIMENTOSIE` es staging y actualmente tiene 2 filas.
@@ -663,27 +742,31 @@ agregan permisos en esta fase.
   material o producto según el tipo de operación.
 - `PR_INFORME_IMPORTACIONES` representa una fila plana por partida.
 - `v_Importaciones` es la proyección visual más cercana al informe.
+- El listado V1 debe ser plano y conservar `importacionId` y `partidaId`; el detalle
+  header/detail queda para una iteración posterior.
 
 ## Pendiente de validar
 
-- Contrato exacto del endpoint y si será plano o header/detail.
-- Necesidad de paginación y total en la nueva API.
-- Filtros adicionales de producto, material, proveedor o fracción.
+- Aprobación funcional definitiva de la obligatoriedad de `desde`/`hasta` en la
+  API y de los filtros adicionales.
 - Semántica pública de saldo y temporalidad.
 - Correspondencia funcional definitiva entre tipo de operación, producto y
   material.
 - Relación con pedimentos alternos, rectificaciones y retornos.
 - Datos reales suficientes para validar 1:N y casos con múltiples partidas.
-- Si `PR_INFORME_IMPORTACIONES` puede ser consumido directamente o requiere un
-  SP propio de consulta.
+- Diseño y autorización operativa de `APP24_Q_ENTRADAS_LISTAR`; las fuentes
+  legacy no satisfacen por sí solas paginación, total y contrato estable.
 
 ## Estado
 
 ```text
-SIN IMPLEMENTACIÓN — AUDITORÍA READ-ONLY COMPLETADA
+SIN IMPLEMENTACIÓN — CONTRATO FUNCIONAL V1 CERRADO
 
 PR_INFORME_IMPORTACIONES:
-CANDIDATO LEGACY READ-ONLY PARA CONSULTA
+REFERENCIA LEGACY READ-ONLY; NO SATISFACE EL CONTRATO PAGINADO V1
+
+FUENTE RECOMENDADA PARA LA API:
+APP24_Q_ENTRADAS_LISTAR — PROPUESTA, NO CREADA
 
 CARGAPEDIMENTOS:
 PROCESO MUTABLE — NO USAR EN GET

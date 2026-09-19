@@ -30,7 +30,7 @@ lectura.
 | Estructuras | Construcción de BOM | SP | `dbo.CREAESTRUCTURAS` | PROCESS | Sí | Sí | CONFIRMADO; mutable, no usar para GET |
 | Estructuras | Preparación 1 a 1 | SP | `dbo.ESTRUCTURAS1A1` | PROCESS | Sí | Sí | CONFIRMADO; mutable y llama `CREAESTRUCTURAS` |
 | Entradas/importaciones | Carga de pedimentos | SP LEGACY | `dbo.CARGAPEDIMENTOS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; mutable, auditado; no usar para GET |
-| Entradas/importaciones | Consulta de entradas/detalle | SP LEGACY CANDIDATO | `dbo.PR_INFORME_IMPORTACIONES` | REPORT/QUERY | Sí | No | EN AUDITORÍA; read-only, 76 columnas, sin paginación |
+| Entradas/importaciones | Consulta paginada de entradas/líneas | SP PROPIO PROPUESTO | `dbo.APP24_Q_ENTRADAS_LISTAR` | QUERY | Sí | No | RECOMENDADO; pendiente de diseño/implementación; `PR_INFORME_IMPORTACIONES` queda como referencia legacy read-only |
 | Entradas/importaciones | Validación de pedimento | SP LEGACY | `dbo.VALIDAPEDIMENTO` | VALIDATION/PROCESS | Sí | Sí | CONFIRMADO por definición/dependencias; no usar para GET |
 | Salidas/exportaciones | Carga de facturas en salidas | SP | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; pendiente de auditoría de módulo |
 | Salidas/exportaciones | Informe de exportaciones | SP | `dbo.PR_INFORME_EXPORTACIONES` | REPORT | Sí | No | CONFIRMADO; pendiente de diseño de módulo |
