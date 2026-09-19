@@ -23,6 +23,13 @@
   border-bottom: 1px solid rgb(255 255 255 / 9%);
 }
 
+.sidebar-brand-mark {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  object-fit: contain;
+}
+
 .brand-copy {
   display: grid;
   flex: 1 1 auto;
@@ -172,6 +179,12 @@
 .app-sidebar.sidebar-compact .sidebar-brand {
   justify-content: center;
   padding-inline: 8px;
+}
+
+.app-sidebar.sidebar-compact .sidebar-brand-mark {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
 }
 
 .app-sidebar.sidebar-compact .sidebar-toggle {
