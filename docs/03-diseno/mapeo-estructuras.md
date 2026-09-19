@@ -5,7 +5,7 @@ Auditoría técnica de solo lectura del módulo Estructuras/BOM en `CALE_IMMEX`.
 - **Rama:** `feature/backend-structures`
 - **Fecha de auditoría:** 2026-09-19
 - **Base:** `CALE_IMMEX`, esquema `dbo`
-- **Estado:** auditoría de ingeniería inversa; no se implementa backend en esta iteración.
+- **Estado:** consulta read-only implementada mediante `APP24_Q_ESTRUCTURAS_LISTAR`; la auditoría de procesos mutables permanece sólo como referencia.
 - **Estrategia:** STORED PROCEDURE FIRST.
 
 No se ejecutaron procedimientos operativos. No se modificaron tablas, views,
