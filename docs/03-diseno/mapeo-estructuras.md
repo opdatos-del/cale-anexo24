@@ -218,6 +218,8 @@ Limitaciones para un futuro endpoint:
 - no acepta filtros como parámetros;
 - no implementa paginación;
 - no expone `estructurakey` ni `PRODMATKEY`;
+- `TOP (100) PERCENT ... ORDER BY` dentro de una view no es un contrato de orden
+  estable para una API;
 - incluye una subconsulta operacional de salidas;
 - puede multiplicar filas por detalle de estructura.
 
@@ -246,10 +248,14 @@ variables locales `@res` y `@temp`, que no son tablas persistentes.
 | `@DESDE` | `datetime` | Entrada |
 | `@HASTA` | `datetime` | Entrada |
 
-La definición normaliza `@PRODUCTO` y `@MATERIAL` vacíos a `NULL`. En la
-revisión estática de la definición no se observó uso de `@DESDE` ni `@HASTA` en
-el SELECT principal; esto requiere validación funcional adicional antes de
-tratar el rango de fechas como filtro efectivo.
+La definición normaliza `@PRODUCTO` y `@MATERIAL` vacíos a `NULL`. La segunda
+lectura directa de `sys.sql_modules` confirmó que `@DESDE` y `@HASTA` aparecen
+únicamente en sus declaraciones de parámetros: cada uno tiene una ocurrencia y
+ninguno aparece en el SELECT, en el WHERE, en SQL dinámico ni en una llamada a
+otro procedimiento. Por tanto:
+
+> **CONFIRMADO:** `@DESDE` y `@HASTA` forman parte del contrato, pero actualmente
+> no afectan el result set.
 
 **Tablas leídas:**
 
@@ -371,7 +377,13 @@ Los procesos de descargo no son fuentes de consulta: borran/recalculan
   `inicio DESC`, y retorna la primera `ESTRUCTURAKEY`.
 - Retorna `-1` si no encuentra estructura.
 - Usa cursor local para obtener el resultado.
+- `ESTRUCTURAKEY` es `BIGINT`, pero la función está declarada como `RETURNS
+  FLOAT`; el valor se asigna a `@RESULTADO FLOAT` antes de retornarse.
 - No escribe tablas.
+
+El futuro dominio/API no debe modelar `estructurakey` como `Float`/`Double`.
+La representación técnica deberá conservar la precisión del `BIGINT`, por
+ ejemplo `Long` en Java, sujeto a la revisión del contrato final.
 
 **Estado:** CONFIRMADO; cálculo read-only de estructura vigente para una fecha.
 
@@ -593,9 +605,12 @@ esta iteración.
 4. `MAX + 1` para claves técnicas puede generar colisiones bajo concurrencia.
 5. `CREAESTRUCTURAS` borra y reconstruye datos; no debe confundirse con consulta.
 6. No se observaron transacciones explícitas en los procesos clave.
-7. `@DESDE` y `@HASTA` están declarados en `PR_INFORME_ESTRUCTURAS`, pero su uso
-   efectivo no aparece en la definición revisada.
-8. `v_Estructuras` y el SP de informe no tienen paginación SQL.
+7. `@DESDE` y `@HASTA` están declarados en `PR_INFORME_ESTRUCTURAS`, pero la
+   segunda auditoría confirmó que no afectan el result set.
+8. `ESTRUCTURAS1A1` usa un `SELECT *` posicional que desplaza `UMC` y
+   `CANTIDADUMC`; la conversión en ejecución no fue probada por la política de
+   no ejecutar procesos mutables.
+9. `v_Estructuras` y el SP de informe no tienen paginación SQL.
 9. Los procesos de descargo pueden recalcular saldos y escribir historial/trazo.
 10. Las reglas de factores, unidades, merma y desperdicio están repartidas entre
     funciones y procesos; no deben copiarse a Java.
@@ -630,7 +645,8 @@ esta iteración.
 
 - Contrato funcional exacto de consulta y si debe incluir estructuras sin
   `productomaterial`.
-- Uso efectivo de `@DESDE` y `@HASTA` en el reporte.
+- Semántica funcional que el legado esperaba para `@DESDE` y `@HASTA`, aunque su
+  uso efectivo en el SP está confirmado como inexistente.
 - Orden determinista y paginación compatibles con el legado.
 - Significado funcional de `VMax`, `VMin`, `AUXILIAR` y `TIPOM`.
 - Ejemplos de datos BOM en un ambiente autorizado no vacío.
@@ -639,3 +655,200 @@ esta iteración.
   contrato.
 - Permisos efectivos del usuario técnico para consultar el SP legacy.
 - Si se requerirá autorización para un futuro `APP24_Q_ESTRUCTURAS_LISTAR`.
+
+## Segunda pasada de auditoría
+
+La segunda pasada se ejecutó el 2026-09-19 contra `CALE_IMMEX` mediante
+consultas de metadata y lectura de `sys.sql_modules`. No se ejecutaron
+`CREAESTRUCTURAS` ni `ESTRUCTURAS1A1`, no se insertaron datos de prueba y no se
+modificó ningún objeto SQL.
+
+### Contrato real de `PR_INFORME_ESTRUCTURAS`
+
+Los parámetros desplegados son exactamente:
+
+| Parámetro | Tipo SQL | Dirección | Uso observado |
+|---|---|---|---|
+| `@PRODUCTO` | `varchar(50)` | Entrada | Normalizado a `NULL` si está vacío y usado en el filtro de producto |
+| `@MATERIAL` | `varchar(50)` | Entrada | Normalizado a `NULL` si está vacío y usado en el filtro de material |
+| `@DESDE` | `datetime` | Entrada | Declarado; no usado en expresiones del procedimiento |
+| `@HASTA` | `datetime` | Entrada | Declarado; no usado en expresiones del procedimiento |
+
+La definición desplegada no contiene SQL dinámico ni `EXEC`/`sp_executesql`.
+El conteo textual de referencias fue una ocurrencia para cada parámetro, que
+corresponde a su declaración. No hay dependencia que consuma esos parámetros.
+
+**CONFIRMADO:** `@DESDE` y `@HASTA` forman parte del contrato legado, pero
+actualmente no afectan el result set. La pantalla puede exponer el rango, pero
+el comportamiento efectivo del SP no lo respalda como filtro.
+
+### Revisión de `ESTRUCTURAS1A1` y `UMC`/`CANTIDADUMC`
+
+La definición desplegada inserta en ocho columnas destino y utiliza `SELECT *`
+sobre una subconsulta con siete expresiones, en este orden:
+
+| Posición | Columna destino | Expresión fuente | Tipo fuente confirmado | Tipo destino confirmado |
+|---:|---|---|---|---|
+| 1 | `cartadematerialeskey` | `ROW_NUMBER() + @CARTAMATERIALES` | `bigint` | `float` |
+| 2 | `codigodeproducto` | `PRODUCTO` (`PARTIDAS.CLAVE`) | `varchar(50)` | `varchar(50)` |
+| 3 | `codigodematerial1` | `CLAVE` (`PARTIDAS.CLAVE`) | `varchar(50)` | `varchar(50)` |
+| 4 | `iniciovigencia` | `FECHA` (`'2000-01-01'`) | `datetime` implícito | `datetime` |
+| 5 | `cantidadumc` | `UMC` (`PARTIDAS.UNIDAD`) | `varchar(10)` | `numeric(18,7)` |
+| 6 | `umc` | `CANTIDADUMC` (`1`) | `int` | `varchar(50)` |
+| 7 | `desperdicio` | `DESPERDICIO` (`0`) | `int` | `numeric(18,7)` |
+| 8 | `merma` | `MERMA` (`0`) | `int` | `numeric(18,7)` |
+
+**CONFIRMADO:** existe una discrepancia posicional entre `cantidadumc`/`umc` y
+las expresiones `UMC`/`CANTIDADUMC`. SQL Server debe convertir implícitamente la
+unidad `varchar(10)` a `numeric(18,7)` para la quinta posición y el entero `1` a
+`varchar(50)` para la sexta. El efecto runtime concreto no se ejecutó por la
+prohibición de invocar procesos mutables; por ello no se afirma aquí un resultado
+operativo observado. La definición presenta un riesgo de conversión/error si la
+unidad contiene texto no numérico.
+
+### Invariante `productolink + inicio`
+
+La metadata actual de `dbo.estructuras` sólo muestra:
+
+- `PK_estructuras`, clustered, primary key y unique sobre `estructurakey`.
+- Ningún índice secundario.
+- Ninguna unique constraint sobre `(productolink, inicio)`.
+- Ninguna FK DDL hacia `productos`.
+
+Por tanto, `(productolink, inicio)` **no es una garantía DDL**. Es una regla de
+negocio inferida y asumida por procesos legacy:
+
+- `CREAESTRUCTURAS` busca `ESTRUCTURAKEY` con
+  `PRODUCTOLINK = @PRODUCTOKEY AND INICIO = @INICIOVIGENCIA`; si no encuentra
+  una fila crea una clave con `MAX(ESTRUCTURAKEY) + 1`.
+- `GETPRODUCTSTRUCT` selecciona `TOP 1` por producto con `INICIO <= fecha`,
+  ordenando únicamente por `INICIO DESC`; dos filas con la misma fecha no tienen
+  desempate determinista.
+- `PR_INFORME_ESTRUCTURAS` calcula el fin como el siguiente `inicio` mayor del
+  mismo producto.
+- Los procesos de descargo consumen `GETPRODUCTSTRUCT`, por lo que dependen de
+  la selección de una estructura vigente, pero no imponen unicidad.
+
+**Conclusión:** la unicidad es una regla de negocio inferida, no una garantía
+física. No se crea índice ni constraint en esta auditoría.
+
+### `BIGINT` frente a `FLOAT` en `GETPRODUCTSTRUCT`
+
+`dbo.estructuras.ESTRUCTURAKEY` es `BIGINT`. La función desplegada declara
+`RETURNS FLOAT`, almacena el valor en `@RESULTADO FLOAT` y devuelve `-1` cuando no
+encuentra una estructura. Esto puede introducir una representación numérica
+inadecuada para una clave técnica entera, aunque la función legacy lo haya
+establecido así.
+
+El futuro dominio/API debe conservar `ESTRUCTURAKEY` como entero de 64 bits
+(`Long` en Java o equivalente), nunca como `Float`/`Double`. La adaptación
+puede requerir tratar el resultado legacy con cuidado, pero no se modifica la
+función en esta fase.
+
+### Caso de uso funcional propuesto
+
+`v_Estructuras` y `PR_INFORME_ESTRUCTURAS` devuelven una fila por componente de
+`productomaterial`, acompañada de datos del producto y de la estructura. No
+exponen un result set separado de encabezados. Sus joins no constituyen una
+consulta de estructuras sin detalle: la forma observada está orientada a
+relaciones Producto ↔ Material.
+
+Por compatibilidad con la pantalla legacy y por simplicidad, el primer corte de
+consulta debe ser un **listado plano de líneas BOM**:
+
+```text
+una fila = producto + estructura vigente/histórica + componente de material
+```
+
+No se recomienda comenzar con un modelo header/detail. La necesidad de listar
+estructuras sin componentes queda PENDIENTE; la forma actual de ambos objetos no
+las entrega como filas independientes.
+
+### Endpoint y filtros candidatos
+
+Propuesta, no implementada:
+
+```http
+GET /api/v1/catalogos/estructuras
+```
+
+| Filtro | Evidencia | Estado |
+|---|---|---|
+| `producto` | `@PRODUCTO varchar(50)` filtra `CVE_PRODUCTO` | CONFIRMADO |
+| `material` | `@MATERIAL varchar(50)` filtra `CVE_MATERIAL` | CONFIRMADO |
+| `desde` | Parámetro legado declarado, pero sin efecto en el SP | PENDIENTE de contrato funcional |
+| `hasta` | Parámetro legado declarado, pero sin efecto en el SP | PENDIENTE de contrato funcional |
+| `pagina` | No existe en SP ni view; es una necesidad de contrato API | PENDIENTE |
+| `tamano` | No existe en SP ni view; es una necesidad de contrato API | PENDIENTE |
+
+Los filtros `producto` y `material` son los únicos respaldados por ejecución
+estática del contrato existente. No se implementa paginación por cuenta propia
+en esta auditoría.
+
+### Semántica temporal candidata
+
+El sistema ofrece dos evidencias relacionadas:
+
+1. `GETPRODUCTSTRUCT` selecciona la estructura con mayor `inicio` que cumpla
+   `inicio <= fecha`, lo que respalda una consulta "vigente a una fecha".
+2. `PR_INFORME_ESTRUCTURAS` deriva `fin` como el siguiente `inicio` del mismo
+   producto, lo que representa una vigencia por intervalos, aunque no filtra por
+   ella.
+
+| Alternativa | Regla | Evidencia | Estado |
+|---|---|---|---|
+| A | `inicio BETWEEN @Desde AND @Hasta` | No aparece en ningún SP/view auditado | INFERIDA; débilmente respaldada |
+| B | `inicio <= @Hasta AND (fin IS NULL OR fin >= @Desde)` | Compatible con `fin` derivado y con la selección as-of de `GETPRODUCTSTRUCT` | INFERIDA; requiere negocio |
+
+La alternativa B tiene mayor respaldo técnico para un rango de vigencia porque
+incluye una estructura que ya estaba activa al inicio del rango. Sin embargo,
+la semántica oficial de `desde/hasta`, inclusividad de límites y tratamiento de
+fechas nulas siguen PENDIENTES de validar con negocio.
+
+### Campos de response para un listado plano
+
+La siguiente propuesta conserva los campos observados sin aprobar todavía el
+contrato público:
+
+| Campo propuesto | Fuente legacy | Clasificación | Motivo |
+|---|---|---|---|
+| `estructuraId` | `PR_INFORME_ESTRUCTURAS.estructurakey` (`bigint`) | TÉCNICO NECESARIO | Identifica la fila de estructura; no lo expone la view |
+| `productoId` | `Codigo A24 Interno` (`productos.PRODUCTOKEY`) | TÉCNICO NECESARIO | Identificador técnico del producto |
+| `productoClave` | `Codigo de Producto` | CONFIRMADO PARA UI | Código mostrado por el reporte/view |
+| `productoDescripcion` | `Descripcion del Producto` | CONFIRMADO PARA UI | Descripción mostrada |
+| `productoUnidad` | `Unidad de Medida` | CONFIRMADO PARA UI | Unidad mostrada |
+| `fechaInicio` | `Fecha de Inicio Estructura` | CONFIRMADO PARA UI | Fecha presente en reporte/view |
+| `fechaFin` | `Fecha de Fin Estructura` del SP | CONFIRMADO PARA UI | Calculada por el reporte; no está en la view |
+| `productoMaterialId` | `PRODMATKEY` (`numeric(18,0)`) | TÉCNICO NECESARIO | Identifica la línea BOM |
+| `materialClave` | `Codigo de Materia Prima` | CONFIRMADO PARA UI | Código mostrado |
+| `materialDescripcion` | `Descripcion de MP` | CONFIRMADO PARA UI | Descripción mostrada |
+| `materialUnidad` | `Unidad MP` | CONFIRMADO PARA UI | Unidad mostrada |
+| `materialFraccion` | `Fraccion MP` | CONFIRMADO PARA UI | Fracción mostrada |
+| `cantidadIncorporada` | `Cantidad Incorporada` | CONFIRMADO PARA UI | Cantidad reportada |
+| `cantidadMermada` | `Cantidad Mermada` | CONFIRMADO PARA UI | Merma reportada |
+| `cantidadDesperdiciada` | `Cantidad Desperdiciada` | CONFIRMADO PARA UI | Desperdicio reportado |
+| `ultimaSalida` | `Ultima Salida` | OPCIONAL | Dato operativo calculado desde `salidas`/`psalidas`; no es núcleo de BOM |
+
+`estructuraId` debe conservarse como entero de 64 bits y `productoMaterialId`
+debe respetar la precisión de `numeric(18,0)` hasta aprobar el modelo de
+backend. Las etiquetas funcionales y la necesidad de `ultimaSalida` requieren
+validación de UI/negocio.
+
+### Comparación de fuentes
+
+| Fuente | Solo lectura | Filtros | Fechas efectivas | Paginación | IDs técnicos | Contrato |
+|---|---:|---|---|---:|---|---|
+| `dbo.PR_INFORME_ESTRUCTURAS` | Sí | Producto/material | No; parámetros declarados sin efecto | No | Sí: `PRODMATKEY`, `estructurakey`, producto | Reporte de detalle legacy |
+| `dbo.v_Estructuras` | Sí | No parametrizados | Sólo `inicio` como columna | No | No: omite `estructurakey` y `PRODMATKEY` | Referencia de detalle |
+| `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | No existe | Diseñables | Diseñables | Diseñable | Diseñables | Requeriría autorización y contrato nuevo |
+
+**Recomendación:** para una consulta compatible con la pantalla legacy y sin
+requisitos de paginación, `PR_INFORME_ESTRUCTURAS` es la fuente preferida y debe
+consumirse mediante un adapter, no mediante SQL directo. Para un endpoint
+paginado con fechas efectivas, ninguna fuente existente satisface el contrato:
+la view no tiene filtros/IDs y el SP no pagina ni aplica fechas. En ese caso,
+`APP24_Q_ESTRUCTURAS_LISTAR` sería la alternativa técnica eventual, pero queda
+pendiente de aprobación explícita; no se crea en esta fase.
+
+**Estado de esta auditoría:** consulta plana de detalle respaldada por
+`PR_INFORME_ESTRUCTURAS`; contrato paginado y semántica temporal aún PENDIENTES.
