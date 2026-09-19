@@ -483,12 +483,12 @@ dbo.productos
 Implementado como `ProductoDto` con el contrato inicial autorizado:
 
 ```text
-productokey          numeric(18,0)
-cveProducto          varchar(50)
-nombre               varchar(250)
-unidad                varchar(10)
-fraccion             varchar(12)
-unidadt              varchar(10)
+id                  numeric(18,0)
+clave               varchar(50)
+descripcion         varchar(250)
+fraccion            varchar(12)
+unidadComercial     varchar(10)
+unidadTarifaria     varchar(10)
 ```
 
 `NICO`, `TIPO`, `ALMACENKEY` y `AUXILIAR` quedan fuera hasta contar con una

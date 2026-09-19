@@ -6,12 +6,12 @@ import java.math.BigDecimal;
 
 /** Producto del catálogo expuesto por la API. */
 public record ProductoDto(
-        BigDecimal productokey,
-        String cveProducto,
-        String nombre,
+        BigDecimal id,
+        String clave,
+        String descripcion,
         String fraccion,
-        String unidad,
-        String unidadt) {
+        String unidadComercial,
+        String unidadTarifaria) {
 
     /**
      * Convierte un producto de dominio a DTO.
@@ -21,11 +21,11 @@ public record ProductoDto(
      */
     public static ProductoDto from(Producto producto) {
         return new ProductoDto(
-                producto.productokey(),
-                producto.cveProducto(),
-                producto.nombre(),
+                producto.id(),
+                producto.clave(),
+                producto.descripcion(),
                 producto.fraccion(),
-                producto.unidad(),
-                producto.unidadt());
+                producto.unidadComercial(),
+                producto.unidadTarifaria());
     }
 }

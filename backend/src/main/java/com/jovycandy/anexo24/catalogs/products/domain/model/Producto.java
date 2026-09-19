@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 
 /** Producto del catálogo canónico del Módulo C. */
 public record Producto(
-        BigDecimal productokey,
-        String cveProducto,
-        String nombre,
+        BigDecimal id,
+        String clave,
+        String descripcion,
         String fraccion,
-        String unidad,
-        String unidadt) {
+        String unidadComercial,
+        String unidadTarifaria) {
 }
