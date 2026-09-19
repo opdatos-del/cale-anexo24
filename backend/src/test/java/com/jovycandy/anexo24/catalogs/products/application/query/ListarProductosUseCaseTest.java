@@ -56,6 +56,16 @@ class ListarProductosUseCaseTest {
     }
 
     @Test
+    void aceptaPaginaGrandeYLaEnviaAlRepository() {
+        Pagina<Producto> esperado = paginaVacia(Integer.MAX_VALUE, 100);
+        when(productoRepository.findPage(null, Integer.MAX_VALUE, 100)).thenReturn(esperado);
+
+        assertThat(new ListarProductosUseCase(productoRepository)
+                .ejecutar(null, Integer.MAX_VALUE, 100)).isSameAs(esperado);
+        verify(productoRepository).findPage(null, Integer.MAX_VALUE, 100);
+    }
+
+    @Test
     void rechazaPaginaMenorQueUno() {
         assertThatThrownBy(() -> new ListarProductosUseCase(productoRepository)
                 .ejecutar(null, 0, 20))

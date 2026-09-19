@@ -39,7 +39,7 @@ BEGIN
        OR NOMBRE LIKE '%' + @Filtro + '%'
        OR fraccion LIKE '%' + @Filtro + '%'
     ORDER BY CVE_PRODUCTO, PRODUCTOKEY
-    OFFSET (@Pagina - 1) * @Tamano ROWS
+    OFFSET (CAST(@Pagina AS BIGINT) - 1) * CAST(@Tamano AS BIGINT) ROWS
     FETCH NEXT @Tamano ROWS ONLY;
 END;
 GO
