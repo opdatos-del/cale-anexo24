@@ -506,7 +506,7 @@ DESCARGASALIDAPEPS / DESCARGATSALIDA1 / DESCARGATSALIDAFECHA
 **CONFIRMADO por definición y metadata de dependencias.** Estos procesos son
 mutables y quedan fuera de la implementación de consulta.
 
-## Fuente candidata para consulta
+## Fuente implementada y referencias legacy
 
 ### Prioridad 1: SP legacy
 
@@ -545,7 +545,7 @@ dbo.APP24_Q_ESTRUCTURAS_LISTAR
 El procedimiento encapsula únicamente la lectura de las cuatro tablas canónicas;
 no replica `CREAESTRUCTURAS`, `ESTRUCTURAS1A1` ni procesos de descargo.
 
-## Filtros y paginación candidatos
+## Filtros y paginación implementados
 
 Filtros respaldados por contratos existentes:
 
@@ -911,3 +911,82 @@ Validación realizada en desarrollo después de desplegar únicamente el SP:
 
 El ambiente mantiene `estructuras = 0` y `productomaterial = 0`; no se crearon
 BOM sintéticos. La página grande no produjo overflow ni efectos secundarios.
+
+## Revisión de compatibilidad legacy y hardening
+
+### Semántica NULL
+
+Para conservar la semántica de `PR_INFORME_ESTRUCTURAS`, el SP propio aplica en
+el conteo y en el SELECT paginado:
+
+```sql
+p.CVE_PRODUCTO IS NOT NULL
+AND pm.CVE_MATERIAL IS NOT NULL
+AND (@Producto IS NULL OR p.CVE_PRODUCTO = @Producto)
+AND (@Material IS NULL OR pm.CVE_MATERIAL = @Material)
+```
+
+Esto evita que un filtro `NULL` incluya líneas con claves funcionales nulas,
+igual que el predicado legacy basado en `COALESCE`. No se agregó una condición
+sobre blanks: los valores no nulos conservan la semántica de la comparación
+legacy. El `LEFT JOIN dbo.material` se mantiene para permitir una línea con
+`CVE_MATERIAL` no nula aunque no exista todavía una fila en `dbo.material`.
+
+### Normalización de claves
+
+El result set aplica:
+
+```sql
+LTRIM(RTRIM(p.CVE_PRODUCTO)) AS CVE_PRODUCTO
+LTRIM(RTRIM(pm.CVE_MATERIAL)) AS CVE_MATERIAL
+```
+
+Los aliases no cambiaron y el adapter continúa leyendo `CVE_PRODUCTO` y
+`CVE_MATERIAL`. La normalización ocurre en SQL; no se introdujo una conversión
+adicional en Java.
+
+### Diagnóstico de calidad de datos
+
+Consultas diagnósticas read-only ejecutadas en `CALE_IMMEX`:
+
+| Diagnóstico | Resultado |
+|---|---:|
+| Filas de `productos` | 204 |
+| `productos.CVE_PRODUCTO IS NULL` | 0 |
+| `productos.CVE_PRODUCTO` blank | 0 |
+| Filas de `material` | 2 |
+| `material.CLAVE IS NULL` | 0 |
+| `material.CLAVE` blank | 0 |
+| Grupos duplicados `productos.CVE_PRODUCTO` | 0 |
+| Grupos duplicados `material.CLAVE` | 0 |
+| Filas `productomaterial` | 0 |
+| Filas `productomaterial.CVE_MATERIAL IS NULL` | 0; tabla vacía |
+| Filas `productomaterial.CVE_MATERIAL` blank | 0; tabla vacía |
+
+No se crearon constraints, índices ni datos sintéticos.
+
+### Metadata final del result set
+
+`sys.dm_exec_describe_first_result_set_for_object` confirmó el contrato
+real desplegado:
+
+| # | Alias | Tipo SQL | Nullable | Adapter |
+|---:|---|---|---:|---|
+| 1 | `ESTRUCTURAKEY` | `bigint` | No | `getLong` → `Long` |
+| 2 | `PRODUCTOKEY` | `numeric(18,0)` | No | `getBigDecimal` |
+| 3 | `CVE_PRODUCTO` | `varchar(50)` | Sí | `getString` |
+| 4 | `PRODUCTO_DESCRIPCION` | `varchar(250)` | Sí | `getString` |
+| 5 | `PRODUCTO_UNIDAD` | `varchar(10)` | Sí | `getString` |
+| 6 | `FECHA_INICIO` | `datetime` | Sí | `getTimestamp` → `LocalDateTime` |
+| 7 | `FECHA_FIN` | `datetime` | Sí | `getTimestamp` nullable |
+| 8 | `PRODMATKEY` | `numeric(18,0)` | No | `getBigDecimal` |
+| 9 | `CVE_MATERIAL` | `varchar(50)` | Sí | `getString` |
+| 10 | `MATERIAL_DESCRIPCION` | `varchar(250)` | Sí | `getString` |
+| 11 | `MATERIAL_UNIDAD` | `char(5)` | Sí | `getString` |
+| 12 | `MATERIAL_FRACCION` | `char(10)` | Sí | `getString` |
+| 13 | `CANT_UTILIZADA` | `numeric(18,7)` | Sí | `getBigDecimal` |
+| 14 | `CANT_MERMADA` | `numeric(18,7)` | Sí | `getBigDecimal` |
+| 15 | `CANT_DESPERDICIADA` | `numeric(18,7)` | Sí | `getBigDecimal` |
+
+No se encontró incompatibilidad entre la metadata SQL y
+`EstructuraStoredProcedureAdapter`.
