@@ -1,0 +1,48 @@
+:host {
+  display: block;
+}
+
+.app-empty-state {
+  display: grid;
+  justify-items: center;
+  padding: 52px 24px;
+  color: var(--app-muted);
+  text-align: center;
+}
+
+.app-empty-state__icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  place-items: center;
+  color: var(--app-blue);
+  background: var(--app-blue-soft);
+  border: 1px solid var(--app-blue-border);
+  border-radius: 16px;
+}
+
+.app-empty-state__icon mat-icon {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
+}
+
+.app-empty-state h2 {
+  margin: 0;
+  color: var(--app-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.app-empty-state p {
+  max-width: 390px;
+  margin: 7px 0 18px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.app-empty-state button {
+  min-height: 38px;
+  border-radius: var(--app-control-radius) !important;
+}

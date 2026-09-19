@@ -73,27 +73,27 @@
 }
 
 .app-alert--info {
-  color: #1e40af;
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  color: var(--app-blue);
+  background: var(--app-blue-soft);
+  border-color: var(--app-blue-border);
 }
 
 .app-alert--success {
-  color: #166534;
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  color: var(--app-success-text);
+  background: var(--app-success-soft);
+  border-color: var(--app-success-border);
 }
 
 .app-alert--warning {
-  color: #92400e;
-  background: #fffbeb;
-  border-color: #fde68a;
+  color: var(--app-warning-text);
+  background: var(--app-warning-soft);
+  border-color: var(--app-warning-border);
 }
 
 .app-alert--error {
-  color: #991b1b;
-  background: #fef2f2;
-  border-color: #fecaca;
+  color: var(--app-danger-text);
+  background: var(--app-danger-soft);
+  border-color: var(--app-danger-border);
 }
 
 @media (max-width: 640px) {

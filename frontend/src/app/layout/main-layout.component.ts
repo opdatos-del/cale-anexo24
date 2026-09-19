@@ -5,7 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { ConfirmService } from '../core/ui/confirm-dialog/confirm.service';
 import { SidebarComponent } from './navigation/sidebar.component';
@@ -45,7 +46,11 @@ import { SidebarComponent } from './navigation/sidebar.component';
               <mat-icon aria-hidden="true">menu</mat-icon>
             </button>
           }
-          <span class="hidden text-[13px] font-medium tracking-wide text-slate-200 sm:inline">ANEXO 24 <span class="mx-1 text-slate-500">·</span> Control de Inventarios</span>
+          <div class="app-toolbar-context hidden sm:flex" aria-label="Ubicación actual">
+            <span class="app-toolbar-context__brand">Anexo 24</span>
+            <span class="app-toolbar-context__separator" aria-hidden="true">/</span>
+            <strong>{{ currentContext() }}</strong>
+          </div>
           <span class="flex-1"></span>
           <button type="button" [matMenuTriggerFor]="userMenu" class="inline-flex h-9.5 items-center gap-2 rounded-lg border-0 bg-transparent px-2.5 text-white transition hover:bg-white/8" aria-label="Abrir menú de usuario">
             <span class="user-initials user-initials-toolbar" aria-hidden="true">{{ auth.initials() }}</span>
@@ -73,12 +78,22 @@ export class MainLayoutComponent {
   protected readonly isMobile = signal(false);
   protected readonly mobileSidebarOpen = signal(false);
   protected readonly sidebarCollapsed = signal(false);
+  protected readonly currentContext = signal('Inicio');
 
   private readonly router = inject(Router);
   private readonly confirm = inject(ConfirmService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
+    this.currentContext.set(this.contextForUrl(this.router.url));
+
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((event) => this.currentContext.set(this.contextForUrl(event.urlAfterRedirects)));
+
     inject(BreakpointObserver)
       .observe(Breakpoints.Handset)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -95,6 +110,12 @@ export class MainLayoutComponent {
 
   protected toggleMobileSidebar(): void {
     this.mobileSidebarOpen.update((open) => !open);
+  }
+
+  private contextForUrl(url: string): string {
+    if (url.includes('/materiales')) return 'Catálogos / Materiales';
+    if (url.includes('/dashboard')) return 'Inicio';
+    return 'Aplicación';
   }
 
   protected goToDashboard(): void {

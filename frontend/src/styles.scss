@@ -8,13 +8,41 @@ html {
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: mat.$blue-palette,
+        tertiary: mat.$azure-palette,
       ),
       typography: Roboto,
       density: 0,
     )
   );
+}
+
+:root {
+  --app-ink: #10243f;
+  --app-ink-soft: #284463;
+  --app-navy: #142844;
+  --app-navy-deep: #0b1d35;
+  --app-blue: #1769d1;
+  --app-blue-bright: #2f91ff;
+  --app-blue-soft: #edf5ff;
+  --app-blue-border: #c9e0ff;
+  --app-canvas: #f5f8fc;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f7f9fc;
+  --app-border: #dbe4ef;
+  --app-muted: #64748b;
+  --app-success-text: #187044;
+  --app-success-soft: #effaf3;
+  --app-success-border: #b9e7c9;
+  --app-warning-text: #98600b;
+  --app-warning-soft: #fff9eb;
+  --app-warning-border: #f3d78d;
+  --app-danger-text: #a33434;
+  --app-danger-soft: #fff2f2;
+  --app-danger-border: #f2c6c6;
+  --app-control-radius: 10px;
+  --app-panel-radius: 14px;
+  --app-shadow: 0 4px 18px rgb(15 23 42 / 4%);
 }
 
 app-root,
@@ -32,19 +60,78 @@ app-login {
 
 body {
   color-scheme: light;
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
+  background-color: var(--app-canvas);
+  color: var(--app-ink);
   font: var(--mat-sys-body-medium);
+  font-family: Roboto, sans-serif;
   margin: 0;
   height: 100%;
   overflow-x: hidden;
+}
+
+::selection {
+  color: #fff;
+  background: var(--app-blue);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mat-mdc-unelevated-button,
+.mat-mdc-outlined-button,
+.mat-mdc-button,
+.mat-mdc-icon-button {
+  border-radius: var(--app-control-radius) !important;
+}
+
+.mat-mdc-unelevated-button,
+.mat-mdc-outlined-button,
+.mat-mdc-button {
+  font-weight: 650 !important;
+}
+
+.app-page {
+  min-height: 100%;
+  background: var(--app-canvas);
+  color: var(--app-ink);
+}
+
+.app-page__content {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  padding: 32px 32px 48px;
+}
+
+.app-content main {
+  scrollbar-color: #b8c8da transparent;
+  scrollbar-width: thin;
+}
+
+app-panel.dashboard-module-card .app-panel {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+app-panel.dashboard-module-card:hover .app-panel {
+  border-color: var(--app-blue-border);
+  box-shadow: 0 12px 28px rgb(15 23 42 / 8%);
+  transform: translateY(-2px);
+}
+
+app-panel.dashboard-status-panel .app-panel {
+  display: grid;
+  gap: 14px;
 }
 
 .app-snackbar-success,
 .app-snackbar-error,
 .app-snackbar-info,
 .app-snackbar-warning {
-  --mdc-snackbar-container-color: #17263b;
+  --mdc-snackbar-container-color: var(--app-navy);
   --mdc-snackbar-container-shape: 12px;
   --mdc-snackbar-supporting-text-color: #f8fafc;
   --mat-snack-bar-button-color: #bfdbfe;
@@ -69,4 +156,14 @@ body {
 
 .app-snackbar-warning {
   --mdc-snackbar-container-color: #92400e;
+}
+
+@media (max-width: 640px) {
+  app-panel.dashboard-module-card:hover .app-panel {
+    transform: none;
+  }
+
+  .app-page__content {
+    padding: 24px 18px 36px;
+  }
 }

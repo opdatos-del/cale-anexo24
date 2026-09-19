@@ -8,7 +8,7 @@
   overflow: hidden;
   flex-direction: column;
   color: #aebdce;
-  background: linear-gradient(180deg, #17263b 0%, #142238 100%);
+  background: linear-gradient(180deg, var(--app-navy) 0%, var(--app-navy-deep) 100%);
   border-right: 1px solid rgb(255 255 255 / 9%);
 }
 
@@ -28,6 +28,8 @@
   height: 40px;
   flex: 0 0 40px;
   object-fit: contain;
+  border-radius: 11px;
+  box-shadow: 0 5px 16px rgb(3 15 36 / 28%);
 }
 
 .brand-copy {

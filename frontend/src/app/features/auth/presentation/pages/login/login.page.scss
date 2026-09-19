@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.login-overlay {
+  background: linear-gradient(118deg, rgb(4 19 43 / 84%), rgb(8 48 96 / 58%));
+}
+
+.login-card {
+  box-shadow: 0 24px 70px rgb(3 15 36 / 32%);
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px 20px;
+  }
+}
