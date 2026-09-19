@@ -532,16 +532,18 @@ Sin embargo, no es todavía un contrato confirmado para un catálogo paginado:
 adecuada que el SP para un endpoint porque no recibe filtros, no pagina y no
 expone las claves técnicas de estructura y detalle.
 
-### Recomendación provisional
+### Decisión implementada
 
-Para una futura consulta de detalle, investigar primero la adaptación de
-`dbo.PR_INFORME_ESTRUCTURAS` mediante un adapter de infraestructura. Para un
-endpoint paginado de catálogo, la fuente queda **PENDIENTE DE VALIDAR** hasta
-confirmar el contrato de fechas, volumen y estrategia de paginación.
+`dbo.PR_INFORME_ESTRUCTURAS` y `dbo.v_Estructuras` se conservan como referencias
+legacy, pero no satisfacen el contrato paginado y estable de la nueva API. Con
+la autorización general para SP propios read-only se implementa:
 
-No se crea todavía `APP24_Q_ESTRUCTURAS_LISTAR`. Si el SP legacy no puede
-satisfacer el contrato después de esa validación, se documentará la autorización
-necesaria antes de crear un SP propio read-only.
+```text
+dbo.APP24_Q_ESTRUCTURAS_LISTAR
+```
+
+El procedimiento encapsula únicamente la lectura de las cuatro tablas canónicas;
+no replica `CREAESTRUCTURAS`, `ESTRUCTURAS1A1` ni procesos de descargo.
 
 ## Filtros y paginación candidatos
 
@@ -549,15 +551,13 @@ Filtros respaldados por contratos existentes:
 
 - producto: `@PRODUCTO varchar(50)`;
 - material: `@MATERIAL varchar(50)`;
-- rango de fechas: parámetros declarados `@DESDE` y `@HASTA`, pero su aplicación
-  efectiva está PENDIENTE DE VALIDAR.
+- fechas: `@DESDE` y `@HASTA` quedan fuera del primer corte porque el SP legacy
+  los declara pero no los aplica.
+- paginación: `pagina` y `tamano` pertenecen al contrato APP24 y se validan en
+  el caso de uso y defensivamente en el SP.
 
-La vista no ofrece filtros formales.
-
-No se define todavía `ORDER BY`, página ni tamaño de página para API porque el
-SP legacy y la view no ofrecen paginación. La clave determinista candidata sería
-`Codigo A24 Interno`, `Fecha de Inicio Estructura`, `PRODMATKEY`, pero queda
-PENDIENTE DE VALIDAR contra el contrato funcional y el orden legado.
+La consulta APP24 usa filtros parametrizados por producto y material y un orden
+determinista por `PRODUCTOKEY`, `INICIO`, `ESTRUCTURAKEY` y `PRODMATKEY`.
 
 ## Seguridad
 
@@ -570,30 +570,40 @@ ESTRUCTURAS_CONSULTAR
 Está confirmado en el seed de seguridad versionado; la autorización efectiva de
 un usuario de ambiente no se probó en esta auditoría.
 
-## Endpoint futuro propuesto
+## Endpoint implementado
 
 ```http
 GET /api/v1/catalogos/estructuras
 ```
 
-Contrato provisional pendiente de aprobación:
+Parámetros:
 
 ```text
-Caso de uso
-    ↓
-Endpoint
-    ↓
-Use Case
-    ↓
-Repository Port
-    ↓
-Adapter de consulta
-    ↓
-PR_INFORME_ESTRUCTURAS o fuente aprobada
+producto opcional
+material opcional
+pagina = 1
+tamano = 20
 ```
 
-No se crean controller, use case, port, adapter, DTO ni tests funcionales en
-esta iteración.
+Flujo implementado:
+
+```text
+StructureController
+    ↓
+ListarEstructurasUseCase
+    ↓
+EstructuraRepository
+    ↓
+EstructuraStoredProcedureAdapter
+    ↓
+dbo.APP24_Q_ESTRUCTURAS_LISTAR
+    ↓
+dbo.productos / dbo.estructuras / dbo.productomaterial / dbo.material
+```
+
+El permiso requerido es `ESTRUCTURAS_CONSULTAR`. Las validaciones de página son
+`pagina >= 1` y `1 <= tamano <= 100`; los textos se normalizan con trim y los
+valores vacíos quedan como `NULL`.
 
 ## Riesgos
 
@@ -611,8 +621,8 @@ esta iteración.
    `CANTIDADUMC`; la conversión en ejecución no fue probada por la política de
    no ejecutar procesos mutables.
 9. `v_Estructuras` y el SP de informe no tienen paginación SQL.
-9. Los procesos de descargo pueden recalcular saldos y escribir historial/trazo.
-10. Las reglas de factores, unidades, merma y desperdicio están repartidas entre
+10. Los procesos de descargo pueden recalcular saldos y escribir historial/trazo.
+11. Las reglas de factores, unidades, merma y desperdicio están repartidas entre
     funciones y procesos; no deben copiarse a Java.
 
 ## Confirmado
@@ -639,7 +649,9 @@ esta iteración.
 - La fecha de fin se deriva como el siguiente inicio para el mismo producto.
 - `productolink` y `estructuralink` son claves técnicas lógicas aunque no tengan
   FK declarada.
-- `PR_INFORME_ESTRUCTURAS` es la fuente legacy más cercana a un detalle de BOM.
+- `PR_INFORME_ESTRUCTURAS` es la fuente legacy de referencia para el detalle de BOM.
+- `dbo.APP24_Q_ESTRUCTURAS_LISTAR` es la fuente propia read-only implementada para
+  la consulta paginada de la API.
 
 ## Pendiente de validar
 
@@ -654,7 +666,8 @@ esta iteración.
 - Si `v_Estructuras` debe conservar la columna `Ultima Salida` en el nuevo
   contrato.
 - Permisos efectivos del usuario técnico para consultar el SP legacy.
-- Si se requerirá autorización para un futuro `APP24_Q_ESTRUCTURAS_LISTAR`.
+- Semántica funcional de `desde`/`hasta`, que permanece fuera del primer corte.
+- Ejemplos reales de líneas BOM para validar el mapeo contra datos no vacíos.
 
 ## Segunda pasada de auditoría
 
@@ -840,15 +853,61 @@ validación de UI/negocio.
 |---|---:|---|---|---:|---|---|
 | `dbo.PR_INFORME_ESTRUCTURAS` | Sí | Producto/material | No; parámetros declarados sin efecto | No | Sí: `PRODMATKEY`, `estructurakey`, producto | Reporte de detalle legacy |
 | `dbo.v_Estructuras` | Sí | No parametrizados | Sólo `inicio` como columna | No | No: omite `estructurakey` y `PRODMATKEY` | Referencia de detalle |
-| `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | No existe | Diseñables | Diseñables | Diseñable | Diseñables | Requeriría autorización y contrato nuevo |
+| `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | Sí | Producto/material | No aplica en este corte | Sí | Sí: todos los IDs técnicos | SP propio read-only implementado |
 
-**Recomendación:** para una consulta compatible con la pantalla legacy y sin
-requisitos de paginación, `PR_INFORME_ESTRUCTURAS` es la fuente preferida y debe
-consumirse mediante un adapter, no mediante SQL directo. Para un endpoint
-paginado con fechas efectivas, ninguna fuente existente satisface el contrato:
-la view no tiene filtros/IDs y el SP no pagina ni aplica fechas. En ese caso,
-`APP24_Q_ESTRUCTURAS_LISTAR` sería la alternativa técnica eventual, pero queda
-pendiente de aprobación explícita; no se crea en esta fase.
+**Decisión actual:** `PR_INFORME_ESTRUCTURAS` y `v_Estructuras` permanecen como
+referencias legacy. La API consume `dbo.APP24_Q_ESTRUCTURAS_LISTAR` porque
+necesita paginación, aliases estables, IDs técnicos y un orden determinista.
+El SP propio no replica procesos mutables ni sustituye reglas de negocio de
+`CREAESTRUCTURAS`.
 
-**Estado de esta auditoría:** consulta plana de detalle respaldada por
-`PR_INFORME_ESTRUCTURAS`; contrato paginado y semántica temporal aún PENDIENTES.
+**Estado de esta auditoría e implementación:**
+
+```text
+CONFIRMADO — APP24 QUERY READ-ONLY
+```
+
+`desde` y `hasta` permanecen fuera del contrato hasta contar con semántica
+funcional aprobada. `ultimaSalida`, `VMax`, `VMin`, `AUXILIAR` y `TIPOM` tampoco
+forman parte del primer response.
+
+## Implementación del primer corte
+
+Script versionado:
+
+```text
+infra/sql/procedures/queries/APP24_Q_ESTRUCTURAS_LISTAR.sql
+```
+
+Parámetros SQL:
+
+```text
+@Producto VARCHAR(50) = NULL
+@Material VARCHAR(50) = NULL
+@Pagina INT = 1
+@Tamano INT = 20
+@Total BIGINT OUTPUT
+```
+
+El procedimiento:
+
+- normaliza producto y material con `LTRIM`/`RTRIM`/`NULLIF`;
+- cuenta líneas con `COUNT_BIG` antes de paginar;
+- devuelve los aliases técnicos estables del contrato API;
+- calcula `FECHA_FIN` como el siguiente `INICIO` mayor del mismo producto;
+- ordena por `PRODUCTOKEY`, `INICIO`, `ESTRUCTURAKEY`, `PRODMATKEY`;
+- calcula `OFFSET` usando `BIGINT`;
+- no aplica filtros `desde`/`hasta`;
+- no escribe datos ni invoca procedimientos legacy.
+
+Validación realizada en desarrollo después de desplegar únicamente el SP:
+
+| Caso | Total |
+|---|---:|
+| Sin filtros, página 1 | 0 |
+| Producto inexistente | 0 |
+| Material inexistente | 0 |
+| Página `2147483647`, tamaño 100 | 0 |
+
+El ambiente mantiene `estructuras = 0` y `productomaterial = 0`; no se crearon
+BOM sintéticos. La página grande no produjo overflow ni efectos secundarios.
