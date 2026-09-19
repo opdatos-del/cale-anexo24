@@ -4,9 +4,11 @@ Matriz inicial de fuentes SQL para la integración del backend con
 `CALE_IMMEX`. Se actualiza conforme cada caso de uso sea auditado. La regla
 vigente es **STORED PROCEDURE FIRST**:
 
-1. consumir un SP adecuado;
-2. si no existe, consumir una view adecuada;
-3. si tampoco existe, detener implementación y pedir aprobación para SQL directo.
+1. consumir un SP legacy adecuado;
+2. si no existe, consumir una view legacy adecuada;
+3. si tampoco existe y el caso es estrictamente de lectura, crear un SP propio
+   `APP24_Q_*` autorizado;
+4. el backend consume siempre el objeto SQL mediante un adapter.
 
 La matriz no implica que los procedimientos hayan sido ejecutados. Las
 clasificaciones provienen de definiciones y metadata consultadas en solo
@@ -15,7 +17,7 @@ lectura.
 | Módulo | Caso de uso | Fuente | Objeto SQL | Tipo | Lee | Escribe | Estado |
 |---|---|---|---|---|---|---|---|
 | Materiales | Consulta de catálogo | TABLE | `dbo.material` | QUERY | Sí | No | CONFIRMADO; patrón existente |
-| Productos | Consulta de catálogo | PENDIENTE | — | — | — | — | EN AUDITORÍA; sin SP/View de catálogo confirmado |
+| Productos | Consulta de catálogo | SP PROPIO | `dbo.APP24_Q_PRODUCTOS_LISTAR` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY |
 | Productos | Carga de catálogo | SP | `dbo.CARGA_PRODUCTOS` | IMPORT | Sí | Sí | CONFIRMADO; no usar para GET |
 | Productos | Alta derivada por facturas | SP | `dbo.CARGA_FACTURAS` | IMPORT | Sí | Sí | CONFIRMADO; proceso mutable |
 | Productos | Alta derivada por factura | SP | `dbo.CREAPRODUCTOSCARGAFACTURA` | IMPORT | Sí | Sí | CONFIRMADO; proceso mutable |
@@ -42,23 +44,27 @@ lectura.
 
 ## Estado de Productos
 
-Para el caso prioritario:
+Para la consulta del catálogo:
 
 ```text
 Consulta de productos
     ↓
-No hay SP de consulta de catálogo confirmado
+No existe SP legacy adecuado
     ↓
-No hay View canónica adecuada confirmada
+No existe View dedicada adecuada
     ↓
-STOP
+Autorización arquitectónica
     ↓
-Requiere aprobación para SQL directo sobre dbo.productos
+SP PROPIO APP24_Q_PRODUCTOS_LISTAR
+    ↓
+ProductoStoredProcedureAdapter
 ```
 
-La tabla `dbo.productos` es canónica como dato persistente, pero todavía no es
-una fuente autorizada para implementar un adapter productivo. La decisión y la
-evidencia detallada están en [`mapeo-productos.md`](mapeo-productos.md).
+`dbo.APP24_Q_PRODUCTOS_LISTAR` encapsula únicamente la lectura de
+`dbo.productos`, con filtro por código/nombre/fracción, paginación y `@Total`
+como parámetro de salida. No reemplaza lógica de negocio legacy ni modifica
+ningún SP existente. La evidencia detallada está en
+[`mapeo-productos.md`](mapeo-productos.md).
 
 ## Dependencias relevantes confirmadas
 
