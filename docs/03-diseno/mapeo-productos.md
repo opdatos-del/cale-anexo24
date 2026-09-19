@@ -18,7 +18,8 @@ Para `GET /api/v1/catalogos/productos` se investigó en este orden:
    parámetros en `sys.parameters`, dependencias y metadata del primer result
    set.
 2. Views existentes y sus definiciones.
-3. No se implementó SQL productivo directo contra tablas.
+3. Al no existir SP legacy ni view adecuada, se autorizó crear un SP propio de consulta `APP24_Q_PRODUCTOS_LISTAR`.
+4. El backend consume ese SP mediante un adapter de infraestructura; no contiene SQL de negocio contra tablas.
 
 Las consultas usadas fueron únicamente de metadata (`sys.procedures`,
 `sys.sql_modules`, `sys.parameters`, `sys.objects`, `sys.views`,
@@ -36,12 +37,12 @@ histórica reporta aproximadamente 2,630. La discrepancia sigue pendiente de
 reconciliación y no se debe resolver eligiendo otra fuente sin evidencia.
 
 La tabla canónica está confirmada por las cargas y procesos que validan o crean
-productos. Sin embargo, bajo la regla nueva **no es todavía una fuente aprobada
-para un adapter de consulta directa**.
+productos. La consulta aprobada encapsula su lectura en un procedimiento propio,
+sin reemplazar las reglas de negocio de los procesos legacy.
 
 **Estado de integración del caso de uso:**
 
-> **SIN SP DE CONSULTA — REQUIERE APROBACIÓN PARA SQL DIRECTO**
+> **CONFIRMADO — APP24 QUERY READ-ONLY**
 
 ## Tablas
 
@@ -82,7 +83,7 @@ Calidad del corte actual: 204 `PRODUCTOKEY` no nulos y distintos; 204
 `CVE_PRODUCTO` no nulos, no blank y distintos. Es una condición de datos, no
 una garantía DDL para `CVE_PRODUCTO`.
 
-### Matriz UI → BD
+## Mapeo UI → BD
 
 | Campo UI | Campo BD | Tipo | Evidencia | Estado |
 |---|---|---|---|---|
@@ -281,7 +282,7 @@ una referencia a `PEDIMENTOS` y para `SP_GENERA_TXT_COMPLETO` por
 `xp_cmdshell`. Esto es una limitación de metadata; no se ejecutaron para
 averiguarlo.
 
-## Dependencias
+## Relaciones
 
 ### Dependencias comprobadas relevantes
 
@@ -348,24 +349,42 @@ No se identificó una view dedicada al catálogo de productos con contrato de
 filtros y paginación. En particular, `v_Estructuras` e `INFORME_CARGA_CARTA`
 requieren datos/relaciones de BOM o stage que no representan todos los productos.
 
+### APP24_Q_PRODUCTOS_LISTAR
+
+- **Tipo:** `QUERY`.
+- **Lectura/escritura:** `READ ONLY`.
+- **Parámetros de entrada:** `@Filtro VARCHAR(250)`, `@Pagina INT`,
+  `@Tamano INT`.
+- **Parámetro de salida:** `@Total BIGINT OUTPUT`.
+- **Tablas consultadas:** `dbo.productos`.
+- **Tablas modificadas:** ninguna.
+- **Result set:** `PRODUCTOKEY`, `CVE_PRODUCTO`, `NOMBRE`, `fraccion`,
+  `UNIDAD`, `UNIDADT`.
+- **Filtros:** búsqueda por `CVE_PRODUCTO`, `NOMBRE` o `fraccion`.
+- **Orden y paginación:** `ORDER BY CVE_PRODUCTO, PRODUCTOKEY` con
+  `OFFSET/FETCH`.
+- **Efectos secundarios:** ninguno; no llama SP mutables ni escribe tablas.
+- **Caso de uso:** `GET /api/v1/catalogos/productos`.
+- **Backend previsto:** `ProductController → ListarProductosUseCase →
+  ProductoRepository → ProductoStoredProcedureAdapter`.
+- **Estado:** `CONFIRMADO — APP24 QUERY READ-ONLY`.
+
 ## Caso de uso y fuente recomendada
 
 **Caso de uso:** Consulta de productos.
 
 **Endpoint:** `GET /api/v1/catalogos/productos`.
 
-**Resultado de la investigación:**
+**Fuente aprobada:** `SP PROPIO` — `dbo.APP24_Q_PRODUCTOS_LISTAR`.
 
-- **SP adecuado:** no existe uno confirmado.
-- **View adecuada:** no existe una view canónica confirmada.
-- **Fuente canónica de datos:** `dbo.productos`, confirmada como tabla, pero no
-  autorizada todavía para SQL productivo directo.
-- **Decisión:** detener implementación y solicitar aprobación explícita antes de
-  crear `ProductoJdbcAdapter` con SQL directo.
+No se encontró un SP legacy apropiado ni una view dedicada al catálogo. Se recibió
+autorización arquitectónica para crear un procedimiento APP24 de solo lectura que
+encapsula la consulta de la tabla canónica. El procedimiento no reemplaza ni
+reimplementa la lógica de cargas, estructuras, saldos o reportes legacy.
 
-La opción de consulta directa sería técnicamente una consulta parametrizada sobre
-`dbo.productos` con `COUNT(*)`, filtros y `ORDER BY CVE_PRODUCTO, PRODUCTOKEY`,
-pero queda como propuesta, no como implementación aprobada.
+El adapter `ProductoStoredProcedureAdapter` sólo conoce el contrato del SP:
+parámetros de filtro/paginación, result set de catálogo y parámetro `@Total OUTPUT`.
+No contiene un `SELECT` productivo contra `dbo.productos`.
 
 ## Filtros
 
@@ -383,7 +402,7 @@ de catálogo.
 
 ## Paginación
 
-Si se aprueba SQL directo, la API conservaría el contrato de Materiales:
+La API conserva el contrato de Materiales:
 
 - `pagina >= 1`.
 - `1 <= tamano <= 100`.
@@ -399,23 +418,25 @@ Si se aprueba SQL directo, la API conservaría el contrato de Materiales:
 }
 ```
 
-Los procedimientos y views auditados no exponen paginación SQL para este caso.
-No se debe envolver ni modificar un SP existente automáticamente.
+El SP propio implementa `OFFSET/FETCH` y devuelve `@Total` con el mismo filtro.
+La validación funcional de `pagina` y `tamano` permanece en
+`ListarProductosUseCase`; el SP mantiene defensas para evitar un `OFFSET` inválido
+si se invoca fuera del backend.
 
-Si se autoriza consulta directa, el orden determinista propuesto es:
+El orden determinista implementado es:
 
 ```sql
 ORDER BY CVE_PRODUCTO, PRODUCTOKEY
 ```
 
 `CVE_PRODUCTO` refleja el orden funcional y `PRODUCTOKEY` es el desempate
-estable. El orden no se ha implementado.
+estable. Ambos campos forman parte del `ORDER BY` del SP.
 
 ## Seguridad
 
 El permiso `PRODUCTOS_CONSULTAR` existe en `ANEXO24_DEV` / esquema `app24`,
-tiene dos perfiles asignados y no se agrega ningún permiso nuevo. El futuro
-endpoint deberá usar ese permiso.
+tiene dos perfiles asignados y no se agrega ningún permiso nuevo. El endpoint
+implementado usa ese permiso.
 
 ## Endpoint propuesto
 
@@ -423,7 +444,7 @@ endpoint deberá usar ese permiso.
 GET /api/v1/catalogos/productos
 ```
 
-El flujo backend queda bloqueado hasta decidir la fuente:
+El flujo backend implementado es:
 
 ```text
 Caso de uso
@@ -434,26 +455,32 @@ Use Case
     ↓
 Repository Port
     ↓
-StoredProcedureAdapter o ViewAdapter
+ProductoStoredProcedureAdapter
     ↓
-SP/View aprobado
+dbo.APP24_Q_PRODUCTOS_LISTAR
 ```
 
-La alternativa directa queda deliberadamente detenida:
+La consulta directa quedó encapsulada en el SP autorizado:
 
 ```text
-No hay SP adecuado
+Caso de uso
     ↓
-No hay View adecuada
+Endpoint
     ↓
-STOP
+Use Case
     ↓
-Aprobación explícita para SQL directo
+Repository Port
+    ↓
+ProductoStoredProcedureAdapter
+    ↓
+dbo.APP24_Q_PRODUCTOS_LISTAR
+    ↓
+dbo.productos
 ```
 
 ## DTO propuesto
 
-Solo como propuesta de contrato, no implementado:
+Implementado como `ProductoDto` con el contrato inicial autorizado:
 
 ```text
 productokey          numeric(18,0)
@@ -461,8 +488,7 @@ cveProducto          varchar(50)
 nombre               varchar(250)
 unidad                varchar(10)
 fraccion             varchar(12)
-cveProductoCliente   varchar(30)  // sujeto a validación
-unidadt              varchar(10)  // sujeto a validación
+unidadt              varchar(10)
 ```
 
 `NICO`, `TIPO`, `ALMACENKEY` y `AUXILIAR` quedan fuera hasta contar con una
@@ -470,24 +496,23 @@ necesidad funcional confirmada.
 
 ## Riesgos
 
-1. **No existe contrato de consulta:** implementar SELECT directo sin aprobación
-   rompería la estrategia `STORED PROCEDURE FIRST`.
-2. **Diferencia de volumen:** 204 filas actuales frente a aproximadamente 2,630
-   históricas.
+1. **Diferencia de volumen:** 204 filas actuales frente a aproximadamente 2,630
+   históricas; requiere reconciliación con negocio.
+2. **Costo de filtros:** no se confirmaron índices secundarios sobre las columnas
+   filtradas; los patrones con comodines pueden requerir scans.
 3. **Reportes no son catálogos:** los SP de informes pueden duplicar productos,
    limitarse a operaciones o excluir productos sin movimientos/BOM.
-4. **Efectos secundarios:** cargas, descargos, saldos y exportaciones escriben o
-   invocan procesos mutables.
-5. **`SP_GENERA_TXT_COMPLETO`:** contiene `xp_cmdshell`, `bcp`, updates y rutas
+4. **`SP_GENERA_TXT_COMPLETO`:** contiene `xp_cmdshell`, `bcp`, updates y rutas
    del servidor; no es reutilizable como endpoint de lectura.
-6. **Sin FKs:** Producto/BOM/Material depende de convenciones y procesos, no de
+5. **Sin FKs:** Producto/BOM/Material depende de convenciones y procesos, no de
    integridad referencial declarada.
-7. **Clave funcional nullable:** `CVE_PRODUCTO` no tiene `NOT NULL` ni unique DDL.
-8. **Índices:** solo se confirmó la PK clustered; filtros directos podrían
-   requerir scans.
-9. **Unidades:** falta confirmar la etiqueta UI exacta de `UNIDAD` y `UNIDADT`.
-10. **Transacciones legacy:** los procesos existentes controlan sus propias
-    escrituras; el backend no debe envolverlos con `@Transactional` sin análisis.
+6. **Clave funcional nullable:** `CVE_PRODUCTO` no tiene `NOT NULL` ni unique DDL.
+7. **Unidades:** falta confirmar con negocio la etiqueta UI exacta de `UNIDAD` y
+   `UNIDADT`.
+8. **Despliegue SQL:** el SP fue desplegado en el ambiente autorizado de
+   desarrollo; el endpoint HTTP real aún requiere una prueba autenticada.
+9. **Contrato acotado:** `CVE_PRODUCTO_CLIENTE`, `NICO`, `TIPO`, `ALMACENKEY` y
+   `AUXILIAR` quedan fuera hasta contar con una necesidad aprobada.
 
 ## Confirmado
 
@@ -498,8 +523,13 @@ necesidad funcional confirmada.
 - Los SP que crean/validan productos son de carga o proceso y escriben datos.
 - Los SP de informe que contienen campos de producto no son catálogos paginados.
 - `SP_GENERA_TXT_COMPLETO` es un exportador con escritura y `xp_cmdshell`.
-- No existe un SP de consulta de catálogo confirmado.
-- No existe una view dedicada y adecuada para el catálogo.
+- No existía un SP legacy adecuado para consultar el catálogo.
+- No existía una view dedicada y adecuada para el catálogo.
+- Se autorizó crear `dbo.APP24_Q_PRODUCTOS_LISTAR` como SP propio de consulta.
+- `dbo.APP24_Q_PRODUCTOS_LISTAR` lee únicamente `dbo.productos` y no escribe.
+- El SP fue desplegado y validado en desarrollo sin filtro, por clave, por
+  descripción, por fracción y en segunda página.
+- `@Total` del SP coincidió con `COUNT_BIG(*)` diagnóstico: 204 registros.
 - `PRODUCTOS_CONSULTAR` existe en `ANEXO24_DEV`.
 - No se ejecutó ningún SP mutable.
 
@@ -507,8 +537,7 @@ necesidad funcional confirmada.
 
 - `CVE_PRODUCTO` es el número de parte visible en la pantalla histórica.
 - `UNIDAD` corresponde a UMC.
-- `ORDER BY CVE_PRODUCTO, PRODUCTOKEY` sería determinista si se aprueba SQL
-  directo.
+- `ORDER BY CVE_PRODUCTO, PRODUCTOKEY` es el orden determinista del SP propio.
 - Las relaciones Producto → Estructura → Material se realizan mediante
   `PRODUCTOKEY`, `PRODUCTOLINK`, `ESTRUCTURAKEY`, `ESTRUCTURALINK`,
   `CVE_MATERIAL` y `CLAVE`, pero no son FKs.
@@ -519,31 +548,24 @@ necesidad funcional confirmada.
 - Confirmar con negocio/UI las etiquetas de `UNIDAD` y `UNIDADT`.
 - Confirmar si número de parte filtra `CVE_PRODUCTO`, `CVE_PRODUCTO_CLIENTE` o
   ambos.
-- Confirmar si el dueño de Módulo C autoriza consulta directa ante la ausencia de
-  SP/View.
-- Confirmar permisos efectivos del usuario técnico en la tabla, si se aprueba
-  SQL directo.
+
+- Confirmar permisos efectivos del usuario técnico para ejecutar el SP.
+
 - Medir planes y volumen antes de decidir índices; no modificar DDL aquí.
-- Confirmar DTO final y exposición de `CVE_PRODUCTO_CLIENTE`/`UNIDADT`.
+- Confirmar DTO final y eventual exposición de `CVE_PRODUCTO_CLIENTE`/`UNIDADT`.
 - Revisar contratos de otros SP únicamente cuando se implemente su caso de uso.
 
-## Plan exacto después de aprobación
+## Plan exacto de seguimiento
 
-1. Obtener aprobación explícita para SQL directo o una instrucción del dueño de
-   Módulo C que defina un SP/View de consulta.
-2. Si aparece un SP adecuado, documentar su contrato completo y diseñar un
-   `ProductoStoredProcedureAdapter`; no copiar lógica SQL a Java.
-3. Si aparece una view adecuada, documentar columnas, filtros y cardinalidad y
-   diseñar un `ProductoViewAdapter`.
-4. Solo si se aprueba SQL directo, crear `Producto`, `ProductoRepository`,
-   `ListarProductosUseCase` y un adapter JDBC parametrizado contra
-   `dbo.productos`.
-5. Mantener validación `pagina >= 1`, `1 <= tamano <= 100`, el orden aprobado y
-   el permiso `PRODUCTOS_CONSULTAR`.
-6. Agregar cobertura 200/400/401/403/503 y pruebas del contrato de fuente.
-7. Ejecutar `clean test` y `build` después de implementar.
+1. Ejecutar `infra/sql/procedures/queries/APP24_Q_PRODUCTOS_LISTAR.sql` en el
+   ambiente autorizado de desarrollo.
+2. Validar el SP sin filtro, por clave, por descripción y por fracción.
+3. Validar página 1, segunda página si existen datos, `@Total` y el orden
+   `CVE_PRODUCTO, PRODUCTOKEY`.
+4. Comparar `@Total` contra un `SELECT COUNT(*)` diagnóstico, sin modificar datos.
+5. Ejecutar `clean test` y `build`.
+6. Probar el endpoint HTTP con `PRODUCTOS_CONSULTAR` mediante un usuario
+   autenticado contra el ambiente de desarrollo.
 
-No se implementa todavía `ProductController`, `ProductoRepository`,
-`ProductoJdbcAdapter`, `ListarProductosUseCase`, DTO, mapper, frontend ni tests
-funcionales de Productos. Tampoco se implementan Estructuras, Entradas, Salidas,
-Materiales utilizados, Descargos, Saldos, Reportes o Facturación.
+No se implementan Estructuras, Entradas, Salidas, Materiales utilizados,
+Descargos, Saldos, Reportes o Facturación.
