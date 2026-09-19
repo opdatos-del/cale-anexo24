@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.app-panel {
+  min-width: 0;
+  padding: 20px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-panel-radius);
+  box-shadow: var(--app-shadow);
+}
+
+.app-panel--flush {
+  padding: 0;
+  overflow: hidden;
+}

@@ -14,6 +14,7 @@ import { AppBrandLoaderComponent } from '../../../../../core/ui/app-brand-loader
 @Component({
   imports: [AppAlertComponent, AppBrandLoaderComponent, ReactiveFormsModule],
   selector: 'app-login',
+  styleUrl: './login.page.scss',
   template: `
     <div class="relative min-h-screen w-full overflow-hidden">
       <app-brand-loader [visible]="isLoading()" label="Iniciando sesión..." />
@@ -27,12 +28,12 @@ import { AppBrandLoaderComponent } from '../../../../../core/ui/app-brand-loader
       </div>
 
       <!-- OVERLAY para contraste -->
-      <div class="absolute inset-0 bg-slate-950/45"></div>
+      <div class="login-overlay absolute inset-0"></div>
 
       <!-- CONTENEDOR CENTRADO: card flotante encima de fondo + overlay -->
       <div class="relative z-10 flex min-h-screen w-full items-center justify-center p-4">
         <div
-          class="animate-card-in w-full max-w-105 rounded-3xl border border-white/20 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
+          class="login-card animate-card-in w-full max-w-105 rounded-2xl border border-white/20 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
         >
           <!-- HEADER -->
           <header class="text-center">

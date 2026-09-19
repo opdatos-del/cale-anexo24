@@ -33,6 +33,7 @@ interface NavGroup {
       aria-label="Navegación principal"
     >
       <div class="sidebar-brand">
+        <img class="sidebar-brand-mark" src="/favicon.png" alt="" />
         <span class="sidebar-copy brand-copy">
           <strong class="brand-name">Anexo 24</strong>
           <small>Control de inventarios</small>

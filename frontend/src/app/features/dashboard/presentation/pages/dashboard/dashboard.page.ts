@@ -1,69 +1,105 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../../core/auth/auth.service';
-import { DashboardSummaryService } from '../../../application/dashboard-summary.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
 import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
+import { AppPanelComponent } from '../../../../../core/ui/app-panel/app-panel.component';
+import { PageHeaderComponent } from '../../../../../core/ui/page-header/page-header.component';
+import { StatusBadgeComponent } from '../../../../../core/ui/status-badge/status-badge.component';
+import { DashboardSummaryService } from '../../../application/dashboard-summary.service';
 
-/** Página de inicio autenticada, alineada al mockup DASH. */
+/** Página de inicio autenticada con indicadores respaldados por endpoints reales. */
 @Component({
-  imports: [AppAlertComponent, MatButtonModule, MatCardModule, MatIconModule, RouterLink],
+  imports: [
+    AppAlertComponent,
+    AppPanelComponent,
+    MatIconModule,
+    PageHeaderComponent,
+    RouterLink,
+    StatusBadgeComponent,
+  ],
   selector: 'app-dashboard',
   styleUrl: './dashboard.page.scss',
   template: `
-    <div class="mx-auto max-w-360 px-5 py-8 sm:px-8">
-      <div class="mb-8">
-        <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Panel principal</p>
-        <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Hola, {{ auth.userName() || 'Usuario' }}</h1>
-        <p class="mt-2 text-sm text-slate-500">Resumen operativo de tu control de inventarios.</p>
-      </div>
+    <div class="app-page">
+      <main class="app-page__content dashboard-page">
+        <app-page-header
+          eyebrow="Panel principal"
+          [title]="'Hola, ' + (auth.userName() || 'Usuario')"
+          description="Un punto de entrada claro para consultar y controlar tus catálogos."
+        />
 
-      <section class="welcome-notice mb-7" aria-label="Mensaje de bienvenida">
-        <span class="welcome-icon"><mat-icon>verified</mat-icon></span>
-        <div>
-          <p>Bienvenido de nuevo, {{ auth.userName() || 'Usuario' }}.</p>
-          <span>Tu sesión está activa y el sistema está listo para operar.</span>
-        </div>
-      </section>
-
-      @if (loadError()) {
-        <div class="mb-7">
-          <app-alert kind="error" title="No pudimos actualizar el resumen" [message]="loadError()!" actionLabel="Reintentar" (action)="loadSummary()" />
-        </div>
-      }
-
-      <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Resumen del sistema">
-        <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
-          <div class="flex items-center gap-3">
-            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><mat-icon class="text-[20px]!">inventory_2</mat-icon></span>
-            <p class="m-0 text-sm text-slate-700">Materiales</p>
+        <section class="dashboard-welcome" aria-label="Estado de la sesión">
+          <span class="dashboard-welcome__icon" aria-hidden="true"><mat-icon>verified_user</mat-icon></span>
+          <div>
+            <p>Tu sesión está activa.</p>
+            <span>El sistema está listo para consultar la información disponible.</span>
           </div>
-          @if (isLoading()) {
-            <div class="mt-4 h-7 w-24 animate-pulse rounded bg-slate-100" aria-label="Cargando materiales"></div>
-          } @else if (materialsTotal() !== null) {
-            <a routerLink="/materiales" class="mt-4 inline-block text-base font-medium text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500">{{ materialsTotal() }} registros</a>
-          }
-        </mat-card>
-      </section>
+        </section>
 
-      <section class="mt-8" aria-labelledby="avisos-title">
-        <h2 id="avisos-title" class="mb-3 text-sm font-normal uppercase text-slate-700">Avisos</h2>
-        <app-alert kind="info" message="No hay avisos operativos pendientes." />
-      </section>
-
-      <section class="mt-8" aria-labelledby="estado-title">
-        <h2 id="estado-title" class="mb-3 text-sm font-normal uppercase text-slate-700">Estado</h2>
-      <div class="flex flex-wrap gap-4">
-          <div class="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800">
-            <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
-            Sesión activa
+        @if (loadError()) {
+          <div class="dashboard-alert">
+            <app-alert kind="error" title="No pudimos actualizar el resumen" [message]="loadError()!" actionLabel="Reintentar" (action)="loadSummary()" />
           </div>
-          <div class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500">Catálogo conectado</div>
-        </div>
-      </section>
+        }
+
+        <section class="dashboard-section" aria-labelledby="catalogos-title">
+          <div class="dashboard-section__heading">
+            <div>
+              <p class="dashboard-section__eyebrow">Acceso operativo</p>
+              <h2 id="catalogos-title">Catálogos</h2>
+            </div>
+            <span class="dashboard-section__hint">Información disponible</span>
+          </div>
+
+          <div class="dashboard-grid">
+            <app-panel class="dashboard-module-card">
+              <div class="dashboard-module-card__header">
+                <span class="dashboard-module-card__icon" aria-hidden="true"><mat-icon>inventory_2</mat-icon></span>
+                <div>
+                  <h3>Materiales</h3>
+                  <p>Consulta el catálogo registrado en Módulo C.</p>
+                </div>
+              </div>
+
+              @if (isLoading()) {
+                <div class="dashboard-stat-skeleton" aria-label="Cargando total de materiales"></div>
+              } @else if (materialsTotal() !== null) {
+                <div class="dashboard-module-card__metric">
+                  <strong>{{ materialsTotal() }}</strong>
+                  <span>registros disponibles</span>
+                </div>
+              }
+
+              <a routerLink="/materiales" class="dashboard-module-card__link">
+                Consultar catálogo
+                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              </a>
+            </app-panel>
+          </div>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="system-status-title">
+          <div class="dashboard-section__heading">
+            <div>
+              <p class="dashboard-section__eyebrow">Supervisión</p>
+              <h2 id="system-status-title">Estado del sistema</h2>
+            </div>
+          </div>
+          <app-panel class="dashboard-status-panel">
+            <div class="dashboard-status-list">
+              <app-status-badge kind="success" label="Sesión activa" />
+              @if (materialsTotal() !== null) {
+                <app-status-badge kind="info" label="Consulta de materiales disponible" />
+              } @else {
+                <app-status-badge kind="neutral" label="Verificando catálogo" />
+              }
+            </div>
+            <p class="dashboard-status-panel__copy">Los indicadores se muestran únicamente cuando la API confirma la disponibilidad de la información.</p>
+          </app-panel>
+        </section>
+      </main>
     </div>
   `,
 })

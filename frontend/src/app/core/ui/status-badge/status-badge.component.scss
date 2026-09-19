@@ -1,0 +1,48 @@
+:host {
+  display: inline-flex;
+}
+
+.app-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+}
+
+.app-status-badge__dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.app-status-badge--success {
+  color: var(--app-success-text);
+  background: var(--app-success-soft);
+  border-color: var(--app-success-border);
+}
+
+.app-status-badge--info {
+  color: var(--app-blue);
+  background: var(--app-blue-soft);
+  border-color: var(--app-blue-border);
+}
+
+.app-status-badge--warning {
+  color: var(--app-warning-text);
+  background: var(--app-warning-soft);
+  border-color: var(--app-warning-border);
+}
+
+.app-status-badge--error {
+  color: var(--app-danger-text);
+  background: var(--app-danger-soft);
+  border-color: var(--app-danger-border);
+}
