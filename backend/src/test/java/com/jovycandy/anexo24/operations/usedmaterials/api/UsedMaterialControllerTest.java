@@ -22,6 +22,8 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -67,6 +69,45 @@ class UsedMaterialControllerTest {
                         .param("desde", DESDE.toString())
                         .param("hasta", HASTA.toString())
                         .param("material", "M".repeat(51))
+                        .with(user(usuarioAutorizado())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"));
+    }
+
+    @Test
+    void desdeAusenteResponde400() throws Exception {
+        when(useCase.ejecutar(isNull(), eq(HASTA), isNull(), isNull(), isNull(), isNull(), eq(1), eq(20)))
+                .thenThrow(new SolicitudInvalidaException("La fecha desde es obligatoria"));
+
+        mockMvc.perform(get("/api/v1/operaciones/materiales-utilizados")
+                        .param("hasta", HASTA.toString())
+                        .with(user(usuarioAutorizado())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"));
+    }
+
+    @Test
+    void hastaAusenteResponde400() throws Exception {
+        when(useCase.ejecutar(eq(DESDE), isNull(), isNull(), isNull(), isNull(), isNull(), eq(1), eq(20)))
+                .thenThrow(new SolicitudInvalidaException("La fecha hasta es obligatoria"));
+
+        mockMvc.perform(get("/api/v1/operaciones/materiales-utilizados")
+                        .param("desde", DESDE.toString())
+                        .with(user(usuarioAutorizado())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"));
+    }
+
+    @Test
+    void rangoInvertidoResponde400() throws Exception {
+        LocalDate desde = HASTA;
+        LocalDate hasta = DESDE;
+        when(useCase.ejecutar(eq(desde), eq(hasta), isNull(), isNull(), isNull(), isNull(), eq(1), eq(20)))
+                .thenThrow(new SolicitudInvalidaException("La fecha desde no puede ser posterior a hasta"));
+
+        mockMvc.perform(get("/api/v1/operaciones/materiales-utilizados")
+                        .param("desde", desde.toString())
+                        .param("hasta", hasta.toString())
                         .with(user(usuarioAutorizado())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"));

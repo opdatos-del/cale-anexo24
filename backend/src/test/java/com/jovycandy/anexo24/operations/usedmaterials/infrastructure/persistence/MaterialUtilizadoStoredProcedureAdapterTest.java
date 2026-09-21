@@ -141,7 +141,7 @@ class MaterialUtilizadoStoredProcedureAdapterTest {
     }
 
     @Test
-    void convierteFechaYDevuelveItemsVacios() throws Exception {
+    void convierteFechaLocalDateTime() throws Exception {
         ResultSet resultSet = org.mockito.Mockito.mock(ResultSet.class);
         when(resultSet.getLong("DESCARGA_ID")).thenReturn(1L);
         when(resultSet.getTimestamp("FECHA")).thenReturn(Timestamp.valueOf("2025-12-01 00:00:00"));
@@ -159,6 +159,20 @@ class MaterialUtilizadoStoredProcedureAdapterTest {
         assertThat(resultado.items()).singleElement()
                 .extracting(MaterialUtilizado::fecha)
                 .isEqualTo(LocalDateTime.of(2025, 12, 1, 0, 0));
+    }
+
+    @Test
+    void devuelvePaginaVaciaCuandoElSpNoDevuelveItems() {
+        when(jdbcTemplate.call(any(CallableStatementCreator.class), anyList()))
+                .thenReturn(Map.of("Total", 0L));
+
+        Pagina<MaterialUtilizado> resultado = adapter.findPage(DESDE, HASTA,
+                null, null, null, null, 1, 20);
+
+        assertThat(resultado.items()).isEmpty();
+        assertThat(resultado.total()).isZero();
+        assertThat(resultado.pagina()).isEqualTo(1);
+        assertThat(resultado.tamano()).isEqualTo(20);
     }
 
     private static RowMapper<MaterialUtilizado> mapperFrom(List<SqlParameter> parameters) {
