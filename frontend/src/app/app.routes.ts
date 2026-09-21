@@ -41,6 +41,12 @@ export const routes: Routes = [
         data: { permission: 'ESTRUCTURAS_CONSULTAR' },
         loadChildren: () => import('@features/catalogs/structures/structures.routes').then((routes) => routes.STRUCTURES_ROUTES),
       },
+      {
+        path: 'operaciones',
+        canActivate: [permissionGuard],
+        data: { permission: 'OPERACIONES_CONSULTAR' },
+        loadChildren: () => import('@features/operations/operations.routes').then((routes) => routes.OPERATIONS_ROUTES),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

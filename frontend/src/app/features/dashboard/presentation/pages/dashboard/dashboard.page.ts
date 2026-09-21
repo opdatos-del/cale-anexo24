@@ -36,7 +36,7 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
         </div>
       }
 
-      @if (auth.hasAnyPermission('MATERIALES_CONSULTAR', 'PRODUCTOS_CONSULTAR', 'ESTRUCTURAS_CONSULTAR')) {
+      @if (auth.hasAnyPermission('MATERIALES_CONSULTAR', 'PRODUCTOS_CONSULTAR', 'ESTRUCTURAS_CONSULTAR', 'OPERACIONES_CONSULTAR')) {
         <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Accesos rápidos de catálogos">
         @if (auth.hasPermission('MATERIALES_CONSULTAR')) {
           <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
@@ -67,6 +67,22 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
               <p class="m-0 text-sm text-slate-700">Estructuras</p>
             </div>
             <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de estructuras y materiales asociados.</p>
+          </a>
+        }
+        @if (auth.hasPermission('OPERACIONES_CONSULTAR')) {
+          <a routerLink="/operaciones/entradas" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><mat-icon class="text-[20px]!">move_to_inbox</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Entradas</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de líneas de importación.</p>
+          </a>
+          <a routerLink="/operaciones/salidas" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><mat-icon class="text-[20px]!">outbox</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Salidas</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de líneas de exportación.</p>
           </a>
         }
         </section>

@@ -10,6 +10,10 @@ import { ProductRepository } from '@features/catalogs/products/domain/repositori
 import { HttpProductRepository } from '@features/catalogs/products/infrastructure/repositories/http-product.repository';
 import { StructureRepository } from '@features/catalogs/structures/domain/repositories/structure.repository';
 import { HttpStructureRepository } from '@features/catalogs/structures/infrastructure/repositories/http-structure.repository';
+import { EntryRepository } from '@features/operations/entries/domain/repositories/entry.repository';
+import { HttpEntryRepository } from '@features/operations/entries/infrastructure/repositories/http-entry.repository';
+import { ExitRepository } from '@features/operations/exits/domain/repositories/exit.repository';
+import { HttpExitRepository } from '@features/operations/exits/infrastructure/repositories/http-exit.repository';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -20,5 +24,7 @@ export const appConfig: ApplicationConfig = {
     { provide: MaterialRepository, useClass: HttpMaterialRepository },
     { provide: ProductRepository, useClass: HttpProductRepository },
     { provide: StructureRepository, useClass: HttpStructureRepository },
+    { provide: EntryRepository, useClass: HttpEntryRepository },
+    { provide: ExitRepository, useClass: HttpExitRepository },
   ],
 };

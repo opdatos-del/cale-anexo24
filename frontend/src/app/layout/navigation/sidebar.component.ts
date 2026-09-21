@@ -127,13 +127,26 @@ export class SidebarComponent implements OnDestroy {
 
   protected readonly auth = inject(AuthService);
   protected readonly navigationGroups = computed<NavGroup[]>(() => {
-    const items: NavItem[] = [
+    const groups: NavGroup[] = [];
+    const catalogItems: NavItem[] = [
       { label: 'Materiales', icon: 'inventory_2', route: '/materiales', permission: 'MATERIALES_CONSULTAR' },
       { label: 'Productos', icon: 'category', route: '/productos', permission: 'PRODUCTOS_CONSULTAR' },
       { label: 'Estructuras', icon: 'account_tree', route: '/estructuras', permission: 'ESTRUCTURAS_CONSULTAR' },
     ].filter((item) => this.auth.hasPermission(item.permission));
 
-    return items.length > 0 ? [{ label: 'Catálogos', items }] : [];
+    if (catalogItems.length > 0) groups.push({ label: 'Catálogos', items: catalogItems });
+
+    if (this.auth.hasPermission('OPERACIONES_CONSULTAR')) {
+      groups.push({
+        label: 'Operaciones',
+        items: [
+          { label: 'Entradas', icon: 'move_to_inbox', route: '/operaciones/entradas', permission: 'OPERACIONES_CONSULTAR' },
+          { label: 'Salidas', icon: 'outbox', route: '/operaciones/salidas', permission: 'OPERACIONES_CONSULTAR' },
+        ],
+      });
+    }
+
+    return groups;
   });
 
   private readonly menuPath = 'M4 6H20M4 12H20M4 18H20';
