@@ -37,8 +37,9 @@ lectura.
 | Salidas/exportaciones | Consulta de exportaciones legacy | VIEW LEGACY | `dbo.v_Exportaciones` | REPORT/QUERY | Sí | No | CONFIRMADO; read-only, 44 columnas, sin filtros parametrizados, paginación ni total; referencia, no contrato HTTP |
 | Salidas/exportaciones | Consulta paginada de salidas/líneas V1 | SP PROPIO | `dbo.APP24_Q_SALIDAS_LISTAR` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; contrato HTTP implementado; `PR_INFORME_EXPORTACIONES` y `v_Exportaciones` quedan como referencias legacy |
 | Salidas/exportaciones | Descarga PEPS | SP | `dbo.DESCARGASALIDAPEPS` | PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no ejecutar desde GET |
-| Materiales utilizados | Explosión de estructura | SP | `dbo.DESCARGASALIDAPEPS` / `dbo.SALDOS` | PROCESS/CALCULATION | Sí | Sí | EN AUDITORÍA futura |
-| Descargos | Descargo general | SP | `dbo.DESCARGATSALIDA1` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
+| Materiales utilizados | Consulta histórica read-only por asignación | TABLE + JOIN / VIEW de referencia | `dbo.DESCARGA` + `PARTIDAS` + `IMPORTACIONES` + `PSALIDAS` + `SALIDAS` + `MATERIAL` + `PRODUCTOS`; referencias `dbo.v_descarga` y `dbo.V_INFORMEDESCARGAS` | QUERY | Sí | No | AUDITADO / CONTRATO PENDIENTE; sin objeto dedicado paginado |
+| Materiales utilizados | Generación/explosión de descarga | SP | `dbo.DESCARGASALIDAPEPS` / `dbo.SALDOS` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO como proceso mutable; no usar para GET |
+| Descargos | Descargo general | SP | `dbo.DESCARGATSALIDA1` | PROCESS | Sí | Sí | AUDITADO; mutable, fuera de Materiales Utilizados V1 |
 | Descargos | Descargo por fecha | SP | `dbo.DESCARGATSALIDAFECHA` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
 | Saldos | Cálculo operativo | SP | `dbo.SALDOS` | CALCULATION | Sí | Sí | EN AUDITORÍA |
 | Saldos | Cálculo por familia | SP | `dbo.SALDOS_FAMILIA` | CALCULATION | Sí | Sí | EN AUDITORÍA |
