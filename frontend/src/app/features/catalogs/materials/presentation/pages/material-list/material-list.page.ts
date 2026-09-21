@@ -7,9 +7,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { Material } from '../../../domain/models/material.model';
 import { SearchMaterialsUseCase } from '../../../application/use-cases/search-materials.use-case';
-import { NotificationService } from '../../../../../../core/notifications/notification.service';
-import { userFacingApiError } from '../../../../../../core/http/api-error.util';
-import { AppAlertComponent } from '../../../../../../core/ui/app-alert/app-alert.component';
+import { NotificationService } from '@core/notifications/notification.service';
+import { userFacingApiError } from '@core/http/api-error.util';
+import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 
 /**
  * Consulta del catálogo de materiales (RF-010).

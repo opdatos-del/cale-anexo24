@@ -6,9 +6,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterOutlet } from '@angular/router';
-import { AuthService } from '../core/auth/auth.service';
-import { ConfirmService } from '../core/ui/confirm-dialog/confirm.service';
-import { SidebarComponent } from './navigation/sidebar.component';
+import { AuthService } from '@core/auth/auth.service';
+import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
+import { SidebarComponent } from '@layout/navigation/sidebar.component';
 
 /** Shell autenticado: navegación, encabezado y contenido de la aplicación. */
 @Component({

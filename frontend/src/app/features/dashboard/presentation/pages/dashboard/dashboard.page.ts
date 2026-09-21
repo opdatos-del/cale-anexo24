@@ -3,11 +3,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../../../core/auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 import { DashboardSummaryService } from '../../../application/dashboard-summary.service';
-import { NotificationService } from '../../../../../core/notifications/notification.service';
-import { userFacingApiError } from '../../../../../core/http/api-error.util';
-import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
+import { NotificationService } from '@core/notifications/notification.service';
+import { userFacingApiError } from '@core/http/api-error.util';
+import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 
 /** Página de inicio autenticada, alineada al mockup DASH. */
 @Component({

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { MaterialRepository } from '../../catalogs/materials/domain/repositories/material.repository';
+import { MaterialRepository } from '@features/catalogs/materials/domain/repositories/material.repository';
 
 export interface DashboardSummary {
   materialsTotal: number;

@@ -6,7 +6,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { createMorph } from 'morphicons/dom';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 
 interface NavItem {
   label: string;

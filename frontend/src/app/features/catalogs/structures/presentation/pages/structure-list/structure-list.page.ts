@@ -5,9 +5,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
-import { userFacingApiError } from '../../../../../../core/http/api-error.util';
-import { NotificationService } from '../../../../../../core/notifications/notification.service';
-import { AppAlertComponent } from '../../../../../../core/ui/app-alert/app-alert.component';
+import { userFacingApiError } from '@core/http/api-error.util';
+import { NotificationService } from '@core/notifications/notification.service';
+import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { StructureLine } from '../../../domain/models/structure-line.model';
 import { SearchStructuresUseCase } from '../../../application/use-cases/search-structures.use-case';
 

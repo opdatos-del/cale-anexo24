@@ -1,8 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../../../core/auth/auth.service';
-import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
+import { AuthService } from '@core/auth/auth.service';
+import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 
 /**
  * Pantalla de inicio de sesión (CU-001).
