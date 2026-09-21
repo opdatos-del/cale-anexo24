@@ -1,3 +1,11 @@
+/** Serializa una fecha local para los parámetros API sin convertirla a UTC. */
+export function formatLocalDateForApi(value: Date | null | undefined): string | null {
+  if (!value || Number.isNaN(value.getTime())) return null;
+
+  const pad = (part: number): string => String(part).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
 /** Formatea LocalDateTime recibido sin aplicar conversiones de zona horaria. */
 export function formatOperationDate(value: string | null | undefined): string {
   if (!value) return '—';
