@@ -1,4 +1,4 @@
-# Materiales utilizados — ingeniería inversa y contrato V1 cerrado
+# Materiales utilizados — ingeniería inversa, contrato e implementación V1
 
 ## 0. Estado del documento
 
@@ -13,8 +13,8 @@
 - **Modo:** auditoría estrictamente read-only.
 - **Datos:** no modificados.
 - **Objetos mutables:** sólo inspeccionados mediante metadata/definición; ninguno ejecutado.
-- **Implementación:** no se creó Java, endpoint, frontend ni `APP24_Q_MATERIALES_UTILIZADOS_LISTAR`.
-- **Estado del contrato:** **CONTRATO V1 CERRADO**; el SP propio queda aprobado para implementación en una fase posterior.
+- **Implementación V1:** `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` desplegado; backend read-only y endpoint implementados. No se implementó frontend.
+- **Estado del contrato:** **IMPLEMENTADO V1**; validado contra `CALE_IMMEX` con consultas de control read-only.
 
 ### Convención de evidencia
 
@@ -52,17 +52,15 @@ fuera de Materiales Utilizados V1.
 simultáneamente filtros parametrizados, paginación, total y una proyección
 estable de Materiales Utilizados.
 
-**DECISIÓN V1 — APROBADO PARA IMPLEMENTACIÓN:** crear en una fase posterior un
-objeto propio:
+**IMPLEMENTADO V1:** el objeto propio read-only es:
 
 ```text
 dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR
 ```
 
-No se crea en esta fase. El objeto deberá leer `DESCARGA` y resolver sus
-relaciones con `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS` y `SALIDAS`. Los
-catálogos `MATERIAL` y `PRODUCTOS` no son necesarios para la proyección V1,
-pues código y descripción se conservan en el histórico enlazado.
+El procedimiento lee `DESCARGA` y resuelve sus relaciones con `PARTIDAS`,
+`IMPORTACIONES`, `PSALIDAS` y `SALIDAS`. No une los catálogos `MATERIAL` y
+`PRODUCTOS`, pues código y descripción se conservan en el histórico enlazado.
 
 ### 1.3 Granularidad recomendada
 
@@ -945,8 +943,10 @@ Permiso: `OPERACIONES_CONSULTAR`.
 La respuesta usa el mismo wrapper `Pagina<MaterialUtilizado>` de Entradas y
 Salidas, con `items`, `total`, `pagina` y `tamano`. Los errores estándar son
 `400` para parámetros inválidos, `401` sin sesión válida, `403` sin el permiso
-y `503` si la fuente SQL no está disponible. No se crea endpoint, permiso ni
-DTO Java en esta fase.
+y `503` si la fuente SQL no está disponible. El endpoint se implementó en
+`UsedMaterialController`, con `MaterialUtilizadoDto`,
+`ListarMaterialesUtilizadosUseCase` y
+`MaterialUtilizadoStoredProcedureAdapter`; no se creó un permiso nuevo.
 
 ### 15.2 Ejemplo normativo de response
 
@@ -995,8 +995,8 @@ DESCARGA.Descargakey DESC
 ```
 
 `Descargakey` es único en las 3,866 filas y elimina cualquier empate de los
-criterios anteriores, preservando duplicados históricos legítimos. El futuro SP
-usará `ROW_NUMBER()` por compatibility level `100`. Debe calcular límites con
+criterios anteriores, preservando duplicados históricos legítimos. El SP
+implementado usa `ROW_NUMBER()` por compatibility level `100` y calcula límites con
 `BIGINT`:
 
 ```text
@@ -1029,11 +1029,35 @@ fecha. No se requieren joins a los catálogos para la proyección V1 cerrada.
 | `HISTORIADESCARGASF/P` | Historia por importación | Borran/recrean historia y mezclan procesos | No usar en GET |
 | `v_descarga` | Read-only, joins cercanos | Sin parámetros, total ni paginación; proyección amplia | Referencia, no contrato |
 | `V_INFORMEDESCARGAS` | Reporte de conciliación | Mezcla saldo, valores y fechas | Referencia, no contrato |
-| `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | Contrato estable, proyección mínima, filtros, total y paginación | Aún no existe | **DECISIÓN V1: APROBADO PARA IMPLEMENTACIÓN** |
+| `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | Contrato estable, proyección mínima, filtros, total y paginación | SP APP24 propio | **IMPLEMENTADO V1 — QUERY READ-ONLY** |
 
-No se consume directamente un reporte legacy. La siguiente fase podrá crear el
-SP propio read-only con este contrato cerrado; no se crea ningún objeto SQL en
-esta fase.
+No se consume directamente un reporte legacy. El SP propio read-only quedó
+implementado sin modificar objetos legacy.
+
+### 16.1 Validación de implementación V1
+
+El SP desplegado fue validado con `sys.dm_exec_describe_first_result_set_for_object`:
+expone exactamente los 17 aliases cerrados, con IDs `bigint`/`numeric(18,0)`,
+textos compatibles con `varchar`, cantidades `decimal(18,4)` y `FECHA datetime`.
+
+Las validaciones read-only contra datos reales confirmaron:
+
+- rango completo `2025-10-31` a `2026-08-18`: `@Total = 3,866` y 3,866 filas
+  acumuladas en 39 páginas; no se colapsó a las 3,643 combinaciones lógicas;
+- baseline y SP coinciden para día, material, producto, pedimento de salida,
+  clave de pedimento y una combinación de los cuatro filtros;
+- documento existente fuera de su rango: `total = 0`;
+- `pagina = 2147483647`, `tamano = 100`: `total = 3,866`, cero items y sin
+  overflow;
+- `9999-12-31` a `9999-12-31`: cero items, `total = 0` y sin overflow;
+- `CANTIDAD_DESPERDICIO` continúa nula en las 3,866 filas actuales, mientras el
+  total coincide en todos los casos con incorporación + merma + desperdicio
+  normalizado a cero;
+- los cuatro joins de links `float` validados conservan las 3,866 filas.
+
+La implementación está versionada en
+`infra/sql/procedures/queries/APP24_Q_MATERIALES_UTILIZADOS_LISTAR.sql` y el
+backend mantiene el patrón hexagonal `api → application → domain ← infrastructure`.
 
 ## 17. Queries diagnósticas utilizadas
 
