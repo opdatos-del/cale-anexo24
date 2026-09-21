@@ -10,8 +10,8 @@
 - **SQL Server:** `16.0.1000.6`, Express Edition 64-bit.
 - **Conexión:** disponible con acceso autorizado; no se documentan credenciales ni cadenas de conexión.
 - **Modo:** auditoría estrictamente read-only.
-- **Datos y objetos:** no modificados. Los procedimientos se inspeccionaron sólo por metadata y definición; no se ejecutó ninguno.
-- **Estado:** **AUDITADO / CONTRATO V1 CERRADO**. El objeto APP24 recomendado aún no existe.
+- **Datos y objetos:** se creó únicamente `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR`; no se modificaron objetos legacy. Los procedimientos legacy se inspeccionaron sólo por metadata y definición; no se ejecutó ninguno.
+- **Estado:** **IMPLEMENTADO V1**; SP APP24 read-only, backend hexagonal y endpoint validados.
 
 ### Convención de evidencia
 
@@ -61,7 +61,7 @@ descripción, identificación histórica y fecha.
 dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR
 ```
 
-El objeto **no se crea en esta fase**. Leerá sólo:
+El objeto fue desplegado en esta implementación. Lee sólo:
 
 ```text
 dbo.Partidas p
@@ -379,7 +379,7 @@ parámetros ni paginación requeridos.
 | Decisión | Valor |
 |---|---|
 | Objeto | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` |
-| Estado | PROPUESTO / APROBADO PARA IMPLEMENTACIÓN; no creado |
+| Estado | IMPLEMENTADO V1; desplegado y validado como read-only |
 | Tipo | Stored procedure APP24, QUERY, estrictamente READ ONLY |
 | Tablas | `dbo.Partidas`, `dbo.Importaciones` |
 | Grano | Una partida de importación marcada activa |
@@ -464,7 +464,90 @@ GET /api/v1/operaciones/activos-fijos
 - No se crea permiso nuevo; el recurso pertenece a la sección operacional
   visible históricamente.
 
-## 11. Pendientes
+## 11. Implementación y validación V1
+
+### 11.1 SP y endpoint
+
+**IMPLEMENTADO V1:**
+
+```text
+SP:       dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR
+Endpoint: GET /api/v1/operaciones/activos-fijos
+Permiso:  OPERACIONES_CONSULTAR
+```
+
+El SP usa exclusivamente `dbo.Partidas` e `dbo.Importaciones`, aplica el
+marcador normalizado `EsActivo = 'S'`, normaliza filtros opcionales, usa
+`COUNT_BIG(*)`, `ROW_NUMBER()` y límites de paginación `BIGINT`. No contiene
+DML, `EXEC`, transacciones ni referencias a objetos legacy mutables.
+
+### 11.2 Result set implementado
+
+`sys.dm_exec_describe_first_result_set_for_object` confirmó exactamente los
+13 aliases y tipos siguientes:
+
+```text
+PARTIDA_ENTRADA_ID numeric(18,0)
+IMPORTACION_ID      numeric(18,0)
+PEDIMENTO           varchar(20)
+CLAVE_PEDIMENTO     varchar(5)
+FECHA_IMPORTACION   datetime
+NUMERO_PARTE        varchar(50)
+DESCRIPCION         varchar(250)
+FRACCION            varchar(15)
+CANTIDAD            numeric(18,4)
+UNIDAD              varchar(10)
+NUMERO_SERIE        varchar(50)
+MARCA               varchar(50)
+MODELO              varchar(50)
+```
+
+### 11.3 Validación SQL read-only
+
+| Caso | Resultado |
+|---|---:|
+| Sin filtros / sin rango | Total `2` |
+| Rango `2025-09-23` a `2026-05-28` | Total `2` |
+| Marcador `EsActivo = 'S'` | 2 filas |
+| Pedimento real, parte real y descripción real | Baseline = SP = `1` cada uno |
+| Clave de pedimento real | Baseline = SP = `2` |
+| Combinación de cuatro filtros de una misma fila | Baseline = SP = `1` |
+| Serie, marca y modelo inexistentes | Total `0` |
+| Sólo `desde`, sólo `hasta`, rango invertido | Error SQL `50041` |
+| Página `2147483647`, tamaño `100` | Total `2`, 0 items, sin overflow |
+| Fecha `9999-12-31` a `9999-12-31` | Total `0`, sin overflow |
+
+### 11.4 Backend y pruebas
+
+Implementado bajo `operations/fixedassets/`:
+
+```text
+api/FixedAssetController.java
+api/dto/ActivoFijoDto.java
+application/query/ListarActivosFijosUseCase.java
+domain/model/ActivoFijo.java
+domain/port/ActivoFijoRepository.java
+infrastructure/persistence/ActivoFijoStoredProcedureAdapter.java
+```
+
+El adapter usa `@Qualifier("jdbcTemplate")`, `BigDecimal` para IDs y cantidad,
+y `Timestamp -> LocalDateTime` nullable. Para el rango ausente envía
+`setNull(index, Types.DATE)`; no llama `Date.valueOf(null)` ni usa
+`Double`/`Float`.
+
+Pruebas implementadas:
+
+```text
+FixedAssetControllerTest
+ListarActivosFijosUseCaseTest
+ActivoFijoStoredProcedureAdapterTest
+```
+
+Cubren rango ausente/en pareja, filtros y longitudes, paginación extrema,
+fecha máxima, parámetros JDBC, 13 aliases, nulos, página vacía, errores HTTP
+`400/401/403/503` y serialización de la página.
+
+## 12. Pendientes
 
 1. **PENDIENTE FUNCIONAL:** confirmar con usuario de negocio el significado
    formal de `EsActivo='S'`; técnicamente es el único marcador persistido y
