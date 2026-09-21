@@ -6,6 +6,10 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { MaterialRepository } from './features/catalogs/materials/domain/repositories/material.repository';
 import { HttpMaterialRepository } from './features/catalogs/materials/infrastructure/repositories/http-material.repository';
+import { ProductRepository } from './features/catalogs/products/domain/repositories/product.repository';
+import { HttpProductRepository } from './features/catalogs/products/infrastructure/repositories/http-product.repository';
+import { StructureRepository } from './features/catalogs/structures/domain/repositories/structure.repository';
+import { HttpStructureRepository } from './features/catalogs/structures/infrastructure/repositories/http-structure.repository';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,5 +18,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
     { provide: MaterialRepository, useClass: HttpMaterialRepository },
+    { provide: ProductRepository, useClass: HttpProductRepository },
+    { provide: StructureRepository, useClass: HttpStructureRepository },
   ],
 };

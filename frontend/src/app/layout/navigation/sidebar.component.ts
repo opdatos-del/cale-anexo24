@@ -1,5 +1,5 @@
 
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, computed, inject } from '@angular/core';
 
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -12,6 +12,7 @@ interface NavItem {
   label: string;
   icon: string;
   route: string;
+  permission: string;
 }
 
 interface NavGroup {
@@ -68,7 +69,7 @@ interface NavGroup {
           <span class="sidebar-copy">Inicio</span>
         </a>
 
-        @for (group of navigationGroups; track group.label) {
+        @for (group of navigationGroups(); track group.label) {
           <div class="sidebar-section-label sidebar-copy" [attr.aria-hidden]="collapsed && !isMobile ? 'true' : null">{{ group.label }}</div>
           @for (item of group.items; track item.route) {
             <a
@@ -125,12 +126,15 @@ export class SidebarComponent implements OnDestroy {
   @Output() readonly logoutRequested = new EventEmitter<void>();
 
   protected readonly auth = inject(AuthService);
-  protected readonly navigationGroups: NavGroup[] = [
-    {
-      label: 'Catálogos',
-      items: [{ label: 'Materiales', icon: 'inventory_2', route: '/materiales' }],
-    },
-  ];
+  protected readonly navigationGroups = computed<NavGroup[]>(() => {
+    const items: NavItem[] = [
+      { label: 'Materiales', icon: 'inventory_2', route: '/materiales', permission: 'MATERIALES_CONSULTAR' },
+      { label: 'Productos', icon: 'category', route: '/productos', permission: 'PRODUCTOS_CONSULTAR' },
+      { label: 'Estructuras', icon: 'account_tree', route: '/estructuras', permission: 'ESTRUCTURAS_CONSULTAR' },
+    ].filter((item) => this.auth.hasPermission(item.permission));
+
+    return items.length > 0 ? [{ label: 'Catálogos', items }] : [];
+  });
 
   private readonly menuPath = 'M4 6H20M4 12H20M4 18H20';
   private readonly arrowPath = 'M19 12H5M12 19L5 12L12 5';

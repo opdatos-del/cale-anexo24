@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../../core/auth/auth.service';
 import { DashboardSummaryService } from '../../../application/dashboard-summary.service';
 import { NotificationService } from '../../../../../core/notifications/notification.service';
+import { userFacingApiError } from '../../../../../core/http/api-error.util';
 import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.component';
 
 /** Página de inicio autenticada, alineada al mockup DASH. */
@@ -35,18 +36,38 @@ import { AppAlertComponent } from '../../../../../core/ui/app-alert/app-alert.co
         </div>
       }
 
-      <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Resumen del sistema">
-        <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
-          <div class="flex items-center gap-3">
-            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><mat-icon class="text-[20px]!">inventory_2</mat-icon></span>
-            <p class="m-0 text-sm text-slate-700">Materiales</p>
-          </div>
-          @if (isLoading()) {
-            <div class="mt-4 h-7 w-24 animate-pulse rounded bg-slate-100" aria-label="Cargando materiales"></div>
-          } @else if (materialsTotal() !== null) {
-            <a routerLink="/materiales" class="mt-4 inline-block text-base font-medium text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500">{{ materialsTotal() }} registros</a>
-          }
-        </mat-card>
+      <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Accesos rápidos de catálogos">
+        @if (auth.hasPermission('MATERIALES_CONSULTAR')) {
+          <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><mat-icon class="text-[20px]!">inventory_2</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Materiales</p>
+            </div>
+            @if (isLoading()) {
+              <div class="mt-4 h-7 w-24 animate-pulse rounded bg-slate-100" aria-label="Cargando materiales"></div>
+            } @else if (materialsTotal() !== null) {
+              <a routerLink="/materiales" class="mt-4 inline-block text-base font-medium text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500">{{ materialsTotal() }} registros</a>
+            }
+          </mat-card>
+        }
+        @if (auth.hasPermission('PRODUCTOS_CONSULTAR')) {
+          <a routerLink="/productos" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><mat-icon class="text-[20px]!">category</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Productos</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta del catálogo de productos terminados.</p>
+          </a>
+        }
+        @if (auth.hasPermission('ESTRUCTURAS_CONSULTAR')) {
+          <a routerLink="/estructuras" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><mat-icon class="text-[20px]!">account_tree</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Estructuras</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de estructuras y materiales asociados.</p>
+          </a>
+        }
       </section>
 
       <section class="mt-8" aria-labelledby="avisos-title">
@@ -88,9 +109,9 @@ export class DashboardPage implements OnInit {
         this.materialsTotal.set(resumen.materialsTotal);
         this.isLoading.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.isLoading.set(false);
-        this.loadError.set('No pudimos actualizar el resumen.');
+        this.loadError.set(userFacingApiError(error, 'No pudimos actualizar el resumen.'));
         this.notifications.error('No fue posible cargar el resumen del sistema.');
       },
     });
