@@ -36,7 +36,8 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
         </div>
       }
 
-      <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Accesos rápidos de catálogos">
+      @if (auth.hasAnyPermission('MATERIALES_CONSULTAR', 'PRODUCTOS_CONSULTAR', 'ESTRUCTURAS_CONSULTAR')) {
+        <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Accesos rápidos de catálogos">
         @if (auth.hasPermission('MATERIALES_CONSULTAR')) {
           <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
             <div class="flex items-center gap-3">
@@ -68,7 +69,16 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
             <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de estructuras y materiales asociados.</p>
           </a>
         }
-      </section>
+        </section>
+      } @else {
+        <section class="mb-7" aria-label="Módulos disponibles">
+          <app-alert
+            kind="info"
+            title="Sin módulos asignados"
+            message="Tu perfil no tiene módulos asignados. Contacta al administrador para solicitar acceso."
+          />
+        </section>
+      }
 
       <section class="mt-8" aria-labelledby="avisos-title">
         <h2 id="avisos-title" class="mb-3 text-sm font-normal uppercase text-slate-700">Avisos</h2>
@@ -102,6 +112,13 @@ export class DashboardPage implements OnInit {
   }
 
   protected loadSummary(): void {
+    if (!this.auth.hasPermission('MATERIALES_CONSULTAR')) {
+      this.isLoading.set(false);
+      this.loadError.set(null);
+      this.materialsTotal.set(null);
+      return;
+    }
+
     this.isLoading.set(true);
     this.loadError.set(null);
     this.service.resumen().subscribe({
