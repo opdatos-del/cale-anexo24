@@ -32,9 +32,10 @@ lectura.
 | Entradas/importaciones | Carga de pedimentos | SP LEGACY | `dbo.CARGAPEDIMENTOS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; mutable, auditado; no usar para GET |
 | Entradas/importaciones | Consulta paginada de entradas/líneas | SP PROPIO | `dbo.APP24_Q_ENTRADAS_LISTAR` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; `PR_INFORME_IMPORTACIONES` y `v_Importaciones` quedan como referencias legacy |
 | Entradas/importaciones | Validación de pedimento | SP LEGACY | `dbo.VALIDAPEDIMENTO` | VALIDATION/PROCESS | Sí | Sí | CONFIRMADO por definición/dependencias; no usar para GET |
-| Salidas/exportaciones | Carga de facturas en salidas | SP | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; pendiente de auditoría de módulo |
-| Salidas/exportaciones | Informe de exportaciones | SP | `dbo.PR_INFORME_EXPORTACIONES` | REPORT | Sí | No | CONFIRMADO; pendiente de diseño de módulo |
-| Salidas/exportaciones | Descarga PEPS | SP | `dbo.DESCARGASALIDAPEPS` | PROCESS | Sí | Sí | CONFIRMADO; pendiente de auditoría de módulo |
+| Salidas/exportaciones | Carga de facturas en salidas | SP | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no usar para GET |
+| Salidas/exportaciones | Informe de exportaciones | SP LEGACY | `dbo.PR_INFORME_EXPORTACIONES` | REPORT/QUERY | Sí | No | CONFIRMADO; read-only ejecutado de forma controlada; 49 columnas, sin paginación ni total; referencia, no contrato HTTP |
+| Salidas/exportaciones | Consulta de exportaciones legacy | VIEW LEGACY | `dbo.v_Exportaciones` | REPORT/QUERY | Sí | No | CONFIRMADO; read-only, 44 columnas, sin filtros parametrizados, paginación ni total; referencia, no contrato HTTP |
+| Salidas/exportaciones | Descarga PEPS | SP | `dbo.DESCARGASALIDAPEPS` | PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no ejecutar desde GET |
 | Materiales utilizados | Explosión de estructura | SP | `dbo.DESCARGASALIDAPEPS` / `dbo.SALDOS` | PROCESS/CALCULATION | Sí | Sí | EN AUDITORÍA futura |
 | Descargos | Descargo general | SP | `dbo.DESCARGATSALIDA1` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
 | Descargos | Descargo por fecha | SP | `dbo.DESCARGATSALIDAFECHA` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
