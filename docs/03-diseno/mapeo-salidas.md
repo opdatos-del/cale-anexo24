@@ -26,16 +26,17 @@ La evidencia funcional disponible describe la siguiente pantalla operacional:
 |---|---|
 | Pedimento | Confirmado en la pantalla `OPERACIONES · SALIDAS`. |
 | Fecha | Confirmado; corresponde a la fecha de la salida en la consulta legacy. |
-| Clave | Confirmado; en SQL corresponde a la clave de línea `PSALIDAS.Clave`. |
+| Clave | La evidencia histórica la identifica como clave del pedimento (`RT`, `F4`, `F5`); corresponde a `SALIDAS.Cve_pedimento`. |
 | Fracción | Confirmado; en SQL corresponde a `PSALIDAS.Fraccion`. |
 | UMC | Confirmado; en SQL corresponde a `PSALIDAS.Unidad`. |
 | Cantidad | Confirmado; en SQL corresponde a `PSALIDAS.Cantidad`. |
-| N° parte | Confirmado por la pantalla y la documentación funcional, pero la relación física adicional con un catálogo de producto debe conservarse como pendiente de contrato hasta cerrar la semántica de presentación. |
+| N° parte | Confirmado para V1 como `PSALIDAS.Clave`; coincide con `PRODUCTOS.CVE_PRODUCTO` y con `No_ParteCli` en las 3.392 líneas actuales. |
 
 La pantalla exige `Desde` y `Hasta`, ofrece filtros por `Pedimento`, `Fracción`
 y `Clave`, y muestra exportación, refresco, limpieza, paginación y conteo de
 filas. La evidencia histórica no demuestra que la pantalla consuma directamente
-el reporte de 49 columnas.
+el reporte de 49 columnas. La búsqueda estática tampoco encontró un objeto SQL
+dedicado a la proyección de ocho campos.
 
 ## 2. Estado de evidencia
 
@@ -45,6 +46,11 @@ el reporte de 49 columnas.
 | `PSALIDAS` es detalle | **CONFIRMADO** | PK `Psalidakey`; 3.392 filas; contiene clave, fracción, cantidad, unidad y factura. |
 | Relación encabezado-detalle | **CONFIRMADO** | `PSALIDAS.Salidalink = SALIDAS.SalidaKey`; no existe FK DDL. |
 | Producto de una línea | **CONFIRMADO** | `PSALIDAS.Clave = PRODUCTOS.CVE_PRODUCTO` en procesos y muestra actual. |
+| Clave del pedimento | **CONFIRMADO** | `SALIDAS.Cve_pedimento`; la metadata y el reporte la proyectan como `Cve_pedimento`; el dataset actual contiene `F4`. |
+| Número de parte | **CONFIRMADO** para V1 | `PSALIDAS.Clave`; `No_ParteCli` es igual en las 3.392 líneas actuales, pero no es la columna proyectada por el reporte. |
+| Fecha de pago | **CONFIRMADO** | `PR_INFORME_EXPORTACIONES.[Fecha de Pago] = SALIDAS.Fecha`. |
+| Fecha de entrada | **PENDIENTE DE VALIDAR** | `SALIDAS.FechaEntrada`, `FechadePresentacion` y `FechaDocA` tienen 0 valores no nulos; no son proyectadas por el SP ni la view. |
+| Objeto SQL dedicado a la pantalla | **NO ENCONTRADO** | Sólo se localizaron reportes/views amplios y auxiliares; ninguno proyecta de forma dedicada los ocho campos. |
 | Estructura vigente | **CONFIRMADO** | `GETPRODUCTSTRUCT(clave, fecha)` busca la estructura más reciente con `ESTRUCTURAS.INICIO <= fecha`. |
 | Materiales/BOM | **INFERIDO** | El descargo usa `PRODUCTOMATERIAL` sólo cuando la estructura seleccionada tiene detalle. La tabla está vacía actualmente. |
 | Salida → importación | **CONFIRMADO** para el descargo | `DESCARGA.PSALIDALINK` enlaza con `PSALIDAS.Psalidakey`; `DESCARGA.PENTRADALINK` enlaza con `PARTIDAS.Partidakey`; `PARTIDAS.Importacionlink` enlaza con `IMPORTACIONES.Ipedimentokey`. |
@@ -313,6 +319,11 @@ semántica PEPS.
 - Proyectan, respectivamente, cantidades `CantUtil` y `Desperdicio`, además de
   documentos, claves, factura, fechas, unidad, origen y valores.
 - Son reportes especializados de descarga, no fuente de la pantalla Salidas.
+
+La búsqueda adicional encontró `dbo.v_operaciones` (15 columnas, mezcla
+importaciones y salidas), `dbo.VEXPOANEXO` (10 columnas) y
+`dbo.VEXPOANEXO_2` (4 columnas). Ninguno contiene los ocho campos de la pantalla
+ni constituye una proyección dedicada de Salidas.
 
 Ninguna de las views auditadas ofrece simultáneamente filtros parametrizados,
 paginación y `@Total` para el futuro endpoint.
@@ -596,8 +607,12 @@ Casos de uso separados:
 - sin rango: consulta no disponible y mensaje de definir rango;
 - `Desde > Hasta`: error de validación.
 
-**PENDIENTE:** nombres exactos de controles, semántica de `Clave` frente a
-`PSALIDAS.Clave` y el contrato de exportación HTTP.
+**CERRADO PARA V1:** `Clave` corresponde a `SALIDAS.Cve_pedimento` y
+`N° parte` corresponde a `PSALIDAS.Clave`. El contrato de exportación de archivos
+sigue fuera de esta API.
+
+**PENDIENTE:** semántica de la fecha histórica de entrada, porque las columnas
+candidatas de `SALIDAS` están nulas y no aparecen en el reporte/view.
 
 ### Reporte de exportaciones
 
@@ -611,20 +626,133 @@ pero no demuestra que el reporte amplio sea la fuente directa del grid.
 
 ## 13. Mapeo de campos históricos
 
-| Campo histórico de pantalla | Reporte/view legacy | Fuente física confirmada | Estado |
-|---|---|---|---|
-| Pedimento | `Pedimento` | `SALIDAS.Documento` | CONFIRMADO |
-| Fecha | `Fecha de Pago` | `SALIDAS.Fecha` | CONFIRMADO |
-| Clave | `Codigo de Producto` | `PSALIDAS.Clave` | CONFIRMADO |
-| Fracción | `Fraccion` | `PSALIDAS.Fraccion` | CONFIRMADO |
-| UMC | `Unidad` | `PSALIDAS.Unidad` | CONFIRMADO |
-| Cantidad | `Cantidad` | `PSALIDAS.Cantidad` | CONFIRMADO |
-| N° parte | No existe una segunda columna inequívoca en el result set del reporte | `PSALIDAS.No_ParteCli` existe, pero su uso como columna visible de la pantalla requiere confirmación | PENDIENTE DE VALIDAR |
+| Campo histórico de 8 campos | `PR_INFORME_EXPORTACIONES` | `v_Exportaciones` | Fuente física | Estado |
+|---|---|---|---|---|
+| Pedimento | `Pedimento` | `Pedimento` | `SALIDAS.Documento` | CONFIRMADO |
+| Fecha de entrada | No proyectada | No proyectada | `SALIDAS.FechaEntrada` candidata; 0 no nulos actuales | PENDIENTE DE VALIDAR |
+| Clave del pedimento | `Cve_pedimento` | `Cve_pedimento` | `SALIDAS.Cve_pedimento` | CONFIRMADO |
+| Fracción | `Fraccion` | `Fraccion` | `PSALIDAS.Fraccion` | CONFIRMADO |
+| UMC | `Unidad` | `Unidad` | `PSALIDAS.Unidad` | CONFIRMADO |
+| Cantidad | `Cantidad` | `Cantidad` | `PSALIDAS.Cantidad` | CONFIRMADO |
+| Número de parte | `Codigo de Producto` | `Codigo de Producto` | `PSALIDAS.Clave = PRODUCTOS.CVE_PRODUCTO` | CONFIRMADO para V1 |
+| Fecha de pago | `Fecha de Pago` | `Fecha de Pago` | `SALIDAS.Fecha` | CONFIRMADO |
 
-La pantalla histórica muestra `N° parte`, pero el reporte devuelve `Codigo de
-Producto` y la tabla tiene además `No_ParteCli`. No se inventa equivalencia:
-se debe cerrar si la UI presenta `PSALIDAS.Clave`, `No_ParteCli` o un dato
-transformado antes de definir un response.
+La hipótesis histórica queda cerrada para los campos disponibles: `Clave del
+pedimento` es `SALIDAS.Cve_pedimento` y `Número de parte` es `PSALIDAS.Clave`.
+`PSALIDAS.No_ParteCli` coincide actualmente, pero no es la columna que proyectan
+los objetos legacy y queda como dato alternativo, no como fuente V1.
+
+## Contrato funcional V1
+
+### Endpoint y forma
+
+```http
+GET /api/v1/operaciones/salidas
+```
+
+El primer corte será un listado plano paginado por línea, preservando ambos IDs:
+
+```text
+SALIDAS.SalidaKey   → salidaId   → BigDecimal
+PSALIDAS.Psalidakey → partidaId → BigDecimal
+```
+
+No se implementa todavía `GET /api/v1/operaciones/salidas/{salidaId}`.
+
+### Response V1 propuesto
+
+Como `FechaEntrada` no tiene semántica demostrable ni valores actuales, queda
+fuera del response V1. Los campos aprobables son:
+
+| Campo API | Fuente | Tipo Java candidato | Estado |
+|---|---|---|---|
+| `salidaId` | `SALIDAS.SalidaKey` | `BigDecimal` | CONFIRMADO |
+| `partidaId` | `PSALIDAS.Psalidakey` | `BigDecimal` | CONFIRMADO |
+| `pedimento` | `SALIDAS.Documento` | `String` | CONFIRMADO |
+| `clavePedimento` | `SALIDAS.Cve_pedimento` | `String` | CONFIRMADO |
+| `fraccion` | `PSALIDAS.Fraccion` | `String` | CONFIRMADO |
+| `unidadComercial` | `PSALIDAS.Unidad` | `String` | CONFIRMADO |
+| `cantidad` | `PSALIDAS.Cantidad` | `BigDecimal` | CONFIRMADO |
+| `numeroParte` | `PSALIDAS.Clave` | `String` | CONFIRMADO |
+| `fechaPago` | `SALIDAS.Fecha` | `LocalDateTime` | CONFIRMADO |
+
+No se incluyen `factura`, cliente, valores, descarga, materiales, BOM, saldo,
+temporalidad ni vencimientos.
+
+### Filtros V1
+
+Todos los filtros deberán ser acumulativos. El nuevo contrato no heredará la
+regla legacy que permite que documento anule el rango.
+
+| Filtro | Estado | Semántica propuesta |
+|---|---|---|
+| `desde` | CONFIRMADO POR UI y SQL | Obligatorio; límite inferior inclusivo sobre `SALIDAS.Fecha`. |
+| `hasta` | CONFIRMADO POR UI y SQL | Obligatorio; rango inclusivo por día sobre `SALIDAS.Fecha`. |
+| `pedimento` | CONFIRMADO POR UI y SQL | Igualdad exacta sobre `SALIDAS.Documento`. |
+| `clavePedimento` | CONFIRMADO POR UI/SQL | Igualdad exacta sobre `SALIDAS.Cve_pedimento`; la pantalla histórica lo muestra como `Clave`. |
+| `fraccion` | CONFIRMADO POR UI/SQL | Igualdad exacta sobre `PSALIDAS.Fraccion`. |
+| `numeroParte` | CONFIRMADO POR UI/SQL | Igualdad exacta sobre `PSALIDAS.Clave`. |
+| `pagina` | INFERIDO; necesario V1 | Paginación de la nueva API. |
+| `tamano` | INFERIDO; necesario V1 | Tamaño de página de la nueva API. |
+
+La semántica de fecha recomendada es `SALIDAS.Fecha`, equivalente a `fechaPago`.
+No debe usarse `FechaEntrada` como eje hasta que exista evidencia funcional y
+datos no nulos.
+
+### Longitudes y tipos SQL
+
+Longitud física declarada y máximo observado actualmente:
+
+| Campo | Tipo físico | Longitud física | Máximo observado |
+|---|---|---:|---:|
+| `SALIDAS.Documento` | `char(60)` nullable | 60 | 16 |
+| `SALIDAS.Cve_pedimento` | `char(5)` nullable | 5 | 2 |
+| `PSALIDAS.Fraccion` | `char(12)` nullable | 12 | 8 |
+| `PSALIDAS.Clave` | `varchar(50)` nullable | 50 | 9 |
+| `PSALIDAS.No_ParteCli` | `varchar(50)` nullable | 50 | 9 |
+| `PSALIDAS.Unidad` | `char(5)` nullable | 5 | 4 |
+| `PSALIDAS.Cantidad` | `numeric(18,4)` nullable | — | — |
+| `SALIDAS.SalidaKey` | `numeric(18,0)` not null | — | — |
+| `PSALIDAS.Psalidakey` | `numeric(18,0)` not null | — | — |
+
+Los máximos observados no sustituyen los límites físicos. La futura aplicación
+deberá validar antes del adapter y no truncar silenciosamente.
+
+### Calidad de `Salidalink`
+
+`PSALIDAS.Salidalink` es `float(53)` mientras `SALIDAS.SalidaKey` es
+`numeric(18,0)`. En las 3.392 líneas actuales:
+
+- `NULL`: 0;
+- valores fraccionarios: 0;
+- valores negativos: 0;
+- mínimo: `3001.0`;
+- máximo: `3660.0`;
+- joins fallidos: 0;
+- comparaciones numéricas no exactas: 0;
+- todos los valores son enteros exactos actualmente.
+
+Es una relación legacy técnicamente riesgosa. El futuro SP debe unirla de forma
+controlada y el dominio no debe exponerla como `Double`.
+
+### Calidad de `PSALIDAS.partida`
+
+`partida` es `float(53)` y debe ser sólo criterio de orden legacy:
+
+- `NULL`: 0;
+- valores fraccionarios: 0;
+- mínimo: `1.0`;
+- máximo: `19.0`;
+- distintos: 19;
+- grupos duplicados por `(Salidalink, partida)`: 0.
+
+La identidad API seguirá siendo `Psalidakey`.
+
+### Plano frente a header/detail
+
+La persistencia y la pantalla trabajan por líneas. V1 será plano por línea,
+con `salidaId` y `partidaId`. El detalle completo por encabezado queda para una
+iteración posterior.
 
 ## 14. Fuente candidata para futura API
 
@@ -646,12 +774,12 @@ Comparación:
 |---|---|---|
 | `PR_INFORME_EXPORTACIONES` | Reporte probado; une encabezado/detalle; expone `salidakey` y `psalidakey`; orden legacy. | 49 columnas; no pagina ni total; `documento` anula fechas; mezcla cliente, factura, valores y descarga; usa `BETWEEN`; aliases de presentación. |
 | `v_Exportaciones` | View read-only; 44 columnas; misma proyección funcional; incluye IDs técnicos. | Sin parámetros, paginación ni total; orden `TOP 100 PERCENT` no contractual; amplia para la pantalla. |
-| `SELECT` encapsulado en `APP24_Q_SALIDAS_LISTAR` | Podría fijar filtros acumulativos, paginación, total, aliases y separar consulta de descargo. | Requiere cerrar primero la semántica de `N° parte`, filtros y fecha; no crear todavía. |
+| `SELECT` encapsulado en `APP24_Q_SALIDAS_LISTAR` | Puede fijar filtros acumulativos, paginación, total, aliases y separar consulta de descargo. | Debe implementarse sólo en la siguiente fase; no crear todavía. |
 
 **Recomendación:** no consumir directamente el SP ni la view como contrato HTTP.
-La evidencia apunta a evaluar un `APP24_Q_SALIDAS_LISTAR` read-only para un
-listado plano de líneas, pero sólo después de aprobar el contrato exacto y
-confirmar el campo `N° parte`. No se crea el SP en esta auditoría.
+La evidencia recomienda `APP24_Q_SALIDAS_LISTAR` read-only para un listado plano
+de líneas. El contrato V1 queda cerrado salvo la semántica histórica pendiente
+de `FechaEntrada`; no se crea el SP en esta auditoría.
 
 ## 15. Seguridad
 
@@ -682,28 +810,30 @@ resuelve en este documento.
 8. `PSALIDAS.ESTRUCTURAKEY = 1` en las 3.392 líneas, aunque no existe la
    estructura correspondiente actualmente; no tomar ese valor como evidencia
    de vigencia real.
-9. `No_ParteCli` y `Clave` pueden representar conceptos distintos; el campo
-   visible `N° parte` no está cerrado.
-10. Los procesos mutables no muestran transacciones/`TRY-CATCH` en varias rutas;
+9. `No_ParteCli` y `Clave` son iguales en las 3.392 líneas actuales, pero sólo
+   `PSALIDAS.Clave` está proyectada como código de producto por los reportes;
+   `No_ParteCli` queda como columna alternativa.
+10. Las columnas candidatas a `FechaEntrada` están nulas y no son proyectadas
+    por los objetos de consulta auditados.
+11. Los procesos mutables no muestran transacciones/`TRY-CATCH` en varias rutas;
     no deben invocarse desde endpoints GET.
-11. `SALDOS` modifica saldos de partidas y genera trazabilidad; sus reglas no
+12. `SALDOS` modifica saldos de partidas y genera trazabilidad; sus reglas no
     deben copiarse a Java.
-12. Valores y cantidades legacy mezclan `numeric` y `float`; el contrato futuro
+13. Valores y cantidades legacy mezclan `numeric` y `float`; el contrato futuro
     deberá cerrar tipos exactos antes de exponerlos.
-13. El dataset actual contiene 660 salidas y 3.392 líneas, pero la pantalla
+14. El dataset actual contiene 660 salidas y 3.392 líneas, pero la pantalla
     histórica mostró un conteo de referencia diferente; la diferencia debe
     documentarse y no resolverse creando datos.
 
 ## 17. Pendientes
 
-- Confirmar semántica exacta de `N° parte` (`PSALIDAS.No_ParteCli` frente a
-  `PSALIDAS.Clave`).
-- Confirmar si `Clave` del filtro corresponde a producto, clave de pedimento u
-  otro control de la UI.
-- Cerrar semántica de fecha y filtros acumulativos para el futuro endpoint.
-- Definir si V1 será listado plano de líneas con `salidaId` y `partidaId`, o si
-  habrá endpoint de encabezado/detalle separado.
-- Confirmar semántica de `INDICE` antes de llamar PEPS a la regla de `SALDOS`.
+- Resolver la semántica histórica de `FechaEntrada`; las columnas candidatas
+  están nulas en el dataset actual y no aparecen en los objetos de consulta.
+- Confirmar en una muestra histórica adicional que los valores `RT` y `F5`
+  siguen llegando por `SALIDAS.Cve_pedimento`; el dataset actual sólo contiene
+  `F4`.
+- Confirmar la semántica de `INDICE` antes de llamar PEPS a la regla de
+  `SALDOS`.
 - Validar estructuras/BOM cuando existan datos autorizados; no crear datos
   sintéticos.
 - Definir contrato de materiales utilizados y saldo en un módulo/caso de uso
