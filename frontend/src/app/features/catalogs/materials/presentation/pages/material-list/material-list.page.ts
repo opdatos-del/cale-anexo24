@@ -8,6 +8,7 @@ import { MatTableModule } from '@angular/material/table';
 import { Material } from '../../../domain/models/material.model';
 import { SearchMaterialsUseCase } from '../../../application/use-cases/search-materials.use-case';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
+import { userFacingApiError } from '../../../../../../core/http/api-error.util';
 import { AppAlertComponent } from '../../../../../../core/ui/app-alert/app-alert.component';
 
 /**
@@ -108,7 +109,7 @@ import { AppAlertComponent } from '../../../../../../core/ui/app-alert/app-alert
             <mat-paginator
               [length]="totalItems()"
               [pageSize]="pageSize"
-              [pageSizeOptions]="[5, 10, 20]"
+              [pageSizeOptions]="[20, 50, 100]"
               (page)="changePage($event)"
               showFirstLastButtons
               aria-label="Paginación de materiales"
@@ -128,8 +129,9 @@ export class MaterialListPage implements OnInit {
   protected readonly loadingRows = [1, 2, 3, 4, 5];
   protected filter = '';
   protected currentPage = 1;
-  protected pageSize = 10;
+  protected pageSize = 20;
 
+  private requestSequence = 0;
   private readonly searchMaterials = inject(SearchMaterialsUseCase);
   private readonly notifications = inject(NotificationService);
 
@@ -154,17 +156,21 @@ export class MaterialListPage implements OnInit {
   }
 
   protected loadMaterials(): void {
+    const requestId = ++this.requestSequence;
     this.isLoading.set(true);
     this.error.set(null);
+    this.items.set([]);
     this.searchMaterials.execute({ filter: this.filter, page: this.currentPage, pageSize: this.pageSize }).subscribe({
       next: (resp) => {
+        if (requestId !== this.requestSequence) return;
         this.items.set(resp.items);
         this.totalItems.set(resp.total);
         this.isLoading.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
+        if (requestId !== this.requestSequence) return;
         this.isLoading.set(false);
-        this.error.set('Verifica tu conexión e inténtalo nuevamente.');
+        this.error.set(userFacingApiError(error, 'Verifica tu conexión e inténtalo nuevamente.'));
         this.notifications.error('No fue posible consultar el catálogo de materiales.');
       },
     });
