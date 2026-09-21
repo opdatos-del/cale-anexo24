@@ -732,8 +732,10 @@ deberá validar antes del adapter y no truncar silenciosamente.
 - comparaciones numéricas no exactas: 0;
 - todos los valores son enteros exactos actualmente.
 
-Es una relación legacy técnicamente riesgosa. El futuro SP debe unirla de forma
-controlada y el dominio no debe exponerla como `Double`.
+Es una relación legacy técnicamente riesgosa. `APP24_Q_SALIDAS_LISTAR` la une
+mediante `CONVERT(NUMERIC(18,0), CASE ...)`, aceptando sólo valores enteros
+estrictamente dentro de `(-1.0E18, 1.0E18)`; así `±1E18` queda fuera antes de la
+conversión. El dominio no expone `Salidalink` como `Double`.
 
 ### Calidad de `PSALIDAS.partida`
 

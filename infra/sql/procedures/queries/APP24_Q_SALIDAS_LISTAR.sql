@@ -49,8 +49,8 @@ BEGIN
     FROM dbo.PSALIDAS AS p
     INNER JOIN dbo.SALIDAS AS s
         ON CONVERT(NUMERIC(18, 0), CASE
-               WHEN p.Salidalink >= -999999999999999999
-                AND p.Salidalink <= 999999999999999999
+               WHEN p.Salidalink > -1.0E18
+                AND p.Salidalink < 1.0E18
                 AND p.Salidalink = FLOOR(p.Salidalink)
                THEN p.Salidalink
            END) = s.SalidaKey
@@ -78,8 +78,8 @@ BEGIN
         FROM dbo.PSALIDAS AS p
         INNER JOIN dbo.SALIDAS AS s
             ON CONVERT(NUMERIC(18, 0), CASE
-                   WHEN p.Salidalink >= -999999999999999999
-                    AND p.Salidalink <= 999999999999999999
+                   WHEN p.Salidalink > -1.0E18
+                    AND p.Salidalink < 1.0E18
                     AND p.Salidalink = FLOOR(p.Salidalink)
                    THEN p.Salidalink
                END) = s.SalidaKey
