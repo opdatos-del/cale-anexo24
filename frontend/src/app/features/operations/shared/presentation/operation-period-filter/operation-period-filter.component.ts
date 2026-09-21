@@ -1,11 +1,13 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-
 import { Component, DestroyRef, EventEmitter, Output, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 
 export interface OperationPeriod {
   start: Date | null;
@@ -14,20 +16,18 @@ export interface OperationPeriod {
 
 type Preset = 'today' | 'last7Days' | 'last30Days' | 'currentMonth' | 'previousMonth' | 'currentYear';
 
-/** Selector compartido de periodo para consultas operativas. */
+/** Selector compacto de periodo para consultas operativas. */
 @Component({
-  imports: [MatDatepickerModule, MatFormFieldModule, ReactiveFormsModule],
+  imports: [MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatIconModule, MatMenuModule, ReactiveFormsModule],
   providers: [provideNativeDateAdapter(), { provide: MAT_DATE_LOCALE, useValue: 'es-MX' }],
   selector: 'app-operation-period-filter',
   template: `
-    <div class="operation-period-filter">
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Periodo</mat-label>
-        <mat-date-range-input [formGroup]="range" [rangePicker]="picker" separator="—">
+    <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full sm:w-96 sm:max-w-full">
+        <mat-date-range-input [formGroup]="range" [rangePicker]="picker" separator="—" aria-label="Periodo">
           <input matStartDate formControlName="start" placeholder="Fecha inicial" aria-label="Fecha inicial del periodo" />
           <input matEndDate formControlName="end" placeholder="Fecha final" aria-label="Fecha final del periodo" />
         </mat-date-range-input>
-        <mat-hint>DD/MM/AAAA – DD/MM/AAAA</mat-hint>
         <mat-datepicker-toggle matIconSuffix [for]="picker" aria-label="Abrir calendario"></mat-datepicker-toggle>
         <mat-date-range-picker #picker [touchUi]="touchUi()"></mat-date-range-picker>
         @if (range.controls.start.hasError('matStartDateInvalid')) {
@@ -39,15 +39,20 @@ type Preset = 'today' | 'last7Days' | 'last30Days' | 'currentMonth' | 'previousM
         }
       </mat-form-field>
 
-      <div class="mt-2 flex flex-wrap items-center gap-2" aria-label="Atajos de periodo">
-        <span class="mr-1 text-xs font-medium text-slate-500">Atajos</span>
+      <div class="flex flex-wrap items-center gap-1.5" aria-label="Periodos rápidos">
         <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('today')">Hoy</button>
-        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('last7Days')">Últimos 7 días</button>
-        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('last30Days')">Últimos 30 días</button>
-        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('currentMonth')">Este mes</button>
-        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('previousMonth')">Mes anterior</button>
-        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('currentYear')">Este año</button>
+        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('last7Days')">7 días</button>
+        <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" (click)="applyPreset('last30Days')">30 días</button>
+        <button type="button" class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30" [matMenuTriggerFor]="morePresets" aria-haspopup="menu">
+          Más <mat-icon class="h-4 w-4 text-base!" aria-hidden="true">expand_more</mat-icon>
+        </button>
       </div>
+
+      <mat-menu #morePresets="matMenu">
+        <button mat-menu-item type="button" (click)="applyPreset('currentMonth')"><mat-icon aria-hidden="true">calendar_month</mat-icon><span>Este mes</span></button>
+        <button mat-menu-item type="button" (click)="applyPreset('previousMonth')"><mat-icon aria-hidden="true">history</mat-icon><span>Mes anterior</span></button>
+        <button mat-menu-item type="button" (click)="applyPreset('currentYear')"><mat-icon aria-hidden="true">event</mat-icon><span>Este año</span></button>
+      </mat-menu>
     </div>
   `,
 })

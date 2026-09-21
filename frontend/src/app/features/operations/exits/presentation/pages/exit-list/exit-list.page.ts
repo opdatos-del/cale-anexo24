@@ -41,66 +41,81 @@ interface ExitSearchResult {
   template: `
     <div class="min-h-full bg-[#f4f7fb] text-slate-800">
       <main class="mx-auto w-full max-w-360 px-5 py-8 sm:px-8">
-        <header class="mb-7">
-          <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Operaciones</p>
+        <header class="mb-6">
+          <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Operaciones</p>
           <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Salidas</h1>
-          <p class="mt-2 text-sm text-slate-500">Consulta de líneas de exportación por rango de fecha de pago.</p>
+          <p class="mt-1 text-sm text-slate-500">Consulta de líneas de exportación por rango de fecha de pago.</p>
         </header>
 
-        <section class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-labelledby="exit-filters">
+        <section class="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-labelledby="exit-filters">
           <h2 id="exit-filters" class="sr-only">Filtros de salidas</h2>
-          <div>
-            <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">Periodo</p>
-            <p class="mb-4 text-sm text-slate-500">Elige un rango para consultar movimientos.</p>
-            <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
+          <div class="flex flex-wrap items-center gap-3">
+            <app-operation-period-filter #periodFilter class="min-w-0 flex-1" (periodChange)="onPeriodChange($event)" />
+            <div class="flex shrink-0 items-center gap-1.5">
+              <button
+                mat-stroked-button
+                type="button"
+                class="h-9 rounded-lg! px-3!"
+                [attr.aria-expanded]="optionalFiltersExpanded()"
+                aria-controls="exit-optional-filters"
+                aria-label="Mostrar filtros opcionales"
+                (click)="toggleOptionalFilters()"
+              >
+                <mat-icon class="text-[18px]!" aria-hidden="true">tune</mat-icon>
+                <span>Filtros</span>
+                @if (activeFilterCount() > 0) {
+                  <span class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-blue-100 px-1.5 text-[11px] font-bold text-blue-700">{{ activeFilterCount() }}</span>
+                }
+              </button>
+              <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-500!" (click)="clearFilters()">Limpiar</button>
+            </div>
           </div>
 
-          <details open class="mt-6 border-t border-slate-100 pt-5">
-            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
-              <span>Más filtros</span>
-              <span class="text-xs font-normal text-slate-400">Búsqueda automática</span>
-            </summary>
-            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          @if (optionalFiltersExpanded()) {
+            <div id="exit-optional-filters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 md:grid-cols-2 xl:grid-cols-4">
               <label>
                 <span class="mb-1 block text-xs font-medium text-slate-700">Pedimento</span>
-                <input id="exit-customs-document" matInput name="customsDocument" [(ngModel)]="customsDocument" (ngModelChange)="onOptionalFilterChange()" maxlength="60" placeholder="Número de pedimento" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                <input id="exit-customs-document" matInput name="customsDocument" [(ngModel)]="customsDocument" (ngModelChange)="onOptionalFilterChange()" maxlength="60" placeholder="Número de pedimento" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
               </label>
               <label>
                 <span class="mb-1 block text-xs font-medium text-slate-700">Clave de pedimento</span>
-                <input id="exit-customs-code" matInput name="customsCode" [(ngModel)]="customsCode" (ngModelChange)="onOptionalFilterChange()" maxlength="5" placeholder="Clave" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                <input id="exit-customs-code" matInput name="customsCode" [(ngModel)]="customsCode" (ngModelChange)="onOptionalFilterChange()" maxlength="5" placeholder="Clave" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
               </label>
               <label>
                 <span class="mb-1 block text-xs font-medium text-slate-700">Fracción</span>
-                <input id="exit-tariff-fraction" matInput name="tariffFraction" [(ngModel)]="tariffFraction" (ngModelChange)="onOptionalFilterChange()" maxlength="12" placeholder="Fracción arancelaria" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                <input id="exit-tariff-fraction" matInput name="tariffFraction" [(ngModel)]="tariffFraction" (ngModelChange)="onOptionalFilterChange()" maxlength="12" placeholder="Fracción arancelaria" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
               </label>
               <label>
                 <span class="mb-1 block text-xs font-medium text-slate-700">N° parte</span>
-                <input id="exit-part-number" matInput name="partNumber" [(ngModel)]="partNumber" (ngModelChange)="onOptionalFilterChange()" maxlength="50" placeholder="Número de parte" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+                <input id="exit-part-number" matInput name="partNumber" [(ngModel)]="partNumber" (ngModelChange)="onOptionalFilterChange()" maxlength="50" placeholder="Número de parte" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
               </label>
             </div>
-          </details>
-
-          <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <p class="m-0 text-xs text-slate-400">Los cambios se consultan automáticamente.</p>
-            <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="clearFilters()">Limpiar filtros</button>
-          </div>
+          }
         </section>
 
-        <div class="mb-4 flex flex-wrap items-center gap-3">
-          <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de salidas">
-            <mat-icon>refresh</mat-icon> Actualizar
-          </button>
-          <span class="text-xs text-slate-500" aria-live="polite">{{ totalItems() }} registros encontrados</span>
-        </div>
+        @if (hasSearched()) {
+          <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
+            <span class="text-xs font-medium text-slate-500" aria-live="polite">{{ formatTotal() }} resultados</span>
+            <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de salidas">
+              <mat-icon class="text-[18px]!" aria-hidden="true">refresh</mat-icon> Actualizar
+            </button>
+          </div>
+        }
 
         @if (isLoading()) {
-          <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="Cargando salidas" aria-busy="true">
+          <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Cargando salidas" aria-busy="true">
             @for (row of loadingRows; track row) { <div class="h-10 animate-pulse rounded-lg bg-slate-100"></div> }
           </div>
         } @else if (error()) {
-          <app-alert kind="error" title="No pudimos cargar las salidas" [message]="error()!" actionLabel="Reintentar" (action)="refresh()" />
+          <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-label="Error de consulta">
+            <app-alert kind="error" title="No pudimos cargar las salidas" [message]="error()!" actionLabel="Reintentar" (action)="refresh()" />
+          </section>
         } @else if (!hasSearched()) {
-          <app-alert kind="info" title="Consulta de salidas" message="Selecciona un periodo para consultar movimientos." />
+          <section class="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center" aria-label="Estado inicial de salidas">
+            <mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">calendar_month</mat-icon>
+            <p class="m-0 text-sm font-medium text-slate-600">Selecciona un periodo</p>
+            <span class="mt-1 text-xs text-slate-400">para consultar movimientos</span>
+          </section>
         } @else {
           <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-label="Resultados de salidas">
             @if (items().length > 0) {
@@ -139,8 +154,10 @@ interface ExitSearchResult {
                 </table>
               </div>
             } @else {
-              <div class="p-4">
-                <app-alert kind="info" title="Sin resultados" message="No se encontraron movimientos con los filtros aplicados." />
+              <div class="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center" aria-label="Sin resultados">
+                <mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">search_off</mat-icon>
+                <p class="m-0 text-sm font-medium text-slate-600">No se encontraron movimientos</p>
+                <span class="mt-1 text-xs text-slate-400">No hay registros para el periodo y filtros seleccionados.</span>
               </div>
             }
             <mat-paginator [length]="totalItems()" [pageSize]="pageSize" [pageSizeOptions]="pageSizeOptions" (page)="changePage($event)" showFirstLastButtons aria-label="Paginación de salidas" />
@@ -161,6 +178,7 @@ export class ExitListPage {
   protected readonly isLoading = signal(false);
   protected readonly hasSearched = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly optionalFiltersExpanded = signal(false);
 
   protected fromDate: Date | null = null;
   protected toDate: Date | null = null;
@@ -209,11 +227,24 @@ export class ExitListPage {
   }
 
   protected onOptionalFilterChange(): void {
+    this.optionalFiltersExpanded.set(true);
     if (!this.hasValidPeriod()) return;
 
     this.currentPage = 1;
     this.hasSearched.set(true);
     this.searchTriggers.next(false);
+  }
+
+  protected toggleOptionalFilters(): void {
+    this.optionalFiltersExpanded.update((expanded) => !expanded);
+  }
+
+  protected activeFilterCount(): number {
+    return [this.customsDocument, this.customsCode, this.tariffFraction, this.partNumber].filter((value) => value.trim()).length;
+  }
+
+  protected formatTotal(): string {
+    return new Intl.NumberFormat('es-MX').format(this.totalItems());
   }
 
   protected canRefresh(): boolean {
@@ -240,6 +271,7 @@ export class ExitListPage {
     this.error.set(null);
     this.hasSearched.set(false);
     this.isLoading.set(false);
+    this.optionalFiltersExpanded.set(false);
   }
 
   protected changePage(event: PageEvent): void {
