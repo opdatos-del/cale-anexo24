@@ -1,10 +1,11 @@
-# Materiales utilizados — ingeniería inversa y propuesta de contrato V1
+# Materiales utilizados — ingeniería inversa y contrato V1 cerrado
 
 ## 0. Estado del documento
 
-- **Fecha de auditoría:** 2026-09-21.
+- **Fecha de auditoría y cierre:** 2026-09-21.
 - **Rama:** `feature/backend-used-materials`.
-- **Base:** `dev` en `a9a1c76647711048239820b1b619a4a8d20cd302`.
+- **Base de Fase 1:** `dev` en `a9a1c76647711048239820b1b619a4a8d20cd302`.
+- **Base de Fase 2:** `091e9c8e5a385f403352fce3e3e5140bd594bbc5`.
 - **Base consultada:** `CALE_IMMEX`, esquema `dbo`.
 - **Compatibility level:** `100`.
 - **SQL Server:** `16.0.1000.6`, Express Edition 64-bit, RTM.
@@ -13,12 +14,14 @@
 - **Datos:** no modificados.
 - **Objetos mutables:** sólo inspeccionados mediante metadata/definición; ninguno ejecutado.
 - **Implementación:** no se creó Java, endpoint, frontend ni `APP24_Q_MATERIALES_UTILIZADOS_LISTAR`.
+- **Estado del contrato:** **CONTRATO V1 CERRADO**; el SP propio queda aprobado para implementación en una fase posterior.
 
 ### Convención de evidencia
 
 - **CONFIRMADO:** demostrado por metadata, definición SQL o conteo/consulta ejecutada.
 - **INFERIDO:** conclusión razonable derivada de varias evidencias, pero no demostrada funcionalmente de forma completa.
-- **PENDIENTE DE VALIDAR:** falta evidencia funcional o una decisión de negocio.
+- **DECISIÓN V1:** regla deliberada del nuevo contrato, respaldada por la evidencia disponible. No se presenta como comportamiento nativo del legado cuando no lo es.
+- **PENDIENTE:** evidencia funcional o una decisión de negocio que no bloquea el alcance V1 actual.
 
 ## 1. Resumen ejecutivo
 
@@ -49,15 +52,17 @@ fuera de Materiales Utilizados V1.
 simultáneamente filtros parametrizados, paginación, total y una proyección
 estable de Materiales Utilizados.
 
-**RECOMENDADO:** crear en una fase posterior un objeto propio:
+**DECISIÓN V1 — APROBADO PARA IMPLEMENTACIÓN:** crear en una fase posterior un
+objeto propio:
 
 ```text
 dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR
 ```
 
-No se crea en esta auditoría. El objeto deberá leer `DESCARGA` y resolver sus
-relaciones con `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS`, `SALIDAS`, `MATERIAL` y,
-si se requiere descripción, `PRODUCTOS`.
+No se crea en esta fase. El objeto deberá leer `DESCARGA` y resolver sus
+relaciones con `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS` y `SALIDAS`. Los
+catálogos `MATERIAL` y `PRODUCTOS` no son necesarios para la proyección V1,
+pues código y descripción se conservan en el histórico enlazado.
 
 ### 1.3 Granularidad recomendada
 
@@ -405,16 +410,29 @@ los ambientes.
 | `DESCARGA.PT` ↔ `PSALIDAS.Clave` | 3,866 | 3,866 | 0 | 204 | CONFIRMADO actual |
 | `DESCARGA.Clave` ↔ `PRODUCTOS.CVE_PRODUCTO` | 3,866 | 0 | 3,866 | 2 | CONFIRMADO que no es producto |
 
-**CONFIRMADO:** `DESCARGA.Clave` identifica material en la muestra actual;
-`DESCARGA.PT` identifica producto terminado. Para V1 se recomienda resolver
-ambos desde las tablas relacionadas, no confiar en los duplicados textuales de
-`DESCARGA`.
+**CONFIRMADO:** `DESCARGA.Clave` identifica material y `DESCARGA.PT` identifica
+producto terminado en las 3,866 filas. Los tres códigos duplicados son iguales
+en el snapshot: `DESCARGA.Clave`/`PARTIDAS.Clave`/`MATERIAL.clave` y
+`DESCARGA.PT`/`PSALIDAS.Clave`/`PRODUCTOS.CVE_PRODUCTO`, sin nulos, blancos ni
+discrepancias. También coinciden las descripciones de
+`PARTIDAS`/`MATERIAL` y de `PSALIDAS`/`PRODUCTOS`.
 
-`DESCARGA.Importacion` no es una clave canónica: sus dos valores actuales son
-documentos completos con formato de aduana/patente/folio, mientras que
-`IMPORTACIONES.Numero_ped` contiene sólo el folio. El match textual fue 0 de
-3,866. La consulta debe usar `Entradalink` → `IMPORTACIONES.Ipedimentokey`.
-`DESCARGA.Salida` sí coincide con `SALIDAS.Documento` tras recortar espacios.
+**DECISIÓN V1:** usar los valores persistidos del movimiento: `DESCARGA.Clave`
+para `materialCode`, `PARTIDAS.Descripcion` para `materialDescription`,
+`DESCARGA.PT` para `productCode` y `PSALIDAS.Descripcion` para
+`productDescription`. Los catálogos se mantienen fuera de la proyección para
+no sustituir el snapshot histórico con una edición futura del maestro.
+
+`DESCARGA.Importacion` y `PARTIDAS.PEDIMENTO` coinciden en las 3,866 filas y
+son documentos completos de 16 caracteres observados. En cambio,
+`IMPORTACIONES.Numero_ped` y `PARTIDAS.PNUMERO_PED` son folios cortos de siete
+caracteres observados y difieren del documento completo en 3,866/3,866 filas.
+**DECISIÓN V1:** el alias inequívoco es `pedimentoEntrada` y su fuente es
+`LTRIM(RTRIM(DESCARGA.Importacion))`; no se denomina simplemente
+`importacion`. `DESCARGA.Salida` coincide con `SALIDAS.Documento` tras recortar
+espacios en las 3,866 filas. **DECISIÓN V1:** `pedimentoSalida` usa el texto
+persistido `LTRIM(RTRIM(DESCARGA.Salida))` y el join a `SALIDAS` se conserva
+para fecha, clave de pedimento e IDs.
 
 ### 5.4 Huérfanos e inversas
 
@@ -469,18 +487,18 @@ Al insertar en `DESCARGA`, el procedimiento conserva por separado `CANTUTIL`,
 `MERMA`, `DESPERDICIO`, `CANTUTILT`, `MERMAT` y `DESPERDICIOT`, además de las
 unidades. También actualiza `PARTIDAS.SALDO` e inserta `TRAZO`.
 
-### 6.2 Interpretación
+### 6.2 Semántica cerrada para V1
 
 | Campo | Significado | Estado |
 |---|---|---|
-| `DESCARGA.CantUtil` | Porción incorporada/consumida del material en unidad comercial de la partida | CONFIRMADO por definición de `SALDOS` |
-| `DESCARGA.Merma` | Porción de merma separada del total solicitado | CONFIRMADO por definición y reportes |
-| `DESCARGA.Desperdicio` | Porción de desperdicio separada del total solicitado | CONFIRMADO por definición; snapshot actual nulo |
-| `DESCARGA.CantUtil + Merma + Desperdicio` | Total descargado usado por el historial legacy | CONFIRMADO por `PROC_HISTORIADESCARGASALIDA` y `HISTORIADESCARGASF` |
-| `DESCARGA.CantUtilT` | Cantidad incorporada convertida a unidad tarifaria | CONFIRMADO por definición |
-| `DESCARGA.MermaT` / `DesperdicioT` | Conversiones tarifarias separadas | CONFIRMADO por columnas; valor actual pendiente por estar nulo |
-| `DESCARGA.Unidad` | Unidad de `PARTIDAS.Unidad` elegida al guardar el descargo | CONFIRMADO por `SALDOS` |
-| `DESCARGA.UnidadT` | Unidad de `PARTIDAS.UnidadT` elegida al guardar el descargo | CONFIRMADO por `SALDOS` |
+| `cantidadIncorporada` | `DESCARGA.CantUtil`: porción incorporada/consumida del material en unidad comercial de la partida | CONFIRMADO por `SALDOS`; DECISIÓN V1 para el concepto visual de consumo incorporado |
+| `cantidadMerma` | `DESCARGA.Merma`: porción de merma separada | CONFIRMADO por definición y reportes |
+| `cantidadDesperdicio` | `DESCARGA.Desperdicio`: porción de desperdicio separada | CONFIRMADO por definición; nula en el snapshot |
+| `cantidadTotalDescargada` | `COALESCE(CantUtil, 0) + COALESCE(Merma, 0) + COALESCE(Desperdicio, 0)` | DECISIÓN V1; corresponde a la separación/suma proyectada por históricos, con normalización explícita de nulos |
+| `DESCARGA.CantUtilT` | Cantidad incorporada convertida a unidad tarifaria | CONFIRMADO por definición; excluida de la proyección V1 por redundancia actual |
+| `DESCARGA.MermaT` / `DesperdicioT` | Conversiones tarifarias separadas | CONFIRMADO por columnas; excluidas de V1 |
+| `unidad` | `DESCARGA.Unidad`, guardada desde `PARTIDAS.Unidad` al descargo | CONFIRMADO por `SALDOS` |
+| `DESCARGA.UnidadT` | Unidad tarifaria guardada desde `PARTIDAS.UnidadT` | CONFIRMADO; excluida de V1 |
 
 ### 6.3 Calidad numérica actual
 
@@ -499,11 +517,34 @@ unidades. También actualiza `PARTIDAS.SALDO` e inserta `TRAZO`.
   COALESCE(Desperdicio,0)`: mínimo `0.4272`, máximo `14751.2027`, suma
   aproximada `5651586.8723`.
 
-**RECOMENDACIÓN V1:** no colapsar silenciosamente `CantUtil`, `Merma` y
-`Desperdicio` en un solo significado. Si la pantalla conserva una columna
-`Cantidad consumida`, debe definirse explícitamente como
-`CantUtil + COALESCE(Merma,0) + COALESCE(Desperdicio,0)` y devolver, de ser
-posible, los tres componentes por separado.
+`PROC_HISTORIADESCARGASALIDA` proyecta `Incorporado`, `Mermado`,
+`Desperdiciado` y `TotalDescargado` por separado; `v_descarga` también expone
+los tres componentes. **DECISIÓN V1:** la columna operacional llamada
+`Cantidad consumida` representa `cantidadIncorporada` (`CantUtil`); no se usa
+como alias ambiguo del total. `cantidadTotalDescargada` conserva el total para
+trazabilidad o detalle futuro. Sin embargo, las expresiones legacy de suma no aplican
+`COALESCE`: `V_INFORMEDESCARGAS.CantUMCDescargada` queda nula en las 3,866 filas
+actuales por `Desperdicio = NULL`.
+
+**DECISIÓN V1:** se preserva el valor individual de `cantidadDesperdicio` como
+`NULL` para distinguir dato ausente de cero explícito, pero
+`cantidadTotalDescargada` normaliza cada componente nulo a cero. Es una regla
+explícita del contrato nuevo; no se atribuye al legado una semántica implícita
+`NULL = 0` que no fue encontrada en sus definiciones.
+
+**DECISIÓN V1:** las cuatro cantidades expuestas se proyectan como
+`DECIMAL(18,4)`. Las columnas origen son `float(53)`, pero los 3,866 valores no
+nulos observados de `CantUtil`, `Merma` y `CantUtilT` no exceden cuatro
+posiciones decimales (máximos `14664.0892`, `320.6320` y `14664.0892`). La
+escala coincide con `PARTIDAS.Cantidad`, `MermaD`, `DesperdicioD` y
+`PSALIDAS.Cantidad`, todos `numeric(18,4)`. Esta normalización evita propagar
+artefactos binarios de `float` a Java/JSON; el rango decimal permite hasta
+14 dígitos enteros y no presenta riesgo de overflow con el máximo observado.
+
+**DECISIÓN V1:** `CantUtilT` y `UnidadT` no se incluyen. En el snapshot,
+`CantUtilT = CantUtil` y `UnidadT = Unidad` en 3,866/3,866 filas; el prototipo
+operacional no los muestra. Podrán añadirse a un detalle futuro si aparece una
+conversión tarifaria no redundante.
 
 ## 7. Estructuras/BOM frente a histórico
 
@@ -596,37 +637,43 @@ luego persiste por cada `DESCARGA` `CantUtil`, `Desperdicio`, `Merma` y su suma.
 asociadas ordenadas por `SALIDAS.Fecha`. Las dos variantes tienen propósitos
 históricos distintos.
 
-### 9.3 Decisión propuesta para V1
+### 9.3 Fecha V1 cerrada
 
-**RECOMENDADO / INFERIDO:** el rango de Materiales Utilizados V1 debe aplicarse
-a `SALIDAS.Fecha`, porque:
+**DECISIÓN V1:** el rango obligatorio `desde`/`hasta` se aplica a
+`SALIDAS.Fecha`.
 
-1. el caso “material usado por salida” se ancla a la salida/exportación;
-2. `PROC_HISTORIADESCARGASALIDA` es el objeto histórico más cercano a la
-   pantalla y filtra explícitamente `SALIDAS.Fecha`;
-3. `v_descarga` expone `SALIDAS.Fecha` como `Fecha de Salida`;
-4. `V_INFORMEDESCARGAS` separa fecha de pago de entrada y `FechaPagoExp`.
+La decisión está respaldada por la evidencia técnica siguiente:
 
-**PENDIENTE DE VALIDAR:** aprobación funcional de que la pantalla operacional
-use fecha de salida y no fecha de importación. La evidencia técnica es fuerte,
-pero el acceso funcional autenticado al sistema legacy no estuvo disponible en
-esta sesión.
+1. `PROC_HISTORIADESCARGASALIDA` filtra explícitamente
+   `SALIDAS.Fecha >= @DESDE AND SALIDAS.Fecha <= @HASTA`;
+2. `v_descarga` proyecta esa columna como fecha de salida;
+3. `V_INFORMEDESCARGAS` distingue la fecha de entrada de la fecha de pago de
+   exportación;
+4. las **3,866/3,866** filas de `DESCARGA` tienen `Salidalink` íntegro y una
+   `SALIDAS.Fecha` no nula; el rango enlazado es **2025-10-31 a 2026-08-18**;
+5. la distribución enlazada es 761 filas en 2025 y 3,105 en 2026;
+6. `PSALIDAS.Fecha` también es no nula y tiene el mismo rango en el snapshot,
+   mientras `PSALIDAS.FECHADESCARGA` es nula en las 3,866 filas y no sirve como
+   ancla.
+
+No se obtuvo acceso autenticado a la pantalla Web Forms, pero no hay evidencia
+SQL contradictoria. Por ello no bloquea el contrato V1.
 
 ### 9.4 Regla de rango futura
 
-El contrato debe ser inclusivo por fecha, pero el SQL debe evitar perder horas
-del último día. Propuesta conceptual:
+**DECISIÓN V1:** el rango es inclusivo por fecha y el futuro SP debe conservar
+horas del último día mediante:
 
 ```text
-desde <= fecha < hasta_exclusivo
+fecha >= CAST(@Desde AS DATETIME)
+AND (@HastaExclusivo IS NULL OR fecha < @HastaExclusivo)
 ```
 
-`hasta_exclusivo` será el día siguiente salvo `9999-12-31`. Para ese máximo no
-se debe ejecutar ciegamente `DATEADD(day, 1, @Hasta)`, porque desborda el rango
-de fecha de SQL Server; debe usarse una rama max-safe con el último instante
-representable de `datetime`.
-
-No se implementó este SQL durante la auditoría.
+`@HastaExclusivo` será `DATEADD(DAY, 1, CAST(@Hasta AS DATETIME))` sólo cuando
+`@Hasta < '9999-12-31'`. Para `9999-12-31` se deja `NULL`; así no se desborda
+`datetime` y el predicado incluye todas las horas representables de ese día.
+El patrón coincide con las queries APP24 de Entradas/Salidas y no se implementó
+ningún SQL nuevo en esta fase.
 
 ## 10. Pantalla y reporte legacy
 
@@ -811,145 +858,119 @@ SALIDAS.SalidaKey = 3024
 salida. `DESCARGA.Importacion` no se usó como vínculo porque es un texto
 legacy denormalizado distinto a `IMPORTACIONES.Numero_ped`.
 
-## 13. Campos candidatos para V1
+## 13. Contrato de datos V1 cerrado
 
-### 13.1 Campos visibles mínimos
+### 13.1 Response exacto y fuentes
 
-| Campo API propuesto | Fuente | Estado | Nota |
-|---|---|---|---|
-| `importacion` | `IMPORTACIONES.Numero_ped` vía `DESCARGA.Entradalink` | CONFIRMADO | No usar `DESCARGA.Importacion` como canonical |
-| `exportacion` | `SALIDAS.Documento` vía `DESCARGA.Salidalink` | CONFIRMADO | `char(60)` con espacios físicos |
-| `materialCode` | `PARTIDAS.Clave` y validación `MATERIAL.clave` | CONFIRMADO actual | `DESCARGA.Clave` coincide en snapshot |
-| `materialDescription` | `MATERIAL.descripcion` | CONFIRMADO actual | Resolver por código |
-| `productCode` | `PSALIDAS.Clave`/`PRODUCTOS.CVE_PRODUCTO` | CONFIRMADO actual | `DESCARGA.PT` coincide en snapshot |
-| `productDescription` | `PRODUCTOS.NOMBRE` o `PSALIDAS.Descripcion` | INFERIDO | Elegir una fuente canónica en contrato |
-| `cantidadIncorporada` | `DESCARGA.CantUtil` | CONFIRMADO | No equivale automáticamente al total descargado |
-| `cantidadMerma` | `DESCARGA.Merma` | CONFIRMADO | Separar de incorporación |
-| `cantidadDesperdicio` | `DESCARGA.Desperdicio` | CONFIRMADO | Puede ser `NULL` en legacy |
-| `cantidadTotalDescargada` | `COALESCE(CantUtil,0)+COALESCE(Merma,0)+COALESCE(Desperdicio,0)` | INFERIDO con evidencia histórica | La fórmula aparece en historiales |
-| `unidad` | `DESCARGA.Unidad` / `PARTIDAS.Unidad` | CONFIRMADO | UMC del material de entrada |
-| `cantidadTarifaria` | `DESCARGA.CantUtilT` | CONFIRMADO por columna | Datos actuales no demuestran conversión distinta |
-| `unidadTarifaria` | `DESCARGA.UnidadT` / `PARTIDAS.UnidadT` | CONFIRMADO | UMT del material de entrada |
-| `fecha` | `SALIDAS.Fecha` | RECOMENDADO; técnico confirmado | Pendiente aprobación funcional final |
+Cada elemento representa una fila física de `DESCARGA`; los IDs se conservan
+para trazabilidad, aunque la primera tabla frontend no tenga que mostrarlos.
 
-### 13.2 IDs internos
+| Campo | Tipo SQL del futuro SP | Tipo Java | Fuente y regla | Estado |
+|---|---|---|---|---|
+| `descargaId` | `BIGINT` | `Long` | `DESCARGA.Descargakey` | CONFIRMADO |
+| `entradaId` | `NUMERIC(18,0)` | `BigDecimal` | `IMPORTACIONES.Ipedimentokey` | CONFIRMADO |
+| `partidaEntradaId` | `NUMERIC(18,0)` | `BigDecimal` | `PARTIDAS.Partidakey` | CONFIRMADO |
+| `salidaId` | `NUMERIC(18,0)` | `BigDecimal` | `SALIDAS.SalidaKey` | CONFIRMADO |
+| `partidaSalidaId` | `NUMERIC(18,0)` | `BigDecimal` | `PSALIDAS.Psalidakey` | CONFIRMADO |
+| `pedimentoEntrada` | `VARCHAR(50)` | `String` | `LTRIM(RTRIM(DESCARGA.Importacion))`, documento completo histórico | DECISIÓN V1 |
+| `pedimentoSalida` | `VARCHAR(50)` | `String` | `LTRIM(RTRIM(DESCARGA.Salida))`, documento completo histórico | DECISIÓN V1 |
+| `materialCode` | `VARCHAR(50)` | `String` | `LTRIM(RTRIM(DESCARGA.Clave))` | DECISIÓN V1 |
+| `materialDescription` | `VARCHAR(250)` | `String` | `LTRIM(RTRIM(PARTIDAS.Descripcion))`, snapshot de la partida | DECISIÓN V1 |
+| `productCode` | `VARCHAR(50)` | `String` | `LTRIM(RTRIM(DESCARGA.PT))` | DECISIÓN V1 |
+| `productDescription` | `VARCHAR(250)` | `String` | `LTRIM(RTRIM(PSALIDAS.Descripcion))`, snapshot de la línea de salida | DECISIÓN V1 |
+| `cantidadIncorporada` | `DECIMAL(18,4)` | `BigDecimal` | `CONVERT(DECIMAL(18,4), DESCARGA.CantUtil)` | DECISIÓN V1 |
+| `cantidadMerma` | `DECIMAL(18,4)` | `BigDecimal` | `CONVERT(DECIMAL(18,4), DESCARGA.Merma)` | DECISIÓN V1 |
+| `cantidadDesperdicio` | `DECIMAL(18,4) NULL` | `BigDecimal` | `CONVERT(DECIMAL(18,4), DESCARGA.Desperdicio)`; preserva `NULL` | DECISIÓN V1 |
+| `cantidadTotalDescargada` | `DECIMAL(18,4)` | `BigDecimal` | suma con `COALESCE` de los tres componentes decimalizados | DECISIÓN V1 |
+| `unidad` | `VARCHAR(5)` | `String` | `LTRIM(RTRIM(DESCARGA.Unidad))` | CONFIRMADO |
+| `fecha` | `DATETIME` | `LocalDateTime` | `SALIDAS.Fecha` | DECISIÓN V1 |
 
-No se deben exponer los `float` legacy como identificadores numéricos de
-precisión doble. El modelo de backend debe conservar, preferentemente como
-`BigDecimal` cuando provienen de `numeric(18,0)`:
+No se incluyen valores monetarios, saldo, fracción, estructura, PEPS, links
+`float`, cantidad/unidad tarifaria ni los demás campos de `DESCARGA` que no son
+necesarios para este listado operativo. `cantidadTarifaria` y `unidadTarifaria`
+pertenecen a un posible detalle futuro, no al contrato V1.
 
-```text
-descargaId       <- DESCARGA.Descargakey (bigint)
-partidaEntradaId <- PARTIDAS.Partidakey (numeric(18,0))
-entradaId        <- IMPORTACIONES.Ipedimentokey (numeric(18,0))
-partidaSalidaId  <- PSALIDAS.Psalidakey (numeric(18,0))
-salidaId         <- SALIDAS.SalidaKey (numeric(18,0))
+### 13.2 Links legacy e IDs seguros
+
+Los links `Pentradalink`, `Entradalink`, `Psalidalink` y `Salidalink` son
+`float(53)` y no se exponen. En el snapshot, los cuatro son no nulos, enteros,
+están entre 1,001 y 7,392 y las 3,866 filas caben en `numeric(18,0)` y enlazan
+sin fallos.
+
+**DECISIÓN V1:** cada join del futuro SP debe validar antes de convertir:
+
+```sql
+CONVERT(NUMERIC(18, 0), CASE
+    WHEN d.Pentradalink > -1.0E18
+     AND d.Pentradalink <  1.0E18
+     AND d.Pentradalink = FLOOR(d.Pentradalink)
+    THEN FLOOR(d.Pentradalink)
+END)
 ```
 
-`Pentradalink`, `Entradalink`, `Psalidalink` y `Salidalink` sólo deben usarse
-como links legacy validados contra esos IDs. `PROMKEY` no se propone: está nulo
-en todas las filas actuales.
+Se sustituye únicamente el nombre del link para los cuatro joins. Los límites
+abiertos cubren `numeric(18,0)` sin aceptar valores fuera de rango, `FLOOR`
+explicita la integralidad y el `CASE` produce `NULL` para un link inválido. El
+SP usará `INNER JOIN`, por lo que una relación legacy inválida queda fuera de
+una fila cuya trazabilidad ya no pueda demostrarse.
 
-## 14. Filtros candidatos
+## 14. Filtros V1 cerrados
 
-### 14.1 Evidencia
+| Parámetro | Obligatorio | Fuente de filtro | Semántica | Longitud física / observada / V1 |
+|---|---|---|---|---|
+| `desde` | Sí | `SALIDAS.Fecha` | rango inclusivo por día | `DATE` |
+| `hasta` | Sí | `SALIDAS.Fecha` | rango inclusivo por día | `DATE` |
+| `material` | No | `DESCARGA.Clave` | igualdad exacta tras trim | `varchar(50)` / 6 / **50** |
+| `producto` | No | `DESCARGA.PT` | igualdad exacta tras trim | `varchar(50)` / 9 / **50** |
+| `pedimentoSalida` | No | `DESCARGA.Salida` | igualdad exacta tras trim | `varchar(50)` / 16 / **50** |
+| `clavePedimentoSalida` | No | `SALIDAS.Cve_pedimento` | igualdad exacta tras trim | `char(5)` / 2 / **5** |
+| `pagina` | No | — | entero; default `1`; mínimo `1` | `INT` |
+| `tamano` | No | — | entero; default `20`; rango `1..100` | `INT` |
 
-| Filtro | Evidencia | Semántica observada |
-|---|---|---|
-| `desde` / `hasta` | Prototipo y todos los historiales | Rango obligatorio; el ancla depende de la variante |
-| `material` | Prototipo; `PROC_HISTORIADESCARGASALIDA.@PROD` realmente filtra producto; `HISTORIADESCARGASF.@CODIGO` filtra entrada | Legacy usa `LIKE '%texto%'` en variantes |
-| `producto` | Prototipo; `PROC_HISTORIADESCARGASALIDA.@PROD` filtra `PSALIDAS.Clave` | Legacy usa contiene |
-| `pedimentoSalida` | `PROC_HISTORIADESCARGASALIDA.@DOCUMENTO` sobre `SALIDAS.Documento` | Legacy usa contiene |
-| `clavePedimentoSalida` | `PROC_HISTORIADESCARGASALIDA.@CLAVE` sobre `SALIDAS.Cve_pedimento` | Legacy usa contiene |
-| `pedimentoEntrada` | Campo y join existen; `HISTORIADESCARGASP` filtra `IMPORTACIONES.Numero_ped` | No aparece en el prototipo de Materiales Utilizados |
-| `fraccion` | Existe en `PARTIDAS`/`PSALIDAS` | No evidenciado en pantalla de este caso |
-| `numeroParte` | Producto/claves funcionales existen | Debe resolverse si será sinónimo de producto |
+La semántica exacta es una **DECISIÓN V1**. Las variantes legacy contienen
+`LIKE '%texto%'`, pero no se trasladan automáticamente al contrato moderno.
+`pedimentoEntrada`, `fraccion` y `numeroParte` quedan fuera del V1 porque no
+son necesarios para el caso de uso mínimo aprobado.
 
-### 14.2 Propuesta V1
+## 15. Contrato HTTP V1 cerrado
 
-**Propuesta mínima respaldada:**
-
-- `desde` obligatorio.
-- `hasta` obligatorio.
-- `material` opcional, igualdad exacta sobre `PARTIDAS.Clave`.
-- `producto` opcional, igualdad exacta sobre `PSALIDAS.Clave`.
-- `pedimentoSalida` opcional, igualdad exacta sobre `SALIDAS.Documento`.
-- `clavePedimentoSalida` opcional, igualdad exacta sobre `SALIDAS.Cve_pedimento`.
-
-`pedimentoEntrada`, `fraccion` y `numeroParte` quedan como filtros futuros o
-requieren aprobación funcional explícita. Sus columnas existen, pero la pantalla
-histórica no basta para incorporarlos al primer contrato.
-
-### 14.3 Semántica de búsqueda
-
-El legacy usa `LIKE '%texto%'` en `PROC_HISTORIADESCARGASALIDA` y en variantes
-de historia. Para V1 se recomienda **igualdad exacta** para códigos completos:
-
-- evita ocultar la semántica detrás de `LIKE '%...%'`;
-- permite índices y planes previsibles;
-- coincide con los contratos V1 de Entradas/Salidas ya implementados;
-- evita devolver materiales/productos parcialmente parecidos sin intención.
-
-Si negocio requiere búsqueda parcial, debe aprobarse por filtro y documentarse
-por separado; no debe introducirse de forma global.
-
-## 15. Propuesta de contrato HTTP V1
-
-### 15.1 Endpoint y permiso
+### 15.1 Endpoint, permiso y errores
 
 ```http
 GET /api/v1/operaciones/materiales-utilizados
 ```
 
-Permiso propuesto:
+Permiso: `OPERACIONES_CONSULTAR`.
 
-```text
-OPERACIONES_CONSULTAR
-```
+La respuesta usa el mismo wrapper `Pagina<MaterialUtilizado>` de Entradas y
+Salidas, con `items`, `total`, `pagina` y `tamano`. Los errores estándar son
+`400` para parámetros inválidos, `401` sin sesión válida, `403` sin el permiso
+y `503` si la fuente SQL no está disponible. No se crea endpoint, permiso ni
+DTO Java en esta fase.
 
-**Estado:** INFERIDO por consistencia con Entradas/Salidas y por tratarse de una
-consulta operacional. Requiere aprobación del contrato; no se creó permiso ni
-endpoint.
-
-### 15.2 Parámetros propuestos
-
-```text
-desde                 date obligatorio
-hasta                 date obligatorio
-material              string opcional
-producto              string opcional
-pedimentoSalida       string opcional
-clavePedimentoSalida  string opcional
-pagina                int default 1
-tamano                int default 20, rango 1..100
-```
-
-
-### 15.3 Response mínimo propuesto
+### 15.2 Ejemplo normativo de response
 
 ```json
 {
   "items": [
     {
       "descargaId": 390,
-      "entradaId": "1001",
-      "partidaEntradaId": "2001",
-      "salidaId": "3024",
-      "partidaSalidaId": "4124",
-      "importacion": "5003971",
-      "exportacion": "190-1562-5001284",
+      "entradaId": 1001,
+      "partidaEntradaId": 2001,
+      "salidaId": 3024,
+      "partidaSalidaId": 4124,
+      "pedimentoEntrada": "190-1562-5003971",
+      "pedimentoSalida": "190-1562-5001284",
       "materialCode": "500017",
       "materialDescription": "AZUCAR ESTANDAR",
       "productCode": "300861",
       "productDescription": "CHERRY SLICES",
-      "cantidadIncorporada": "426.7470",
-      "cantidadMerma": "0.0000",
+      "cantidadIncorporada": 426.7470,
+      "cantidadMerma": 0.0000,
       "cantidadDesperdicio": null,
-      "cantidadTotalDescargada": "426.7470",
+      "cantidadTotalDescargada": 426.7470,
       "unidad": "KG",
-      "cantidadTarifaria": "426.7470",
-      "unidadTarifaria": "KG",
-      "fecha": "2025-12-01"
+      "fecha": "2025-12-01T00:00:00"
     }
   ],
   "total": 1,
@@ -958,14 +979,13 @@ tamano                int default 20, rango 1..100
 }
 ```
 
-El JSON es propuesta, no contrato aprobado. Las cantidades deben mantenerse
-como `BigDecimal` en Java y serializarse sin convertir a `double` ni perder
-escala. Los IDs `numeric(18,0)` deben mantenerse como `BigDecimal` o una
-representación decimal segura.
+`NUMERIC(18,0)` se representa como `BigDecimal` en Java; no se convierten IDs
+ni cantidades a `double`. La serialización concreta de `BigDecimal` seguirá la
+configuración estándar de Jackson del backend, sin redondeos adicionales.
 
-### 15.4 Orden y paginación
+### 15.3 Orden y paginación
 
-Orden recomendado y determinista:
+**DECISIÓN V1:** el orden determinista es:
 
 ```text
 SALIDAS.Fecha DESC,
@@ -974,46 +994,46 @@ PSALIDAS.Psalidakey DESC,
 DESCARGA.Descargakey DESC
 ```
 
-SQL Server está en compatibility level 100. Si se crea el SP propio, usar
-`ROW_NUMBER()` para paginar; no asumir `OFFSET/FETCH`. No agregar por material o
-salida salvo que la aprobación cambie explícitamente la granularidad.
+`Descargakey` es único en las 3,866 filas y elimina cualquier empate de los
+criterios anteriores, preservando duplicados históricos legítimos. El futuro SP
+usará `ROW_NUMBER()` por compatibility level `100`. Debe calcular límites con
+`BIGINT`:
 
-### 15.5 Joins propuestos
+```text
+desplazamiento = (CAST(@Pagina AS BIGINT) - 1) * CAST(@Tamano AS BIGINT)
+filaInicial = desplazamiento + 1
+filaFinal = desplazamiento + CAST(@Tamano AS BIGINT)
+```
+
+No se agregan filas por material, producto o salida.
+
+### 15.4 Joins previstos
 
 ```text
 DESCARGA d
-JOIN PARTIDAS pe
-  ON d.Pentradalink = representación legacy de pe.Partidakey
-JOIN IMPORTACIONES i
-  ON pe.Importacionlink = i.Ipedimentokey
-JOIN PSALIDAS ps
-  ON d.Psalidalink = representación legacy de ps.Psalidakey
-JOIN SALIDAS s
-  ON d.Salidalink = s.SalidaKey
-LEFT JOIN MATERIAL m
-  ON m.clave = pe.Clave
-LEFT JOIN PRODUCTOS pr
-  ON pr.CVE_PRODUCTO = ps.Clave
+INNER JOIN PARTIDAS pe  por Pentradalink validado
+INNER JOIN IMPORTACIONES i por Entradalink validado
+INNER JOIN PSALIDAS ps  por Psalidalink validado
+INNER JOIN SALIDAS s    por Salidalink validado
 ```
 
-La implementación debe documentar y probar la conversión de links `float`; no
-debe devolver esos links como `float`.
+`PARTIDAS` e `IMPORTACIONES` son necesarios para IDs de entrada; `PSALIDAS` y
+`SALIDAS`, para IDs de salida, descripción de producto, clave de pedimento y
+fecha. No se requieren joins a los catálogos para la proyección V1 cerrada.
 
 ## 16. Decisión de fuente
 
 | Alternativa | Ventajas | Limitaciones | Decisión |
 |---|---|---|---|
-| `PROC_HISTORIADESCARGASALIDA` | Fecha `SALIDAS.Fecha`, cantidades y filtros históricos | `TRUNCATE`, `INSERT`, tabla de historia, `LIKE`, side effects | No usar en GET |
-| `HISTORIADESCARGASF/P` | Historia por importación, suma de cantidades | Borran/recrean historia, mezclan regularización/desperdicio | No usar en GET |
-| `v_descarga` | Read-only, joins y columnas cercanas | 35 columnas, sin parámetros, sin paginación/total, mezcla saldos/reportes | Referencia, no contrato |
-| `V_INFORMEDESCARGAS` | Ambos documentos, cantidades, unidades y fechas | 42 columnas, saldo actual y valores de conciliación | Referencia, no contrato |
-| `DESCARGA_CTMA` / `DESCARGA_DESPERDICIO` | Proyecciones read-only especializadas | Casos CTMA/desperdicio, no general | No |
-| `PR_INFORME_SALDOS` | Read-only y parametrizado | Fecha de importación, saldo actual, 37 columnas, no descarga por línea | No |
-| `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | Contrato estable, paginación, total, aliases y filtros controlados | Aún no existe | **Recomendado en fase posterior** |
+| `PROC_HISTORIADESCARGASALIDA` | Fecha y separación de cantidades de referencia | `TRUNCATE`, `INSERT`, tabla de historia, `LIKE`, side effects | No usar en GET |
+| `HISTORIADESCARGASF/P` | Historia por importación | Borran/recrean historia y mezclan procesos | No usar en GET |
+| `v_descarga` | Read-only, joins cercanos | Sin parámetros, total ni paginación; proyección amplia | Referencia, no contrato |
+| `V_INFORMEDESCARGAS` | Reporte de conciliación | Mezcla saldo, valores y fechas | Referencia, no contrato |
+| `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | Contrato estable, proyección mínima, filtros, total y paginación | Aún no existe | **DECISIÓN V1: APROBADO PARA IMPLEMENTACIÓN** |
 
-**Decisión:** no consumir directamente un reporte por el hecho de existir. Crear
-un SP propio read-only sólo después de aprobar fecha, granularidad, filtros y
-campos.
+No se consume directamente un reporte legacy. La siguiente fase podrá crear el
+SP propio read-only con este contrato cerrado; no se crea ningún objeto SQL en
+esta fase.
 
 ## 17. Queries diagnósticas utilizadas
 
@@ -1104,20 +1124,81 @@ GROUP BY Pentradalink, Psalidalink, Clave
 HAVING COUNT(*) > 1;
 ```
 
-### 17.7 Cantidades y fechas
+### 17.7 Cierre de fecha, cantidades y precisión
 
 ```sql
-SELECT COUNT_BIG(*), MIN(CantUtil), MAX(CantUtil),
-       SUM(CASE WHEN CantUtil < 0 THEN 1 ELSE 0 END),
-       MIN(Merma), MAX(Merma),
-       MIN(Desperdicio), MAX(Desperdicio)
-FROM dbo.DESCARGA;
+SELECT YEAR(s.Fecha) AS anio,
+       COUNT_BIG(*) AS descargas,
+       COUNT(DISTINCT s.SalidaKey) AS salidas
+FROM dbo.DESCARGA AS d
+INNER JOIN dbo.SALIDAS AS s
+  ON CONVERT(NUMERIC(18, 0), CASE
+       WHEN d.Salidalink > -1.0E18
+        AND d.Salidalink <  1.0E18
+        AND d.Salidalink = FLOOR(d.Salidalink)
+       THEN FLOOR(d.Salidalink)
+     END) = s.SalidaKey
+GROUP BY YEAR(s.Fecha);
 
-SELECT MIN(Fecha), MAX(Fecha), COUNT(*)
-FROM dbo.SALIDAS;
+SELECT COUNT_BIG(*) AS total,
+       SUM(CASE WHEN s.Fecha IS NULL THEN 1 ELSE 0 END) AS fecha_salida_nula,
+       MIN(s.Fecha) AS fecha_minima,
+       MAX(s.Fecha) AS fecha_maxima,
+       SUM(CASE WHEN ps.FECHADESCARGA IS NULL THEN 1 ELSE 0 END) AS fecha_descarga_nula
+FROM dbo.DESCARGA AS d
+INNER JOIN dbo.PSALIDAS AS ps
+  ON CONVERT(NUMERIC(18, 0), CASE
+       WHEN d.Psalidalink > -1.0E18
+        AND d.Psalidalink <  1.0E18
+        AND d.Psalidalink = FLOOR(d.Psalidalink)
+       THEN FLOOR(d.Psalidalink)
+     END) = ps.Psalidakey
+INNER JOIN dbo.SALIDAS AS s
+  ON CONVERT(NUMERIC(18, 0), CASE
+       WHEN d.Salidalink > -1.0E18
+        AND d.Salidalink <  1.0E18
+        AND d.Salidalink = FLOOR(d.Salidalink)
+       THEN FLOOR(d.Salidalink)
+     END) = s.SalidaKey;
+
+SELECT COUNT_BIG(*) AS total,
+       MIN(CantUtil) AS incorporada_min,
+       MAX(CantUtil) AS incorporada_max,
+       SUM(CASE WHEN CantUtil IS NULL THEN 1 ELSE 0 END) AS incorporada_nula,
+       MIN(Merma) AS merma_min,
+       MAX(Merma) AS merma_max,
+       SUM(CASE WHEN Merma IS NULL THEN 1 ELSE 0 END) AS merma_nula,
+       SUM(CASE WHEN Desperdicio IS NULL THEN 1 ELSE 0 END) AS desperdicio_nulo,
+       SUM(CASE WHEN CantUtil * 10000 <> ROUND(CantUtil * 10000, 0)
+                THEN 1 ELSE 0 END) AS incorporada_mayor_a_cuatro_decimales
+FROM dbo.DESCARGA;
 ```
 
-### 17.8 Objetos por nombre y definición
+También se inspeccionaron las definiciones de
+`PROC_HISTORIADESCARGASALIDA`, `v_descarga` y `V_INFORMEDESCARGAS` con
+`sys.sql_modules` para confirmar sus proyecciones/`ROUND` de cantidades y que
+las sumas legacy no normalizan `NULL`.
+
+### 17.8 Consistencia de fuentes históricas y links
+
+```sql
+SELECT COUNT_BIG(*) AS total,
+       SUM(CASE WHEN d.Clave IS NULL OR LTRIM(RTRIM(d.Clave)) = '' THEN 1 ELSE 0 END) AS material_nulo_o_blanco,
+       SUM(CASE WHEN d.Clave <> pe.Clave OR d.Clave <> m.clave THEN 1 ELSE 0 END) AS material_distinto,
+       SUM(CASE WHEN pe.Descripcion <> m.descripcion THEN 1 ELSE 0 END) AS descripcion_material_distinta,
+       SUM(CASE WHEN d.PT <> ps.Clave OR d.PT <> pr.CVE_PRODUCTO THEN 1 ELSE 0 END) AS producto_distinto,
+       SUM(CASE WHEN ps.Descripcion <> pr.NOMBRE THEN 1 ELSE 0 END) AS descripcion_producto_distinta,
+       SUM(CASE WHEN d.Importacion <> pe.PEDIMENTO THEN 1 ELSE 0 END) AS pedimento_entrada_distinto,
+       SUM(CASE WHEN LTRIM(RTRIM(d.Salida)) <> LTRIM(RTRIM(s.Documento)) THEN 1 ELSE 0 END) AS pedimento_salida_distinto
+FROM dbo.DESCARGA AS d
+INNER JOIN dbo.PARTIDAS AS pe ON CONVERT(NUMERIC(18, 0), CASE WHEN d.Pentradalink > -1.0E18 AND d.Pentradalink < 1.0E18 AND d.Pentradalink = FLOOR(d.Pentradalink) THEN FLOOR(d.Pentradalink) END) = pe.Partidakey
+INNER JOIN dbo.PSALIDAS AS ps ON CONVERT(NUMERIC(18, 0), CASE WHEN d.Psalidalink > -1.0E18 AND d.Psalidalink < 1.0E18 AND d.Psalidalink = FLOOR(d.Psalidalink) THEN FLOOR(d.Psalidalink) END) = ps.Psalidakey
+INNER JOIN dbo.SALIDAS AS s ON CONVERT(NUMERIC(18, 0), CASE WHEN d.Salidalink > -1.0E18 AND d.Salidalink < 1.0E18 AND d.Salidalink = FLOOR(d.Salidalink) THEN FLOOR(d.Salidalink) END) = s.SalidaKey
+LEFT JOIN dbo.MATERIAL AS m ON m.clave = d.Clave
+LEFT JOIN dbo.PRODUCTOS AS pr ON pr.CVE_PRODUCTO = d.PT;
+```
+
+### 17.9 Objetos por nombre y definición
 
 ```sql
 SELECT o.type_desc, o.name, LEN(m.definition)
@@ -1128,7 +1209,7 @@ WHERE UPPER(o.name) LIKE '%DESCARG%'
    OR UPPER(m.definition) LIKE '%CANTUTIL%';
 ```
 
-### 17.9 Parámetros y result set
+### 17.10 Parámetros y result set
 
 ```sql
 SELECT o.name, p.parameter_id, p.name, ty.name,
