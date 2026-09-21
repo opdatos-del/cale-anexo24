@@ -694,7 +694,9 @@ Fuente implementada para `GET /api/v1/operaciones/entradas`.
 - Parámetros: `@Desde DATE`, `@Hasta DATE`, `@Pedimento VARCHAR(20)`,
   `@ClavePedimento VARCHAR(5)`, `@Fraccion VARCHAR(15)`,
   `@NumeroParte VARCHAR(50)`, `@Pagina INT`, `@Tamano INT` y `@Total BIGINT OUTPUT`.
-- Rango: `Importaciones.Fecha >= @Desde` y `< DATEADD(DAY, 1, @Hasta)`.
+- Rango inclusivo por día: `Importaciones.Fecha >= @Desde` y menor que
+  `@HastaExclusivo`; para `9999-12-31`, `@HastaExclusivo` queda `NULL` y no se
+  ejecuta `DATEADD`, evitando overflow sin imponer un límite artificial.
 - Filtros de texto: acumulativos, parametrizados y con normalización de blank a
   `NULL`; no se utiliza `LIKE` ni SQL dinámico.
 - Orden: fecha, documento, ID de importación, secuencia y ID de partida.
@@ -735,6 +737,7 @@ ni se ejecutaron procesos mutables.
 | H. Número de parte existente | 1 | una línea |
 | I. Combinación de filtros válidos | 1 | una línea |
 | J. Página `2147483647`, tamaño 100 | 2 | result set vacío, sin overflow |
+| K. `9999-12-31` a `9999-12-31` | válido | ejecución correcta, sin overflow |
 
 La metadata obtenida con `sys.dm_exec_describe_first_result_set_for_object`
 coincide exactamente con el RowMapper del adapter: aliases, tipos y

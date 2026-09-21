@@ -51,6 +51,17 @@ class EntryControllerTest {
     }
 
     @Test
+    void fechaNoISOResponde400ConApiError() throws Exception {
+        mockMvc.perform(get("/api/v1/operaciones/entradas")
+                        .param("desde", "no-es-fecha")
+                        .param("hasta", "2026-05-28")
+                        .with(user(usuarioAutorizado())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"))
+                .andExpect(jsonPath("$.correlationId").exists());
+    }
+
+    @Test
     void sinPermisoResponde403() throws Exception {
         mockMvc.perform(get("/api/v1/operaciones/entradas")
                         .param("desde", "2025-09-23")

@@ -56,6 +56,19 @@ class ListarEntradasUseCaseTest {
     }
 
     @Test
+    void aceptaFechaMaximaDeSqlServerYLaEnviaAlRepository() {
+        LocalDate fechaMaxima = LocalDate.of(9999, 12, 31);
+        Pagina<EntradaLinea> esperado = paginaVacia(fechaMaxima, fechaMaxima, 1, 20);
+        when(entradaRepository.findPage(fechaMaxima, fechaMaxima,
+                null, null, null, null, 1, 20)).thenReturn(esperado);
+
+        assertThat(ejecutar(fechaMaxima, fechaMaxima,
+                null, null, null, null, 1, 20)).isSameAs(esperado);
+        verify(entradaRepository).findPage(fechaMaxima, fechaMaxima,
+                null, null, null, null, 1, 20);
+    }
+
+    @Test
     void aceptaTamanoMaximoYPaginaGrande() {
         Pagina<EntradaLinea> esperado = paginaVacia(DESDE, HASTA, Integer.MAX_VALUE, 100);
         when(entradaRepository.findPage(DESDE, HASTA, null, null, null, null,

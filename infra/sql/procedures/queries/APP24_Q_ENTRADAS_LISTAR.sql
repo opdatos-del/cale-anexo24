@@ -31,12 +31,19 @@ BEGIN
     SET @Fraccion = NULLIF(LTRIM(RTRIM(@Fraccion)), '');
     SET @NumeroParte = NULLIF(LTRIM(RTRIM(@NumeroParte)), '');
 
+    DECLARE @HastaExclusivo DATETIME = NULL;
+
+    IF @Hasta < '9999-12-31'
+    BEGIN
+        SET @HastaExclusivo = DATEADD(DAY, 1, CAST(@Hasta AS DATETIME));
+    END;
+
     SELECT @Total = COUNT_BIG(1)
     FROM dbo.Importaciones AS i
     INNER JOIN dbo.Partidas AS p
         ON p.Importacionlink = i.Ipedimentokey
-    WHERE i.Fecha >= @Desde
-      AND i.Fecha < DATEADD(DAY, 1, @Hasta)
+    WHERE i.Fecha >= CAST(@Desde AS DATETIME)
+      AND (@HastaExclusivo IS NULL OR i.Fecha < @HastaExclusivo)
       AND (@Pedimento IS NULL OR i.Numero_ped = @Pedimento)
       AND (@ClavePedimento IS NULL OR i.Cve_pedimento = @ClavePedimento)
       AND (@Fraccion IS NULL OR p.Fraccion = @Fraccion)
@@ -56,8 +63,8 @@ BEGIN
     FROM dbo.Importaciones AS i
     INNER JOIN dbo.Partidas AS p
         ON p.Importacionlink = i.Ipedimentokey
-    WHERE i.Fecha >= @Desde
-      AND i.Fecha < DATEADD(DAY, 1, @Hasta)
+    WHERE i.Fecha >= CAST(@Desde AS DATETIME)
+      AND (@HastaExclusivo IS NULL OR i.Fecha < @HastaExclusivo)
       AND (@Pedimento IS NULL OR i.Numero_ped = @Pedimento)
       AND (@ClavePedimento IS NULL OR i.Cve_pedimento = @ClavePedimento)
       AND (@Fraccion IS NULL OR p.Fraccion = @Fraccion)
