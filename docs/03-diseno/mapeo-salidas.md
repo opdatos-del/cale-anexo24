@@ -1,11 +1,11 @@
 # Salidas / Exportaciones
 
-Auditoría técnica read-only del flujo de Salidas/Exportaciones en `CALE_IMMEX`,
-esquema `dbo`.
+Auditoría técnica y contrato/backend V1 read-only del flujo de
+Salidas/Exportaciones en `CALE_IMMEX`, esquema `dbo`.
 
 - **Rama:** `feature/backend-exits`
 - **Base:** `dev` en `29cd6e7eca95ba634bfe8f51fd0af312a8e349e5`
-- **Estado:** auditoría de ingeniería inversa; no se implementa backend en esta iteración.
+- **Estado:** backend V1 implementado; consulta read-only paginada por líneas.
 - **Estrategia:** STORED PROCEDURE FIRST.
 - **Datos:** no modificados.
 - **Procesos mutables:** no ejecutados.
@@ -55,7 +55,7 @@ dedicado a la proyección de ocho campos.
 | Materiales/BOM | **INFERIDO** | El descargo usa `PRODUCTOMATERIAL` sólo cuando la estructura seleccionada tiene detalle. La tabla está vacía actualmente. |
 | Salida → importación | **CONFIRMADO** para el descargo | `DESCARGA.PSALIDALINK` enlaza con `PSALIDAS.Psalidakey`; `DESCARGA.PENTRADALINK` enlaza con `PARTIDAS.Partidakey`; `PARTIDAS.Importacionlink` enlaza con `IMPORTACIONES.Ipedimentokey`. |
 | PEPS | **PENDIENTE DE VALIDAR** | `SALDOS` ordena por `INDICE, PFECHAIMPO`; el significado completo de `INDICE` no está cerrado. |
-| Contrato HTTP V1 | **PENDIENTE** | Primero debe separarse la consulta operacional del reporte amplio y decidirse la fuente. |
+| Contrato HTTP V1 | **CONFIRMADO — IMPLEMENTADO** | `dbo.APP24_Q_SALIDAS_LISTAR`; listado plano paginado por líneas, con filtros acumulativos y `@Total`. |
 
 ## 3. Modelo físico observado
 
@@ -583,7 +583,7 @@ Casos de uso separados:
 
 | Caso de uso | Fuente/responsabilidad | Estado |
 |---|---|---|
-| Consultar salidas | `PR_INFORME_EXPORTACIONES`/view como referencia; contrato nuevo pendiente | AUDITORÍA CERRADA, implementación pendiente |
+| Consultar salidas | `dbo.APP24_Q_SALIDAS_LISTAR` | IMPLEMENTADO; query read-only paginada |
 | Consultar líneas de una salida | `SALIDAS` + `PSALIDAS` | CONFIRMADO como modelo físico |
 | Consultar detalle de una salida | Encabezado + líneas y campos extendidos | PENDIENTE |
 | Cargar/generar salida | `CARGAPEDIMENTOS`/otros procesos de carga | Fuera de alcance; mutable |
@@ -754,9 +754,9 @@ La persistencia y la pantalla trabajan por líneas. V1 será plano por línea,
 con `salidaId` y `partidaId`. El detalle completo por encabezado queda para una
 iteración posterior.
 
-## 14. Fuente candidata para futura API
+## 14. Fuente implementada para API V1
 
-Endpoint candidato, todavía no implementado:
+Endpoint implementado:
 
 ```http
 GET /api/v1/operaciones/salidas
@@ -774,18 +774,21 @@ Comparación:
 |---|---|---|
 | `PR_INFORME_EXPORTACIONES` | Reporte probado; une encabezado/detalle; expone `salidakey` y `psalidakey`; orden legacy. | 49 columnas; no pagina ni total; `documento` anula fechas; mezcla cliente, factura, valores y descarga; usa `BETWEEN`; aliases de presentación. |
 | `v_Exportaciones` | View read-only; 44 columnas; misma proyección funcional; incluye IDs técnicos. | Sin parámetros, paginación ni total; orden `TOP 100 PERCENT` no contractual; amplia para la pantalla. |
-| `SELECT` encapsulado en `APP24_Q_SALIDAS_LISTAR` | Puede fijar filtros acumulativos, paginación, total, aliases y separar consulta de descargo. | Debe implementarse sólo en la siguiente fase; no crear todavía. |
+| `APP24_Q_SALIDAS_LISTAR` | Fija filtros acumulativos, paginación, total, aliases y separa consulta de descargo. | Requiere despliegue coordinado con el backend. |
 
-**Recomendación:** no consumir directamente el SP ni la view como contrato HTTP.
-La evidencia recomienda `APP24_Q_SALIDAS_LISTAR` read-only para un listado plano
-de líneas. El contrato V1 queda cerrado salvo la semántica histórica pendiente
-de `FechaEntrada`; no se crea el SP en esta auditoría.
+**Decisión implementada:** no consumir directamente el SP legacy ni la view como
+contrato HTTP. `dbo.APP24_Q_SALIDAS_LISTAR` read-only entrega el listado plano de
+líneas V1 con `SALIDAS` + `PSALIDAS`, rango obligatorio sobre `SALIDAS.Fecha`,
+filtros acumulativos, paginación y `@Total`. El servidor objetivo usa nivel de
+compatibilidad 100, donde `OFFSET/FETCH` no compila; el SP usa `ROW_NUMBER()` con
+límites `BIGINT` equivalentes para conservar paginación estable y evitar overflow.
+`FechaEntrada` sigue fuera del contrato por semántica histórica no demostrada.
 
 ## 15. Seguridad
 
 El seed de la aplicación contiene `OPERACIONES_CONSULTAR` (`operaciones`, acción
-`CONSULTAR`) como permiso existente para consultas operativas. Es el permiso
-candidato para una futura consulta de Salidas. No se creó ningún permiso nuevo.
+`CONSULTAR`) como permiso existente para consultas operativas. El endpoint V1 usa
+ese permiso. No se creó ningún permiso nuevo.
 
 La exportación de archivos aparece separada funcionalmente como una capacidad
 que requeriría permiso de exportación; el permiso candidato para ese caso no se
@@ -795,7 +798,9 @@ resuelve en este documento.
 
 1. `PR_INFORME_EXPORTACIONES` anula fechas cuando se informa documento; copiarlo
    literalmente podría permitir consultas fuera del rango elegido.
-2. Ni el SP ni las views ofrecen paginación ni total.
+- Los objetos legacy no ofrecen paginación ni total; `APP24_Q_SALIDAS_LISTAR` sí.
+  El servidor objetivo tiene compatibilidad 100, por lo que la paginación propia
+  usa `ROW_NUMBER()` en lugar de `OFFSET/FETCH`, que el motor rechaza en ese nivel.
 3. El SP reporta 49 columnas y la view 44; ambos mezclan consulta operacional
    con datos de factura, cliente, valores y descargo.
 4. `SALIDAS.SalidaKey` y `PSALIDAS.Psalidakey` tienen tipos `numeric(18,0)`,
@@ -839,8 +844,11 @@ resuelve en este documento.
 - Definir contrato de materiales utilizados y saldo en un módulo/caso de uso
   separado.
 - Revisar exportación de archivos y permiso específico.
-- Evaluar, con contrato aprobado, `APP24_Q_SALIDAS_LISTAR`; no creado en esta
-  iteración.
+- Resolver la semántica histórica de `FechaEntrada` si una futura versión la
+  requiere.
+- Crear endpoint de detalle por `salidaId`, fuera de V1.
+- Definir contratos separados para materiales utilizados, saldo, descargo, BOM y
+  exportación de archivos.
 
 ## 18. Restricciones cumplidas
 
@@ -850,9 +858,11 @@ resuelve en este documento.
   `DESCARGATSALIDAFECHA`, `DESCARGAINICIAL`, `DESCARGAS_A31`, `SALDOS` ni
   procesos relacionados.
 - No se ejecutaron `INSERT`, `UPDATE`, `DELETE`, `MERGE` ni `TRUNCATE` sobre la
-  base por esta auditoría.
-- La única ejecución de procedimiento fue `PR_INFORME_EXPORTACIONES`, confirmado
-  read-only sobre tablas persistentes y con tabla variable local.
+  base durante la auditoría ni la implementación.
+- La única ejecución controlada del reporte fue `PR_INFORME_EXPORTACIONES`,
+  confirmado read-only sobre tablas persistentes y con tabla variable local; el
+  nuevo SP APP24 sólo consulta `SALIDAS` y `PSALIDAS`.
 - No se modificaron tablas, views, funciones ni procedimientos legacy.
-- No se creó `APP24_Q_SALIDAS_LISTAR`.
-- No se implementó Java ni frontend.
+- Se creó únicamente `APP24_Q_SALIDAS_LISTAR`, estrictamente read-only; no se
+  modificaron objetos legacy.
+- Se implementó únicamente consulta Java V1 de Salidas; no se modificó frontend.

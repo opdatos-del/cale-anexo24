@@ -35,6 +35,7 @@ lectura.
 | Salidas/exportaciones | Carga de facturas en salidas | SP | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no usar para GET |
 | Salidas/exportaciones | Informe de exportaciones | SP LEGACY | `dbo.PR_INFORME_EXPORTACIONES` | REPORT/QUERY | Sí | No | CONFIRMADO; read-only ejecutado de forma controlada; 49 columnas, sin paginación ni total; referencia, no contrato HTTP |
 | Salidas/exportaciones | Consulta de exportaciones legacy | VIEW LEGACY | `dbo.v_Exportaciones` | REPORT/QUERY | Sí | No | CONFIRMADO; read-only, 44 columnas, sin filtros parametrizados, paginación ni total; referencia, no contrato HTTP |
+| Salidas/exportaciones | Consulta paginada de salidas/líneas V1 | SP PROPIO | `dbo.APP24_Q_SALIDAS_LISTAR` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; contrato HTTP implementado; `PR_INFORME_EXPORTACIONES` y `v_Exportaciones` quedan como referencias legacy |
 | Salidas/exportaciones | Descarga PEPS | SP | `dbo.DESCARGASALIDAPEPS` | PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no ejecutar desde GET |
 | Materiales utilizados | Explosión de estructura | SP | `dbo.DESCARGASALIDAPEPS` / `dbo.SALDOS` | PROCESS/CALCULATION | Sí | Sí | EN AUDITORÍA futura |
 | Descargos | Descargo general | SP | `dbo.DESCARGATSALIDA1` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
