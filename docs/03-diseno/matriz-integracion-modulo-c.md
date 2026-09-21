@@ -45,7 +45,7 @@ lectura.
 | Saldos | Cálculo por familia | SP | `dbo.SALDOS_FAMILIA` | CALCULATION | Sí | Sí | EN AUDITORÍA |
 | Saldos | Informe | SP | `dbo.PR_INFORME_SALDOS` | REPORT | Sí | No | EN AUDITORÍA |
 | Reportes | Concentrado de saldos | SP | `dbo.INFORME_CONCENTRADOSALDOS` | REPORT | Sí | Sí | EN AUDITORÍA; llena tabla de concentración |
-| Activo fijo | Consulta/carga | PENDIENTE | — | — | — | — | PENDIENTE DE AUDITAR |
+| Activo fijo | Consulta paginada de partidas de importación marcadas activas V1 | SP PROPIO (propuesto) | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR`; fuente `dbo.Partidas` + `dbo.Importaciones`; referencia `dbo.v_g5` | QUERY | Sí | No | AUDITADO / CONTRATO V1 CERRADO — APROBADO PARA IMPLEMENTACIÓN; el SP no existe aún; no usar `dbo.ActivoFijo` ni procesos G5/G6 como API |
 | Facturación | Carga y procesamiento | PENDIENTE | — | — | — | — | PENDIENTE DE AUDITAR |
 
 ## Estado de Productos
