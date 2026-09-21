@@ -9,4 +9,8 @@ export const OPERATIONS_ROUTES: Routes = [
     path: 'salidas',
     loadChildren: () => import('./exits/exits.routes').then((routes) => routes.EXITS_ROUTES),
   },
+  {
+    path: 'materiales-utilizados',
+    loadChildren: () => import('./usedmaterials/used-materials.routes').then((routes) => routes.USED_MATERIALS_ROUTES),
+  },
 ];

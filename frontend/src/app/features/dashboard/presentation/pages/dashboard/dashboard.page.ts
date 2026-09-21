@@ -84,6 +84,13 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
             </div>
             <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de líneas de exportación.</p>
           </a>
+          <a routerLink="/operaciones/materiales-utilizados" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><mat-icon class="text-[20px]!">layers</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Materiales utilizados</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta del histórico de materiales consumidos.</p>
+          </a>
         }
         </section>
       } @else {

@@ -142,6 +142,7 @@ export class SidebarComponent implements OnDestroy {
         items: [
           { label: 'Entradas', icon: 'move_to_inbox', route: '/operaciones/entradas', permission: 'OPERACIONES_CONSULTAR' },
           { label: 'Salidas', icon: 'outbox', route: '/operaciones/salidas', permission: 'OPERACIONES_CONSULTAR' },
+          { label: 'Materiales utilizados', icon: 'layers', route: '/operaciones/materiales-utilizados', permission: 'OPERACIONES_CONSULTAR' },
         ],
       });
     }
