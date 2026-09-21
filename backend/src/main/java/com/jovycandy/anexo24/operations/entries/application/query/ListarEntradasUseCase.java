@@ -15,6 +15,10 @@ public class ListarEntradasUseCase {
     private static final int PAGINA_MINIMA = 1;
     private static final int TAMANO_MINIMO = 1;
     private static final int TAMANO_MAXIMO = 100;
+    private static final int PEDIMENTO_MAXIMO = 20;
+    private static final int CLAVE_PEDIMENTO_MAXIMA = 5;
+    private static final int FRACCION_MAXIMA = 15;
+    private static final int NUMERO_PARTE_MAXIMO = 50;
 
     private final EntradaRepository entradaRepository;
 
@@ -45,13 +49,24 @@ public class ListarEntradasUseCase {
                                          int pagina, int tamano) {
         validarRango(desde, hasta);
         validarPaginacion(pagina, tamano);
+
+        String pedimentoNormalizado = normalizarTexto(pedimento);
+        String clavePedimentoNormalizada = normalizarTexto(clavePedimento);
+        String fraccionNormalizada = normalizarTexto(fraccion);
+        String numeroParteNormalizado = normalizarTexto(numeroParte);
+
+        validarLongitud(pedimentoNormalizado, PEDIMENTO_MAXIMO, "pedimento");
+        validarLongitud(clavePedimentoNormalizada, CLAVE_PEDIMENTO_MAXIMA, "clavePedimento");
+        validarLongitud(fraccionNormalizada, FRACCION_MAXIMA, "fraccion");
+        validarLongitud(numeroParteNormalizado, NUMERO_PARTE_MAXIMO, "numeroParte");
+
         return entradaRepository.findPage(
                 desde,
                 hasta,
-                normalizarTexto(pedimento),
-                normalizarTexto(clavePedimento),
-                normalizarTexto(fraccion),
-                normalizarTexto(numeroParte),
+                pedimentoNormalizado,
+                clavePedimentoNormalizada,
+                fraccionNormalizada,
+                numeroParteNormalizado,
                 pagina,
                 tamano);
     }
@@ -71,6 +86,13 @@ public class ListarEntradasUseCase {
         }
         if (tamano < TAMANO_MINIMO || tamano > TAMANO_MAXIMO) {
             throw new SolicitudInvalidaException("El parámetro tamano debe estar entre 1 y 100.");
+        }
+    }
+
+    private void validarLongitud(String valor, int maximo, String parametro) {
+        if (valor != null && valor.length() > maximo) {
+            throw new SolicitudInvalidaException(
+                    "El parámetro " + parametro + " supera la longitud permitida.");
         }
     }
 

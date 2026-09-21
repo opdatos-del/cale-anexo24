@@ -15,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** Pruebas unitarias del caso de uso de consulta de Entradas. */
@@ -113,6 +114,55 @@ class ListarEntradasUseCaseTest {
     }
 
     @Test
+    void aceptaLongitudesMaximasDeFiltros() {
+        String pedimento = "1".repeat(20);
+        String clavePedimento = "1".repeat(5);
+        String fraccion = "1".repeat(15);
+        String numeroParte = "1".repeat(50);
+        Pagina<EntradaLinea> esperado = paginaVacia(DESDE, HASTA, 1, 20);
+        when(entradaRepository.findPage(DESDE, HASTA, pedimento, clavePedimento,
+                fraccion, numeroParte, 1, 20)).thenReturn(esperado);
+
+        assertThat(ejecutar(DESDE, HASTA, pedimento, clavePedimento,
+                fraccion, numeroParte, 1, 20)).isSameAs(esperado);
+        verify(entradaRepository).findPage(DESDE, HASTA, pedimento, clavePedimento,
+                fraccion, numeroParte, 1, 20);
+    }
+
+    @Test
+    void rechazaPedimentoDe21CaracteresYSinLlamarRepository() {
+        assertFiltroInvalido("1".repeat(21), null, null, null);
+    }
+
+    @Test
+    void rechazaClavePedimentoDe6CaracteresYSinLlamarRepository() {
+        assertFiltroInvalido(null, "1".repeat(6), null, null);
+    }
+
+    @Test
+    void rechazaFraccionDe16CaracteresYSinLlamarRepository() {
+        assertFiltroInvalido(null, null, "1".repeat(16), null);
+    }
+
+    @Test
+    void rechazaNumeroParteDe51CaracteresYSinLlamarRepository() {
+        assertFiltroInvalido(null, null, null, "1".repeat(51));
+    }
+
+    @Test
+    void recortaAntesDeValidarLongitud() {
+        String clavePedimentoConEspacios = " " + "1".repeat(5) + " ";
+        Pagina<EntradaLinea> esperado = paginaVacia(DESDE, HASTA, 1, 20);
+        when(entradaRepository.findPage(DESDE, HASTA, null, "11111", null, null, 1, 20))
+                .thenReturn(esperado);
+
+        assertThat(ejecutar(DESDE, HASTA, null, clavePedimentoConEspacios,
+                null, null, 1, 20)).isSameAs(esperado);
+        verify(entradaRepository).findPage(DESDE, HASTA,
+                null, "11111", null, null, 1, 20);
+    }
+
+    @Test
     void normalizaFiltrosNulosVaciosYBlank() {
         Pagina<EntradaLinea> esperado = paginaVacia(DESDE, HASTA, 1, 20);
         when(entradaRepository.findPage(DESDE, HASTA, null, null, null, null, 1, 20))
@@ -121,6 +171,14 @@ class ListarEntradasUseCaseTest {
         assertThat(ejecutar(DESDE, HASTA, null, "", "   ", null, 1, 20))
                 .isSameAs(esperado);
         verify(entradaRepository).findPage(DESDE, HASTA, null, null, null, null, 1, 20);
+    }
+
+    private void assertFiltroInvalido(String pedimento, String clavePedimento,
+                                      String fraccion, String numeroParte) {
+        assertThatThrownBy(() -> ejecutar(DESDE, HASTA, pedimento, clavePedimento,
+                fraccion, numeroParte, 1, 20))
+                .isInstanceOf(SolicitudInvalidaException.class);
+        verifyNoInteractions(entradaRepository);
     }
 
     private Pagina<EntradaLinea> ejecutar(LocalDate desde, LocalDate hasta, String pedimento,

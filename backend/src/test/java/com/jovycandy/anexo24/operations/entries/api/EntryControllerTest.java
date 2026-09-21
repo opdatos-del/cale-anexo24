@@ -62,6 +62,21 @@ class EntryControllerTest {
     }
 
     @Test
+    void filtroDemasiadoLargoResponde400ConApiError() throws Exception {
+        when(useCase.ejecutar(DESDE, HASTA, null, "ABCDEF", null, null, 1, 20))
+                .thenThrow(new SolicitudInvalidaException("filtro inválido"));
+
+        mockMvc.perform(get("/api/v1/operaciones/entradas")
+                        .param("desde", "2025-09-23")
+                        .param("hasta", "2026-05-28")
+                        .param("clavePedimento", "ABCDEF")
+                        .with(user(usuarioAutorizado())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SOLICITUD_INVALIDA"))
+                .andExpect(jsonPath("$.correlationId").exists());
+    }
+
+    @Test
     void sinPermisoResponde403() throws Exception {
         mockMvc.perform(get("/api/v1/operaciones/entradas")
                         .param("desde", "2025-09-23")
