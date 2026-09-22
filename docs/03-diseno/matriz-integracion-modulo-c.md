@@ -42,10 +42,14 @@ lectura.
 | Descargos | Consulta histórica de asignaciones | CUBIERTO POR MATERIALES UTILIZADOS | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR`; fuente `dbo.DESCARGA` | QUERY | Sí | No | CONFIRMADO — no crear GET Descargos independiente V1; duplicaría histórico ya expuesto |
 | Descargos | Descargo / reproceso general | SP LEGACY | `dbo.DESCARGATSALIDA1` / `dbo.DESCARGASALIDAPEPS` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO; mutable, futuro command de alto riesgo; no ejecutar desde GET |
 | Descargos | Descargo / reproceso por fecha | SP LEGACY | `dbo.DESCARGATSALIDAFECHA` / `dbo.DESCARGAXFECHA51` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO; mutable, fuera de V1; definición actual, locking y rollback pendientes |
-| Saldos | Cálculo operativo | SP | `dbo.SALDOS` | CALCULATION | Sí | Sí | EN AUDITORÍA |
-| Saldos | Cálculo por familia | SP | `dbo.SALDOS_FAMILIA` | CALCULATION | Sí | Sí | EN AUDITORÍA |
-| Saldos | Informe | SP | `dbo.PR_INFORME_SALDOS` | REPORT | Sí | No | EN AUDITORÍA |
-| Reportes | Concentrado de saldos | SP | `dbo.INFORME_CONCENTRADOSALDOS` | REPORT | Sí | Sí | EN AUDITORÍA; llena tabla de concentración |
+| Saldos | Saldo persistido por partida | TABLE | `dbo.PARTIDAS.Saldo` | QUERY | Sí | No | CONFIRMADO; valor mutable/cached por cálculo legacy; fórmula, corte y contrato API pendientes |
+| Saldos | Cálculo operativo | SP | `dbo.SALDOS` | CALCULATION | Sí | Sí | CONFIRMADO; inserta `DESCARGA`, actualiza `PARTIDAS.Saldo` e inserta `TRAZO`; no usar para GET |
+| Saldos | Cálculo por familia | SP | `dbo.SALDOS_FAMILIA` | CALCULATION | Sí | Sí | CONFIRMADO; variante mutable; no usar para GET |
+| Saldos | Cálculos CTM, dirigido y legado | SP | `dbo.SALDOSCTM` / `dbo.SALDOSDIRIGIDOS` / `dbo.SALDOS2` | CALCULATION | Sí | Sí | CONFIRMADO; flujos especializados/legacy; excluidos de consulta común |
+| Saldos | Informe legacy de referencia | SP LEGACY | `dbo.PR_INFORME_SALDOS` | REPORT/QUERY | Sí | No | CONFIRMADO read-only por definición/metadata previa; 37 columnas, sin contrato HTTP/paginación/total; revalidación TLS pendiente |
+| Saldos | Referencias de informe | VIEW LEGACY | `dbo.v_saldos` / `dbo.v_saldosdesp` | REPORT/QUERY | Sí | No | CONFIRMADO read-only; granularidad, filtros y contrato API pendientes |
+| Saldos | Consulta HTTP V1 | NO IMPLEMENTAR | — | — | — | — | DECISIÓN V1 — no cerrar endpoint hasta reconciliar fórmula, corte, categoría y universo funcional |
+| Reportes | Concentrado de saldos | SP | `dbo.INFORME_CONCENTRADOSALDOS` | REPORT/PROCESS | Sí | Sí | CONFIRMADO; llena `CONCENTRADOSALDOS`; no usar para GET |
 | Activo fijo | Consulta paginada de partidas de importación marcadas activas V1 | SP PROPIO | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR`; fuente `dbo.Partidas` + `dbo.Importaciones`; referencia `dbo.v_g5` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; contrato HTTP implementado y validado; no usar `dbo.ActivoFijo` ni procesos G5/G6 como API |
 | Facturación | Carga y procesamiento | PENDIENTE | — | — | — | — | PENDIENTE DE AUDITAR |
 
