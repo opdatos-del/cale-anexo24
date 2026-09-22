@@ -6,6 +6,12 @@ Auditoría creada desde `feature/backend-administration-users-commands-sensitive
 
 SP-0B intentó sólo `SELECT COUNT(*) FROM sys.procedures` con `backend/.env` y ODBC Driver 18 para ambas bases. `CALE_IMMEX` y `ANEXO24_DEV` fallaron por confianza TLS. No se aplicó `encrypt=false`, `trustServerCertificate=true` ni otro bypass; no se ejecutó SQL adicional, procedimientos ni comandos mutables. Por tanto, conteos y candidatos LIVE son **PENDIENTE**, no inferencias.
 
+SP-0C confirmó TCP alcanzable para ambas bases, alojadas en la misma instancia configurada. Con Microsoft JDBC `13.4.0.jre11`, `encrypt=true` y `trustServerCertificate=false`, ambas conexiones fallan con `com.microsoft.sqlserver.jdbc.SQLServerException` causado por `javax.net.ssl.SSLHandshakeException` / `sun.security.provider.certpath.SunCertPathBuilderException`: `PKIX path building failed: unable to find valid certification path to requested target`. Clasificación: **TLS_CA_NO_CONFIABLE**. No se observó evidencia de `HOSTNAME_MISMATCH`, certificado expirado o aún no válido; la validación se detuvo antes, al no poder construir cadena de confianza.
+
+No hay truststore configurado por proyecto ni variables `javax.net.ssl.trustStore` detectadas; Java usado: Oracle JDK `21.0.9` (`java.home` bajo instalación local de JDK 21). Windows tiene un certificado raíz autofirmado local con nombre corporativo, pero no está en el truststore Java y no hay evidencia read-only de que sea la CA/cadena presentada por SQL Server ni de una intermedia aprobada. No se exportó ni importó certificado, no se creó truststore y no se cambió configuración versionada. Estado: **TLS_BLOQUEADO_ESPERANDO_CA_INFRAESTRUCTURA**.
+
+Para continuar se requiere de Infraestructura/DBA: certificado de CA raíz, certificado(s) intermedio(s) de la cadena del SQL Server y hostname oficial incluido en SAN; no se necesita contraseña, clave privada ni PFX con clave privada.
+
 Regla objetivo: toda operación SQL funcional debe migrar a Stored Procedure. `SystemStatusController.checkDatabase` usa `SELECT 1`: **EXCEPCION_TECNICA**, health check, no deuda funcional.
 
 ## Inventario de SQL inline funcional
@@ -41,8 +47,8 @@ Regla objetivo: toda operación SQL funcional debe migrar a Stored Procedure. `S
 
 | Base | Conexión metadata | Total LIVE | Comparación |
 |---|---|---|---|
-| CALE_IMMEX | Fallida: confianza TLS | PENDIENTE | Histórico 88; comparación PENDIENTE |
-| ANEXO24_DEV | Fallida: confianza TLS | PENDIENTE | PENDIENTE |
+| CALE_IMMEX | Bloqueada: `TLS_CA_NO_CONFIABLE`; TCP OK | PENDIENTE | Histórico 88; comparación PENDIENTE |
+| ANEXO24_DEV | Bloqueada: `TLS_CA_NO_CONFIABLE`; TCP OK | PENDIENTE | PENDIENTE |
 
 No se conoce diferencia `NUEVO_EN_LIVE`/`YA_EXISTÍA`/`YA_NO_EXISTE`/`MODIFICADO_DESDE_INVENTARIO` hasta resolver confianza TLS con configuración aprobada.
 
