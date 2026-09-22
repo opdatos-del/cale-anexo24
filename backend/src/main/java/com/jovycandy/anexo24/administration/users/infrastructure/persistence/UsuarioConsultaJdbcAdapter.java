@@ -121,7 +121,7 @@ public class UsuarioConsultaJdbcAdapter implements UsuarioConsultaRepository {
             parametros.add(estado);
         }
         if (nombre != null) {
-            condiciones.add("u.nombre LIKE ? ESCAPE '\\'");
+            condiciones.add("LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
             parametros.add("%" + escaparComodines(nombre) + "%");
         }
         String where = condiciones.isEmpty() ? "" : " WHERE " + String.join(" AND ", condiciones);

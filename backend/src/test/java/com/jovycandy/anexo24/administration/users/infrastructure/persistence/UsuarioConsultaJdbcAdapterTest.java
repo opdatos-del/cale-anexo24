@@ -91,7 +91,7 @@ class UsuarioConsultaJdbcAdapterTest {
                 paramsListado.capture());
         assertThat(sqlListado.getValue()).contains(
                 "WHERE u.clave = ? AND u.correo = ? AND u.perfil_id = ? AND u.estado = ?"
-                        + " AND u.nombre LIKE ? ESCAPE '\\'");
+                        + " AND LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
         assertThat(paramsListado.getValue()).containsExactly(
                 "op01", "op@example.test", 7L, "ACTIVO", "%Juan%", 10L, 10);
 
@@ -101,9 +101,37 @@ class UsuarioConsultaJdbcAdapterTest {
                 paramsCount.capture());
         assertThat(sqlCount.getValue()).contains(
                 "WHERE u.clave = ? AND u.correo = ? AND u.perfil_id = ? AND u.estado = ?"
-                        + " AND u.nombre LIKE ? ESCAPE '\\'");
+                        + " AND LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
         assertThat(paramsCount.getValue()).containsExactly(
                 "op01", "op@example.test", 7L, "ACTIVO", "%Juan%");
+    }
+
+    @Test
+    void nombreCaseInsensitiveGarantizadoEnCountYSELECT() {
+        when(appJdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
+                .thenReturn(0L);
+        when(appJdbcTemplate.<UsuarioAdministracion>query(anyString(),
+                org.mockito.ArgumentMatchers.<RowMapper<UsuarioAdministracion>>any(),
+                any(Object[].class))).thenReturn(List.of());
+
+        adapter.findPage(null, "JuAn", null, null, null, 1, 20);
+
+        ArgumentCaptor<String> sqlCount = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> paramsCount = ArgumentCaptor.forClass(Object[].class);
+        verify(appJdbcTemplate).queryForObject(sqlCount.capture(), eq(Long.class),
+                paramsCount.capture());
+        assertThat(sqlCount.getValue())
+                .contains("LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
+        assertThat(paramsCount.getValue()).containsExactly("%JuAn%");
+
+        ArgumentCaptor<String> sqlListado = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> paramsListado = ArgumentCaptor.forClass(Object[].class);
+        verify(appJdbcTemplate).query(sqlListado.capture(),
+                org.mockito.ArgumentMatchers.<RowMapper<UsuarioAdministracion>>any(),
+                paramsListado.capture());
+        assertThat(sqlListado.getValue())
+                .contains("LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
+        assertThat(paramsListado.getValue()).containsExactly("%JuAn%", 0L, 20);
     }
 
     @Test
