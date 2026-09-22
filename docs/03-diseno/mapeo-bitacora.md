@@ -190,8 +190,8 @@ normal de catálogo u operación no se registra por defecto.
 
 | Evento | Crítico | Registrar | Usuario | Resultado | Detalle seguro |
 |---|---:|---|---|---|---|
-| Login exitoso | Sí | Sí, cuando exista writer | ID autenticado | `EXITO` | `LOGIN_OK` sin token |
-| Login fallido controlado | Sí | Sí, con protección antiabuso | ID sólo si se conoce con seguridad; si no `NULL` | `FALLO` | Sin password ni clave intentada en claro |
+| Login exitoso | Sí | **IMPLEMENTADO EN REPOSITORIO:** después de validar usuario, contraseña y permisos | ID real de usuario | `EXITO` | `null`; sin token, clave, correo, permisos, IP ni User-Agent |
+| Login fallido controlado | Sí | **IMPLEMENTADO EN REPOSITORIO:** usuario inexistente/conocido, contraseña incorrecta o cuenta inactiva | ID si usuario conocido; `NULL` si no existe | `FALLO` | `null`; sin password ni clave intentada |
 | 401 por token ausente/inválido o tráfico anónimo | No por defecto | No por evento | `NULL` | — | Log técnico/métricas con rate limit |
 | 403 de usuario autenticado | Candidato | Sólo para operación sensible y con límite | ID autenticado | `DENEGADO` si se aprueba | Permiso/operación, no JWT |
 | Consulta normal | No | No | — | — | — |
@@ -214,9 +214,13 @@ No aplica misma política a todo evento:
   en misma transacción o usar patrón confiable equivalente. Si writer no puede
   registrar resultado crítico, la operación no debe declararse exitosa sin una
   decisión explícita de compensación/outbox.
-- **Login:** puede registrar de forma independiente; si falla escritura, no
-  debe emitir token sin al menos registrar alerta técnica y definir política de
-  riesgo. Comportamiento exacto pendiente de diseño de autenticación.
+- **Login exitoso — IMPLEMENTADO EN REPOSITORIO:** tras validar usuario,
+  contraseña y permisos, registra `LOGIN_OK` antes de generar JWT. Si writer
+  falla, excepción se propaga: no se entrega token.
+- **Login fallido — IMPLEMENTADO EN REPOSITORIO:** registra `LOGIN_FALLIDO`
+  con actor conocido o `NULL`; si writer falla, registra error técnico con
+  correlationId y conserva `CREDENCIALES_INVALIDAS`/401 genérico. No hay
+  recursión de Bitácora.
 - **Consultas no auditadas:** un fallo de writer no aplica.
 
 No debe fallar silenciosamente. Persistir log técnico con `correlationId` es
@@ -271,6 +275,11 @@ controlados, detalle seguro de hasta 500 caracteres y correlación normalizada.
 no envía `id`/`fecha`, delegados a `IDENTITY` y `SYSUTCDATETIME()`. No toca
 `CALE_IMMEX`, no genera correlationId y no declara `REQUIRES_NEW`.
 
+**IMPLEMENTADO EN REPOSITORIO:** `LoginController` pasa a `LoginService` el
+atributo `correlationId` normalizado por `CorrelationIdFilter`, nunca el header
+crudo. Login no usa `AuthenticatedUserContext`: actor se toma del `UsuarioApp`
+validado. `LOGIN_OK`/`LOGIN_FALLIDO` siempre usan `detalle = null`.
+
 ### 14.2 Consulta HTTP — contrato cerrado como candidato, no implementado
 
 ```http
@@ -298,8 +307,9 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
 
 1. Desplegar y verificar con acceso SQL confiable hardening y permisos mínimos:
    retiro de privilegios globales y aplicación de `app24_runtime`.
-2. Conectar eventos aprobados a callers futuros usando
-   `AuthenticatedUserContext`, sin aceptar identidad del cliente.
+2. Conectar eventos aprobados restantes a callers futuros usando
+   `AuthenticatedUserContext`, sin aceptar identidad del cliente. Login ya usa
+   directamente el `UsuarioApp` validado, porque aún no existe SecurityContext.
 3. Cerrar retención, archivado, anonimización, clasificación sensible,
    capacidad y límites de rango.
 4. Confirmar fuente legacy con TLS confiable y distinguir su historial del app
@@ -317,7 +327,9 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
   fail-closed de `uid` y `04-app-runtime-permissions.sql`.
 - Writer interno append-only implementado: modelo tipado, puerto, servicio,
   adapter `appJdbcTemplate` y `AuthenticatedUserContext`.
-- Cero endpoint, frontend, triggers o conexiones de eventos implementadas.
-- Cero eventos insertados y cero SQL remoto ejecutado; despliegue de permisos
-  sigue pendiente de acceso TLS confiable.
+- Eventos de autenticación implementados: `LOGIN_OK` y `LOGIN_FALLIDO`, con
+  correlationId API normalizado, actor confiable y detalle `null`.
+- Cero endpoint, frontend, triggers, eventos 401/403 o eventos de otros dominios.
+- Cero SQL remoto ejecutado; despliegue de permisos sigue pendiente de acceso
+  TLS confiable.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.

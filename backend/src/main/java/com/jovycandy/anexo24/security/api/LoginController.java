@@ -3,6 +3,8 @@ package com.jovycandy.anexo24.security.api;
 import com.jovycandy.anexo24.security.application.LoginService;
 import com.jovycandy.anexo24.security.api.dto.LoginRequest;
 import com.jovycandy.anexo24.security.api.dto.LoginResponse;
+import com.jovycandy.anexo24.shared.api.GlobalExceptionHandler;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,12 +36,15 @@ public class LoginController {
     /**
      * Inicia sesión y devuelve un token de acceso.
      *
-     * @param request credenciales de acceso
+     * @param request        credenciales de acceso
+     * @param servletRequest solicitud HTTP con correlationId normalizado
      * @return token JWT con permisos
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                                HttpServletRequest servletRequest) {
+        Object correlationId = servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR);
         return ResponseEntity.status(HttpStatus.OK)
-                .body(loginService.login(request));
+                .body(loginService.login(request, correlationId == null ? null : correlationId.toString()));
     }
 }
