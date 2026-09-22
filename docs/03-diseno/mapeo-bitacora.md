@@ -6,9 +6,10 @@ Esta auditoría define fuente canónica, modelo, seguridad y contratos candidato
 de la bitácora de la **nueva aplicación**.
 
 **IMPLEMENTADO EN REPOSITORIO:** hardening; writer interno append-only; eventos
-`LOGIN_OK`/`LOGIN_FALLIDO`; `GET /api/v1/bitacora` read-only.
+`LOGIN_OK`/`LOGIN_FALLIDO`; `GET /api/v1/bitacora` read-only; frontend
+read-only de Bitácora.
 
-**PENDIENTE:** validación runtime remota; frontend; eventos 401/403; demás
+**PENDIENTE DE VALIDACIÓN RUNTIME REMOTA** y además: eventos 401/403; demás
 dominios; despliegue de permisos.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
@@ -348,8 +349,12 @@ validación contra `ANEXO24_DEV` sigue pendiente hasta desplegar
 - Eventos de autenticación implementados: `LOGIN_OK` y `LOGIN_FALLIDO`, con
   correlationId API normalizado, actor confiable y detalle `null`.
 - GET `/api/v1/bitacora` read-only implementado con filtros exactos,
-  paginación y orden estable; cero endpoint de escritura, frontend, triggers,
+  paginación y orden estable; cero endpoint de escritura, triggers,
   eventos 401/403 o eventos de otros dominios.
+- Frontend read-only de Bitácora implementado en repositorio
+  (`features/administration/audit-log`, ruta `/bitacora` protegida por
+  `BITACORA_CONSULTAR`); pendiente de validación runtime remota junto con el
+  backend.
 - Cero SQL remoto ejecutado; despliegue de permisos y validación runtime del
   GET siguen pendientes de acceso TLS confiable.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.

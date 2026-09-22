@@ -148,6 +148,12 @@ export class SidebarComponent implements OnDestroy {
       });
     }
 
+    const administrationItems: NavItem[] = [
+      { label: 'Bitácora', icon: 'manage_search', route: '/bitacora', permission: 'BITACORA_CONSULTAR' },
+    ].filter((item) => this.auth.hasPermission(item.permission));
+
+    if (administrationItems.length > 0) groups.push({ label: 'Administración', items: administrationItems });
+
     return groups;
   });
 

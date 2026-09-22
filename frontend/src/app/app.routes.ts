@@ -47,6 +47,12 @@ export const routes: Routes = [
         data: { permission: 'OPERACIONES_CONSULTAR' },
         loadChildren: () => import('@features/operations/operations.routes').then((routes) => routes.OPERATIONS_ROUTES),
       },
+      {
+        path: 'bitacora',
+        canActivate: [permissionGuard],
+        data: { permission: 'BITACORA_CONSULTAR' },
+        loadChildren: () => import('@features/administration/audit-log/audit-log.routes').then((routes) => routes.AUDIT_LOG_ROUTES),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -15,3 +15,5 @@
 | GET | `/bitacora` | Consulta read-only paginada con rango UTC obligatorio (`desde`/`hasta`), filtros `usuarioId`, `modulo`, `resultado`, `correlationId` y orden `fecha DESC, id DESC`. | `BITACORA_CONSULTAR` |
 
 Los endpoints de administración siguen `/usuarios`, `/perfiles` y `/actividades`; aplican validación de esquema, paginación y bitácora. Los nombres de procedimientos detrás de la API se mantienen internos.
+
+Consumidor frontend del endpoint `GET /bitacora`: pantalla read-only en `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso `BITACORA_CONSULTAR`). Sin consumidores frontend de escritura.
