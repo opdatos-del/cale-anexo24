@@ -57,7 +57,12 @@ lectura.
 | Reportes | Catálogo HTTP V1 | NO IMPLEMENTAR | — | — | — | — | DECISIÓN V1 — no hay reporte independiente aprobado; consultas existentes cubren listados operacionales |
 | Reportes | Concentrado de saldos | SP | `dbo.INFORME_CONCENTRADOSALDOS` | REPORT/PROCESS | Sí | Sí | CONFIRMADO; llena `CONCENTRADOSALDOS`; no usar para GET |
 | Activo fijo | Consulta paginada de partidas de importación marcadas activas V1 | SP PROPIO | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR`; fuente `dbo.Partidas` + `dbo.Importaciones`; referencia `dbo.v_g5` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; contrato HTTP implementado y validado; no usar `dbo.ActivoFijo` ni procesos G5/G6 como API |
-| Facturación | Carga y procesamiento | PENDIENTE | — | — | — | — | PENDIENTE DE AUDITAR |
+| Facturación | Flujo A: carga desde `TFACTURA` | SP LEGACY | `dbo.CARGA_FACTURAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO por snapshot de definición; sin parámetros; usa `TFACTURA`, `TERRORFACTURA`, `PRODUCTOS`, `CLIENTES`, `FACTURA` y referencias a salidas/detalles; no ejecutar |
+| Facturación | Flujo B: cargar líneas de salida | SP LEGACY | `dbo.CARGAFACTURASENPSALIDAS` | IMPORT/PROCESS | Sí | Sí | CONFIRMADO por definición snapshot; `@PEDIMENTO`, `@FACTURA`; valida `CARGAFACTURA` y escribe `PSALIDAS`/`ERRCARGAFACTURA`; no ejecutar |
+| Facturación | Alta derivada de productos | SP LEGACY | `dbo.CREAPRODUCTOSCARGAFACTURA` | IMPORT | Sí | Sí | CONFIRMADO por definición snapshot; crea productos desde `CARGAFACTURA`; no reutilizar sin decisión funcional explícita |
+| Facturación | Flujo `TmpFC` / facturas creadas | SP LEGACY | `dbo.INSTERTAFACTURASFC` | IMPORT | Sí | Sí | CONFIRMADO por snapshot de metadata; `TmpFC`, `TMPFCERROR`, `FacturasCreadas`; propósito y vigencia pendientes |
+| Facturación | Vínculo especializado CTM | SP LEGACY | `dbo.LIGACTMFACTURA` | PROCESS | Sí | Sí | CONFIRMADO; usa `FACTURASCTM`; subdominio CTM fuera de V1 general |
+| Facturación | API V1 de carga/confirmación | NO IMPLEMENTAR | — | — | — | — | DECISIÓN V1 — sin contrato; faltan plantilla oficial, granularidad, identidad, duplicados, transacción, aislamiento por lote y decisión de persistencia de validación |
 
 ## Estado de Productos
 
