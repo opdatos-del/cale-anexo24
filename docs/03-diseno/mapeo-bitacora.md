@@ -3,8 +3,9 @@
 ## 1. Objetivo y decisión arquitectónica
 
 Esta auditoría define fuente canónica, modelo, seguridad y contratos candidatos
-de la bitácora de la **nueva aplicación**. No implementa writer, endpoint,
-frontend, DDL, permisos SQL, triggers ni eventos de prueba.
+de la bitácora de la **nueva aplicación**. La fase posterior de hardening
+versionó identidad JWT confiable y permisos SQL mínimos; no implementa writer,
+endpoint, frontend, triggers ni eventos de prueba.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
 > canónica candidata para eventos funcionales y de seguridad de la aplicación
@@ -20,7 +21,7 @@ con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
 | Fuente | Aporta | Estado |
 |---|---|---|
 | `infra/sql/02-app-schema.sql` | DDL, FK, default e índices de `app24.BitacoraEvento` | **CONFIRMADO** para esquema versionado |
-| `infra/sql/00-bootstrap.sql` | Roles de la cuenta técnica `anexo24_app` | **CONFIRMADO** para bootstrap versionado |
+| `infra/sql/00-bootstrap.sql` y `04-app-runtime-permissions.sql` | Bootstrap sin permisos globales y política mínima por objeto para `anexo24_app` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** en servidor |
 | `infra/sql/03-app-seed-security.sql` | Permiso y asignación inicial de perfiles | **CONFIRMADO** |
 | `CorrelationIdFilter`, filtros JWT, login, excepciones y adapter de usuarios | Propagación actual de identidad y correlación | **CONFIRMADO** por código |
 | Auditoría Web Forms | Existió reporte Bitácora con fechas, pero falló al generar | **CONFIRMADO** para pantalla; no para fuente física |
@@ -71,9 +72,11 @@ garantía actual:
 - **CONFIRMADO:** no existe `BitacoraRepository`, `BitacoraService`, writer,
   controlador ni endpoint de Bitácora en backend.
 - **CONFIRMADO:** no hay `UPDATE`/`DELETE`/trigger de Bitácora versionado.
-- **CONFIRMADO:** `anexo24_app` se agrega a `db_datareader` y `db_datawriter`;
-  el segundo rol permite modificar/borrar tablas de aplicación, incluida
-  Bitácora. Por ello no hay inmutabilidad por privilegios.
+- **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE DESPLIEGUE:**
+  `00-bootstrap.sql` ya no asigna `db_datareader`, `db_datawriter` ni
+  `EXECUTE` global. `04-app-runtime-permissions.sql` retira memberships
+  heredados y concede a `app24_runtime` sólo `SELECT` para autenticación y
+  `SELECT` + `INSERT` sobre Bitácora; no concede `UPDATE` ni `DELETE`.
 - **CONFIRMADO:** `UsuarioJdbcAdapter` ya usa `appJdbcTemplate` contra
   `ANEXO24_DEV`; un futuro adaptador de Bitácora pertenece a este esquema,
   nunca a `CALE_IMMEX` ni a un `APP24_Q_*` legacy.
@@ -103,12 +106,14 @@ de privilegios/DDL queda fuera de esta fase.
 | Solicitud anónima, proceso técnico o evento de infraestructura aprobado | `NULL` o actor técnico identificado por política futura |
 | Evento autenticado | ID obtenido de contexto confiable, nunca de body/query/frontend |
 
-**CONFIRMADO:** JWT incluye claim `uid` y subject `clave`. Sin embargo,
-`JwtAuthFilter` hoy deja como principal sólo `claims.getSubject()`; descarta
-`uid` al construir `UsernamePasswordAuthenticationToken`. Un writer futuro no
-puede obtener `usuario_id` con seguridad desde `SecurityContext` sin un
-principal/servicio de contexto que conserve el claim validado. No debe volver a
-parsear un JWT recibido sin definir ese mecanismo, ni aceptar `userId` cliente.
+**IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE DESPLIEGUE:** JWT incluye claim
+`uid` y subject `clave`. `JwtAuthFilter` valida ambos tras verificar el token;
+requiere `uid` numérico, entero y positivo, además de subject no vacío. Luego
+construye `AuthenticatedUserPrincipal(userId, username)`, que implementa
+`Principal`: `authentication.getPrincipal()` conserva identidad confiable y
+`authentication.getName()` conserva username. Un token sin `uid`, con `uid`
+inválido/no positivo o subject inválido queda anónimo. Writer futuro no debe
+reparsear JWT ni aceptar `userId` cliente.
 
 **PENDIENTE:** `usuario_id` más JOIN a `UsuarioApp` muestra clave/nombre
 actuales, no snapshot histórico si esos atributos cambian. V1 puede presentar
@@ -281,9 +286,10 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
 
 ## 15. Riesgos y pendientes
 
-1. Retirar/especializar privilegios amplios `db_datawriter` antes de afirmar
-   inmutabilidad.
-2. Definir principal/contexto confiable que exponga claim JWT `uid` a writer.
+1. Desplegar y verificar con acceso SQL confiable el hardening versionado:
+   retiro de privilegios globales y aplicación de `app24_runtime`.
+2. Diseñar writer interno que consuma `AuthenticatedUserPrincipal` desde
+   `SecurityContext`, sin aceptar identidad del cliente.
 3. Cerrar retención, archivado, anonimización, clasificación sensible,
    capacidad y límites de rango.
 4. Confirmar fuente legacy con TLS confiable y distinguir su historial del app
@@ -297,6 +303,9 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
 
 ## 16. Restricciones cumplidas
 
-- Cero backend, frontend, SQL, triggers o cambios de permisos implementados.
-- Cero eventos insertados y cero SQL ejecutado.
+- Hardening backend y SQL versionado: `AuthenticatedUserPrincipal`, validación
+  fail-closed de `uid` y `04-app-runtime-permissions.sql`.
+- Cero writer, endpoint, frontend, triggers o eventos implementados.
+- Cero eventos insertados y cero SQL remoto ejecutado; despliegue de permisos
+  sigue pendiente de acceso TLS confiable.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.

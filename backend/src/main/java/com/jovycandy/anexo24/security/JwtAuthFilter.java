@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,6 +56,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith(BEARER)) {
             try {
                 Claims claims = tokenService.parseToken(header.substring(BEARER.length()));
+                AuthenticatedUserPrincipal principal = authenticatedPrincipal(claims);
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 Object raw = claims.get("auth");
                 if (raw instanceof List<?> lista) {
@@ -63,7 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     }
                 }
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        claims.getSubject(), null, authorities);
+                        principal, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException | IllegalArgumentException e) {
                 // token inválido -> la solicitud permanece anónima
@@ -71,5 +73,36 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Construye la identidad únicamente cuando las declaraciones obligatorias son válidas.
+     *
+     * @param claims declaraciones de un JWT ya validado
+     * @return identidad autenticada
+     * @throws IllegalArgumentException si falta o es inválida una declaración obligatoria
+     */
+    private AuthenticatedUserPrincipal authenticatedPrincipal(Claims claims) {
+        String username = claims.getSubject();
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("subject JWT inválido");
+        }
+
+        Object rawUserId = claims.get("uid");
+        if (!(rawUserId instanceof Number number)) {
+            throw new IllegalArgumentException("uid JWT inválido");
+        }
+
+        long userId;
+        try {
+            userId = new BigDecimal(number.toString()).longValueExact();
+        } catch (NumberFormatException | ArithmeticException exception) {
+            throw new IllegalArgumentException("uid JWT inválido", exception);
+        }
+        if (userId <= 0) {
+            throw new IllegalArgumentException("uid JWT inválido");
+        }
+
+        return new AuthenticatedUserPrincipal(userId, username);
     }
 }

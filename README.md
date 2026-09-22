@@ -49,8 +49,18 @@ cale-anexo24/
 
 ### Base de datos
 
-1. Ejecutar `infra/sql/00-bootstrap.sql` para crear la base `ANEXO24_DEV` y el usuario de aplicación.
-2. Copiar `backend/.env.example` a `backend/.env` y cargar los datos reales de conexión.
+Ejecutar estos scripts con una identidad administrativa/de despliegue autorizada,
+nunca con la cuenta runtime `anexo24_app`:
+
+1. `infra/sql/00-bootstrap.sql`: crea `ANEXO24_DEV`, login y usuario runtime sin permisos globales.
+2. `infra/sql/02-app-schema.sql`: crea el esquema y tablas `app24`.
+3. `infra/sql/03-app-seed-security.sql`: carga perfiles, permisos y usuario inicial.
+4. `infra/sql/04-app-runtime-permissions.sql`: retira roles heredados amplios y concede los permisos mínimos por objeto.
+
+`02-app-schema.sql` recrea tablas en desarrollo; ejecutar nuevamente el paso 4
+siempre después de ese script para restaurar permisos sobre objetos nuevos.
+
+Después, copiar `backend/.env.example` a `backend/.env` y cargar datos reales de conexión.
 
 ### Backend
 
