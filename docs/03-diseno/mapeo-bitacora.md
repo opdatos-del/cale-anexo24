@@ -9,9 +9,9 @@ frontend, eventos 401/403 y otros dominios permanecen pendientes.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
 > canónica candidata para eventos funcionales y de seguridad de la aplicación
-> nueva. Writer interno tipado y append-only están implementados en repositorio;
-> su permiso mínimo sigue pendiente de despliegue. Consulta HTTP aún no debe
-> implementarse. No existe fuente legacy canónica demostrada.
+> nueva. Writer interno tipado append-only y consulta HTTP read-only están
+> implementados en repositorio; su permiso mínimo y validación runtime remota
+> siguen pendientes de despliegue. No existe fuente legacy canónica demostrada.
 
 La bitácora legacy, si se demuestra, será histórica y separada. No se unifica
 con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
@@ -280,7 +280,7 @@ atributo `correlationId` normalizado por `CorrelationIdFilter`, nunca el header
 crudo. Login no usa `AuthenticatedUserContext`: actor se toma del `UsuarioApp`
 validado. `LOGIN_OK`/`LOGIN_FALLIDO` siempre usan `detalle = null`.
 
-### 14.2 Consulta HTTP — contrato cerrado como candidato, no implementado
+### 14.2 Consulta HTTP — IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA
 
 ```http
 GET /api/v1/bitacora
@@ -290,23 +290,31 @@ Authorization: Bearer <token>
 - **Permiso:** `BITACORA_CONSULTAR`.
 - **Fuente:** `ANEXO24_DEV.app24.BitacoraEvento` con `LEFT JOIN` opcional a
   `UsuarioApp` sólo para etiqueta actual.
-- **Rango:** `desde` y `hasta` juntos; ambos obligatorios para evitar lectura
-  total. `desde <= hasta`. Límite máximo de periodo: **PENDIENTE**.
-- **Filtros candidatos demostrados por prototipo:** `usuarioId`, `modulo`,
-  `resultado`, `correlationId`; no se agregan otros sin caso de uso.
+- **Rango:** `desde` y `hasta` obligatorios, ISO-8601 `OffsetDateTime` con
+  offset explícito; se convierten a `Instant` UTC y son inclusivos.
+  `desde <= hasta`. Límite máximo de periodo: **PENDIENTE**.
+- **Filtros exactos:** `usuarioId`, `modulo`, `resultado`, `correlationId`.
+  Correlación blank se normaliza a `null`; no hay filtros de acción, usuario,
+  texto o detalle.
 - **Paginación:** `pagina=1`, `tamano=20`, `tamano=1..100`.
-- **Orden candidato:** `fecha DESC, id DESC`.
-- **Response mínimo candidato:** `id`, `fecha`, `usuarioId`, etiqueta de
-  usuario actual opcional, `modulo`, `accion`, `detalle`, `resultado`,
-  `correlationId`.
+- **Orden estable:** `fecha DESC, id DESC`.
+- **Response mínimo:** `id`, `fecha`, `usuarioId`, etiqueta de usuario actual
+  opcional, `modulo`, `accion`, `detalle`, `resultado`, `correlationId`.
+- **UTC JDBC:** `DATETIME2(3)` se escribe/lee como `LocalDateTime` UTC y se
+  convierte explícitamente a `Instant`; no depende de la zona JVM.
 
-La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
-"regenera" eventos.
+La etiqueta de usuario no es snapshot histórico. GET nunca escribe, no genera
+un evento de Bitácora y no consulta `CALE_IMMEX`.
+
+El endpoint está implementado en repositorio y probado unitariamente. Su
+validación contra `ANEXO24_DEV` sigue pendiente hasta desplegar
+`04-app-runtime-permissions.sql` con TLS confiable.
 
 ## 15. Riesgos y pendientes
 
 1. Desplegar y verificar con acceso SQL confiable hardening y permisos mínimos:
-   retiro de privilegios globales y aplicación de `app24_runtime`.
+   retiro de privilegios globales, aplicación de `app24_runtime` y runtime del
+   GET read-only.
 2. Conectar eventos aprobados restantes a callers futuros usando
    `AuthenticatedUserContext`, sin aceptar identidad del cliente. Login ya usa
    directamente el `UsuarioApp` validado, porque aún no existe SecurityContext.
@@ -329,7 +337,9 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
   adapter `appJdbcTemplate` y `AuthenticatedUserContext`.
 - Eventos de autenticación implementados: `LOGIN_OK` y `LOGIN_FALLIDO`, con
   correlationId API normalizado, actor confiable y detalle `null`.
-- Cero endpoint, frontend, triggers, eventos 401/403 o eventos de otros dominios.
-- Cero SQL remoto ejecutado; despliegue de permisos sigue pendiente de acceso
-  TLS confiable.
+- GET `/api/v1/bitacora` read-only implementado con filtros exactos,
+  paginación y orden estable; cero endpoint de escritura, frontend, triggers,
+  eventos 401/403 o eventos de otros dominios.
+- Cero SQL remoto ejecutado; despliegue de permisos y validación runtime del
+  GET siguen pendientes de acceso TLS confiable.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.
