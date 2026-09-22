@@ -6,12 +6,11 @@ Esta auditoría documental define el estado del módulo Administración en el
 repositorio: modelo de datos, dominio, autenticación, permisos runtime y
 contratos candidatos V1. Fase 0: **solo documentación, sin código nuevo**.
 
-**CONFIRMADO:** solo existe la lectura orientada a autenticación
-(`findByClave`, `findAccesoByUsuario`) y el flujo de login/JWT. No hay
-controllers, services ni adapters de escritura para administrar usuarios,
-perfiles o actividades. Los permisos `USUARIOS_ADMINISTRAR`,
-`PERFILES_ADMINISTRAR` y `ACTIVIDADES_ADMINISTRAR` existen solo como seed SQL;
-no tienen backend ni frontend.
+**IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA:** FASE 2
+expone lectura administrativa de usuarios y FASE 3A agrega creación y edición
+limitada de nombre/correo mediante `appJdbcTemplate` y `appTransactionManager`.
+La autenticación conserva sus puertos propios. Estado, perfil, vigencia, reset
+password, perfiles, actividades y frontend permanecen pendientes.
 
 Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
 cualquier command administrativo. No contradice la evidencia confirmada: la
@@ -102,7 +101,7 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | `UsuarioConsultaRepository` | `findPage(...)` y `findById(Long)` → `Optional<UsuarioAdministracion>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); puerto separado de autenticación |
 | `UsuarioConsultaJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; SELECT/COUNT con JOIN `PerfilApp`, filtros parametrizados y comodines escapados | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); no selecciona `password_hash`; sin DML |
 | `ListarUsuariosUseCase` / `ObtenerUsuarioUseCase` | normalizan filtros y validan longitudes, estado, perfilId y paginación; 404 si no existe | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
-| `UsuarioAdministracionController` + `UsuarioAdministracionDto` | `GET /api/v1/administracion/usuarios` y `/{id}` con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
+| `UsuarioAdministracionController` + DTOs | GETs FASE 2 y `POST`/`PUT` FASE 3A con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA** |
 
 **CONFIRMADO:** el paquete `administration/users` conserva la separación:
 autenticación (`UsuarioRepository`/`UsuarioJdbcAdapter`) vs. consulta

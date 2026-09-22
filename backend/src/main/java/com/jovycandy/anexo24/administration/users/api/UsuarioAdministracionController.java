@@ -1,8 +1,13 @@
 package com.jovycandy.anexo24.administration.users.api;
 
+import com.jovycandy.anexo24.administration.users.api.dto.ActualizarUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CrearUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
+import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
+import com.jovycandy.anexo24.shared.api.GlobalExceptionHandler;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
 import com.jovycandy.anexo24.shared.api.ApiError;
 import com.jovycandy.anexo24.shared.api.Pagina;
@@ -13,9 +18,13 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +37,8 @@ public class UsuarioAdministracionController {
 
     private final ListarUsuariosUseCase listarUsuariosUseCase;
     private final ObtenerUsuarioUseCase obtenerUsuarioUseCase;
+    private final CrearUsuarioUseCase crearUsuarioUseCase;
+    private final ActualizarUsuarioUseCase actualizarUsuarioUseCase;
 
     /**
      * Construye el controlador con los casos de uso de lectura.
@@ -36,9 +47,13 @@ public class UsuarioAdministracionController {
      * @param obtenerUsuarioUseCase  caso de uso de detalle
      */
     public UsuarioAdministracionController(ListarUsuariosUseCase listarUsuariosUseCase,
-                                           ObtenerUsuarioUseCase obtenerUsuarioUseCase) {
+                                           ObtenerUsuarioUseCase obtenerUsuarioUseCase,
+                                           CrearUsuarioUseCase crearUsuarioUseCase,
+                                           ActualizarUsuarioUseCase actualizarUsuarioUseCase) {
         this.listarUsuariosUseCase = listarUsuariosUseCase;
         this.obtenerUsuarioUseCase = obtenerUsuarioUseCase;
+        this.crearUsuarioUseCase = crearUsuarioUseCase;
+        this.actualizarUsuarioUseCase = actualizarUsuarioUseCase;
     }
 
     /**
@@ -119,6 +134,31 @@ public class UsuarioAdministracionController {
             @ApiResponse(responseCode = "503", description = "Servicio de datos no disponible",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
+    @PostMapping
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<UsuarioAdministracionDto> crear(
+            @Valid @org.springframework.web.bind.annotation.RequestBody CrearUsuarioRequest request,
+            HttpServletRequest servletRequest) {
+        UsuarioAdministracion usuario = crearUsuarioUseCase.ejecutar(request, correlationId(servletRequest));
+        return ResponseEntity.created(java.net.URI.create("/api/v1/administracion/usuarios/" + usuario.id()))
+                .body(UsuarioAdministracionDto.from(usuario));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<UsuarioAdministracionDto> actualizar(
+            @PathVariable Long id,
+            @Valid @org.springframework.web.bind.annotation.RequestBody ActualizarUsuarioRequest request,
+            HttpServletRequest servletRequest) {
+        return ResponseEntity.ok(UsuarioAdministracionDto.from(
+                actualizarUsuarioUseCase.ejecutar(id, request, correlationId(servletRequest))));
+    }
+
+    private String correlationId(HttpServletRequest servletRequest) {
+        Object valor = servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR);
+        return valor == null ? null : valor.toString();
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
     public ResponseEntity<UsuarioAdministracionDto> obtener(

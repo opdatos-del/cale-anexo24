@@ -1,6 +1,8 @@
 package com.jovycandy.anexo24.administration.users.api;
 
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
+import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
@@ -32,6 +34,12 @@ class UsuarioAdministracionControllerTest {
 
     @Mock
     private ObtenerUsuarioUseCase obtenerUsuarioUseCase;
+
+    @Mock
+    private CrearUsuarioUseCase crearUsuarioUseCase;
+
+    @Mock
+    private ActualizarUsuarioUseCase actualizarUsuarioUseCase;
 
     private UsuarioAdministracion usuario() {
         return new UsuarioAdministracion(42L, "op01", "Operador Uno",
@@ -109,6 +117,7 @@ class UsuarioAdministracionControllerTest {
     }
 
     private UsuarioAdministracionController controller() {
-        return new UsuarioAdministracionController(listarUsuariosUseCase, obtenerUsuarioUseCase);
+        return new UsuarioAdministracionController(listarUsuariosUseCase, obtenerUsuarioUseCase,
+                crearUsuarioUseCase, actualizarUsuarioUseCase);
     }
 }

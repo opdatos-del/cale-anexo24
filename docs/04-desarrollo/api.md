@@ -15,10 +15,11 @@
 | GET | `/bitacora` | Consulta read-only paginada con rango UTC obligatorio (`desde`/`hasta`), filtros `usuarioId`, `modulo`, `resultado`, `correlationId` y orden `fecha DESC, id DESC`. | `BITACORA_CONSULTAR` |
 | GET | `/administracion/usuarios` | Lista usuarios paginados con filtros `clave` (exacto), `nombre` (parcial con comodines escapados), `correo` (exacto), `estado` (solo `ACTIVO`/`INACTIVO`) y `perfilId` (exacto); orden `clave ASC, id ASC`. | `USUARIOS_ADMINISTRAR` |
 | GET | `/administracion/usuarios/{id}` | Detalle read-only de un usuario con su perfil; sin secretos. | `USUARIOS_ADMINISTRAR` |
+| POST | `/administracion/usuarios` | Crea usuario ACTIVO con perfil ACTIVO, password bcrypt y auditoría transaccional; retorna 201. | `USUARIOS_ADMINISTRAR` |
+| PUT | `/administracion/usuarios/{id}` | Edita sólo nombre/correo; clave, estado, perfil, vigencia y password permanecen inmutables en Fase 3A. | `USUARIOS_ADMINISTRAR` |
 
-Los endpoints de administración **implementados** son únicamente los dos de
-consultas de usuarios anteriores. **NO implementados todavía:** escrituras de
-usuarios (`POST`/`PATCH`), perfiles y actividades; el resto del contrato sigue
-pendiente. Los nombres de procedimientos detrás de la API se mantienen internos.
+Administración usuarios Fase 3A: create/edit base implementados en repositorio;
+pendiente validación runtime remota. **NO implementados todavía:** PATCH estado,
+perfil, vigencia, reset password, perfiles y actividades.
 
 Consumidor frontend del endpoint `GET /bitacora`: pantalla read-only en `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso `BITACORA_CONSULTAR`). Sin consumidores frontend de escritura.

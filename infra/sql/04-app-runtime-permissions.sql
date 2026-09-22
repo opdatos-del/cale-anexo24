@@ -79,6 +79,10 @@ GRANT SELECT ON OBJECT::app24.PerfilApp TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.PerfilActividad TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.Actividad TO app24_runtime;
 
+-- Administración FASE 3A: alta y edición limitada de datos de usuario.
+GRANT INSERT ON OBJECT::app24.UsuarioApp TO app24_runtime;
+GRANT UPDATE (nombre, correo) ON OBJECT::app24.UsuarioApp TO app24_runtime;
+
 -- Bitácora futura: lectura e inserción, sin actualización ni borrado.
 GRANT SELECT, INSERT ON OBJECT::app24.BitacoraEvento TO app24_runtime;
 GO
