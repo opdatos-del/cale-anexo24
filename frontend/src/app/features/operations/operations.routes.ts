@@ -13,4 +13,8 @@ export const OPERATIONS_ROUTES: Routes = [
     path: 'materiales-utilizados',
     loadChildren: () => import('./usedmaterials/used-materials.routes').then((routes) => routes.USED_MATERIALS_ROUTES),
   },
+  {
+    path: 'activos-fijos',
+    loadChildren: () => import('./fixed-assets/fixed-assets.routes').then((routes) => routes.FIXED_ASSETS_ROUTES),
+  },
 ];

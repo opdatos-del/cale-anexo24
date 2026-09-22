@@ -16,6 +16,8 @@ import { ExitRepository } from '@features/operations/exits/domain/repositories/e
 import { HttpExitRepository } from '@features/operations/exits/infrastructure/repositories/http-exit.repository';
 import { UsedMaterialRepository } from '@features/operations/usedmaterials/domain/repositories/used-material.repository';
 import { HttpUsedMaterialRepository } from '@features/operations/usedmaterials/infrastructure/repositories/http-used-material.repository';
+import { FixedAssetRepository } from '@features/operations/fixed-assets/domain/repositories/fixed-asset.repository';
+import { HttpFixedAssetRepository } from '@features/operations/fixed-assets/infrastructure/repositories/http-fixed-asset.repository';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -29,5 +31,6 @@ export const appConfig: ApplicationConfig = {
     { provide: EntryRepository, useClass: HttpEntryRepository },
     { provide: ExitRepository, useClass: HttpExitRepository },
     { provide: UsedMaterialRepository, useClass: HttpUsedMaterialRepository },
+    { provide: FixedAssetRepository, useClass: HttpFixedAssetRepository },
   ],
 };

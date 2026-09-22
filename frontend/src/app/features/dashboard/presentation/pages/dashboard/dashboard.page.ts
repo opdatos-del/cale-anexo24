@@ -91,6 +91,13 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
             </div>
             <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta del histórico de materiales consumidos.</p>
           </a>
+          <a routerLink="/operaciones/activos-fijos" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700"><mat-icon class="text-[20px]!">precision_manufacturing</mat-icon></span>
+              <p class="m-0 text-sm text-slate-700">Activos fijos</p>
+            </div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de partidas de importación marcadas como activos fijos.</p>
+          </a>
         }
         </section>
       } @else {
