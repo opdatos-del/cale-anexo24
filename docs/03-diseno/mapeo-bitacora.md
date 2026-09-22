@@ -3,9 +3,9 @@
 ## 1. Objetivo y decisión arquitectónica
 
 Esta auditoría define fuente canónica, modelo, seguridad y contratos candidatos
-de la bitácora de la **nueva aplicación**. Hardening y writer interno append-only
-están versionados; no se conectan eventos, endpoint, frontend, triggers ni
-eventos de prueba.
+de la bitácora de la **nueva aplicación**. Hardening, writer interno append-only
+y eventos `LOGIN_OK`/`LOGIN_FALLIDO` están implementados en repositorio; GET,
+frontend, eventos 401/403 y otros dominios permanecen pendientes.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
 > canónica candidata para eventos funcionales y de seguridad de la aplicación
@@ -24,7 +24,7 @@ con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
 | `infra/sql/00-bootstrap.sql` y `04-app-runtime-permissions.sql` | Bootstrap sin permisos globales y política mínima por objeto para `anexo24_app` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** en servidor |
 | `infra/sql/03-app-seed-security.sql` | Permiso y asignación inicial de perfiles | **CONFIRMADO** |
 | `CorrelationIdFilter`, filtros JWT, `AuthenticatedUserContext`, login, excepciones y adapter de usuarios | Propagación de identidad y correlación | **IMPLEMENTADO EN REPOSITORIO** por código |
-| Paquete `auditlog` | Modelo tipado, puerto append-only, servicio interno y adapter JDBC con `appJdbcTemplate` | **IMPLEMENTADO EN REPOSITORIO**; eventos aún no conectados |
+| Paquete `auditlog` | Modelo tipado, puerto append-only, servicio interno y adapter JDBC con `appJdbcTemplate` | **IMPLEMENTADO EN REPOSITORIO**; `LOGIN_OK`/`LOGIN_FALLIDO` conectados, demás eventos pendientes |
 | Auditoría Web Forms | Existió reporte Bitácora con fechas, pero falló al generar | **CONFIRMADO** para pantalla; no para fuente física |
 | CALE_IMMEX actual | Objetos `BITACORA`, `HISTORIA`, `LOG`, `AUDIT`, grants, metadata y datos | **PENDIENTE DE REVALIDACIÓN**; TLS bloqueado sin bypass |
 
