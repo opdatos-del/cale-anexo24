@@ -39,8 +39,9 @@ lectura.
 | Salidas/exportaciones | Descarga PEPS | SP | `dbo.DESCARGASALIDAPEPS` | PROCESS | Sí | Sí | CONFIRMADO; proceso mutable auditado estáticamente; no ejecutar desde GET |
 | Materiales utilizados | Consulta paginada V1 por asignación histórica | SP PROPIO | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR`; fuente `dbo.DESCARGA` + `PARTIDAS` + `IMPORTACIONES` + `PSALIDAS` + `SALIDAS`; referencias `dbo.v_descarga` y `dbo.V_INFORMEDESCARGAS` | QUERY | Sí | No | CONFIRMADO — APP24 QUERY READ-ONLY; contrato HTTP implementado y validado; no usa reportes legacy como API |
 | Materiales utilizados | Generación/explosión de descarga | SP | `dbo.DESCARGASALIDAPEPS` / `dbo.SALDOS` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO como proceso mutable; no usar para GET |
-| Descargos | Descargo general | SP | `dbo.DESCARGATSALIDA1` | PROCESS | Sí | Sí | AUDITADO; mutable, fuera de Materiales Utilizados V1 |
-| Descargos | Descargo por fecha | SP | `dbo.DESCARGATSALIDAFECHA` | PROCESS | Sí | Sí | EN AUDITORÍA futura |
+| Descargos | Consulta histórica de asignaciones | CUBIERTO POR MATERIALES UTILIZADOS | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR`; fuente `dbo.DESCARGA` | QUERY | Sí | No | CONFIRMADO — no crear GET Descargos independiente V1; duplicaría histórico ya expuesto |
+| Descargos | Descargo / reproceso general | SP LEGACY | `dbo.DESCARGATSALIDA1` / `dbo.DESCARGASALIDAPEPS` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO; mutable, futuro command de alto riesgo; no ejecutar desde GET |
+| Descargos | Descargo / reproceso por fecha | SP LEGACY | `dbo.DESCARGATSALIDAFECHA` / `dbo.DESCARGAXFECHA51` | PROCESS/CALCULATION | Sí | Sí | CONFIRMADO; mutable, fuera de V1; definición actual, locking y rollback pendientes |
 | Saldos | Cálculo operativo | SP | `dbo.SALDOS` | CALCULATION | Sí | Sí | EN AUDITORÍA |
 | Saldos | Cálculo por familia | SP | `dbo.SALDOS_FAMILIA` | CALCULATION | Sí | Sí | EN AUDITORÍA |
 | Saldos | Informe | SP | `dbo.PR_INFORME_SALDOS` | REPORT | Sí | No | EN AUDITORÍA |
