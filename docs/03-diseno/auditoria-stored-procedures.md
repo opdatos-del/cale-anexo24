@@ -2,7 +2,9 @@
 
 ## Alcance y evidencia
 
-Auditoría documental creada desde `feature/backend-administration-users-commands-sensitive` (`09057de`). No se ejecutó SQL remoto, procedimientos ni comandos mutables. La fuente principal requerida sigue siendo metadata LIVE de `CALE_IMMEX` y `ANEXO24_DEV`; esta auditoría usa únicamente código y SQL versionado como evidencia auxiliar. Por tanto, conteos y candidatos LIVE son **PENDIENTE**, no inferencias.
+Auditoría creada desde `feature/backend-administration-users-commands-sensitive` (`09057de`). El inventario histórico versionado `docs/03-diseno/procedimientos-almacenados.md`, generado el 15/09/2026 07:13, registra **88 SP de CALE_IMMEX**; no prueba que sigan siendo 88 LIVE.
+
+SP-0B intentó sólo `SELECT COUNT(*) FROM sys.procedures` con `backend/.env` y ODBC Driver 18 para ambas bases. `CALE_IMMEX` y `ANEXO24_DEV` fallaron por confianza TLS. No se aplicó `encrypt=false`, `trustServerCertificate=true` ni otro bypass; no se ejecutó SQL adicional, procedimientos ni comandos mutables. Por tanto, conteos y candidatos LIVE son **PENDIENTE**, no inferencias.
 
 Regla objetivo: toda operación SQL funcional debe migrar a Stored Procedure. `SystemStatusController.checkDatabase` usa `SELECT 1`: **EXCEPCION_TECNICA**, health check, no deuda funcional.
 
@@ -34,6 +36,15 @@ Regla objetivo: toda operación SQL funcional debe migrar a Stored Procedure. `S
 | CALE_IMMEX | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | QUERY / READ ONLY | partidas/importaciones | activos | REUTILIZAR, ya usado | bajo |
 | CALE_IMMEX | candidato materiales | UNKNOWN | `dbo.material` | `MaterialJdbcAdapter` | PENDIENTE metadata LIVE; no candidato confirmado | no crear/alterar aún |
 | ANEXO24_DEV | candidato app24 | UNKNOWN | UsuarioApp, PerfilApp, PerfilActividad, Actividad, BitacoraEvento | auth, usuarios, bitácora | PENDIENTE metadata LIVE | no asumir inexistencia |
+
+## Estado discovery LIVE
+
+| Base | Conexión metadata | Total LIVE | Comparación |
+|---|---|---|---|
+| CALE_IMMEX | Fallida: confianza TLS | PENDIENTE | Histórico 88; comparación PENDIENTE |
+| ANEXO24_DEV | Fallida: confianza TLS | PENDIENTE | PENDIENTE |
+
+No se conoce diferencia `NUEVO_EN_LIVE`/`YA_EXISTÍA`/`YA_NO_EXISTE`/`MODIFICADO_DESDE_INVENTARIO` hasta resolver confianza TLS con configuración aprobada.
 
 ## Procedimiento LIVE pendiente
 
