@@ -348,9 +348,32 @@ El hallazgo §6 se cierra con **decisión, no con parche de filtrado**:
 - **Prohibido** revelar «perfil inactivo» (ni en message, ni code, ni
   Bitácora pública).
 
-**Estado: NO implementado todavía.** La corrección concreta toca
-`findPermisosByUsuario` (JOIN a `PerfilApp` + `p.estado = 'ACTIVO'`) y
-`LoginService` (rechazo temprano). Se pone en FASE 1 del roadmap (§38) como
+**Precisión de hardening (DECISIÓN V1):** la validez del perfil se comprueba
+**explícitamente**, nunca se infiere por la lista de permisos. **NO usar
+`permisos.isEmpty()` como señal de perfil INACTIVO**: un perfil ACTIVO puede
+existir legítimamente con cero actividades asignadas. Orden de validación en
+login:
+
+1. usuario activo (`UsuarioApp.estado = 'ACTIVO'`);
+2. usuario vigente (`vigencia` inclusiva, §19);
+3. perfil existente;
+4. perfil ACTIVO (`PerfilApp.estado = 'ACTIVO'`) — **validación explícita**;
+5. solo después: cargar permisos.
+
+**Opciones técnicas aceptables para FASE 1** (preferir la que mantenga
+cohesión y evite consultas innecesarias):
+
+- **A.** ampliar la consulta/puerto de autenticación para devolver un contexto
+  de autenticación con el estado del perfil; o
+- **B.** añadir una consulta explícita `isPerfilActivo(perfilId)` (o
+  equivalente).
+
+**Caso perfil ACTIVO con cero permisos:** puede autenticarse si esa es la
+política existente, generando una sesión sin `authorities` — pero **nunca** se
+confunde con perfil INACTIVO. Prohibir perfiles activos sin permisos sería una
+regla distinta y **NO está aprobada en V1**.
+
+**Estado: NO implementado todavía.** Se pone en FASE 1 del roadmap (§38) como
 hardening previo, junto con tests.
 
 ## 18. Sesiones JWT ya emitidas — DECISIÓN V1
@@ -363,15 +386,20 @@ consultar** `UsuarioApp.estado`, `vigencia`, `PerfilApp.estado` ni
 
 Por tanto, si después del login se inactiva usuario, vence la vigencia, cambia
 el perfil, se revoca un permiso o se inactiva un perfil, **un JWT ya emitido
-conserva sus `authorities` hasta expirar** (`jwt.expiration-minutes`, default
-15 según `application-test.yml`; valor prod por `.env`). No afirmar
-revocación inmediata.
+conserva sus `authorities` hasta expirar**. La expiración la define
+`jwt.expiration-minutes` (`JwtTokenService`), que es **CONFIGURABLE POR
+AMBIENTE**: `application-local.yml` la inyecta como `${JWT_EXPIRATION_MINUTES}`
+(sin default) y `backend/.env.example` muestra `480` solo como ejemplo
+versionado. No afirmar un valor fijo de política: ni 15 ni 480 están
+demostrados para producción.
 
-**DECISIÓN V1:** aceptar **consistencia eventual hasta expiración**. El token
-corto (15 min) limita la ventana; la alternativa de revocación inmediata
-(denylist/JTI indexado, versión de token, re-validación por request) se marca
-como **trabajo adicional, NO capacidad actual**, y solo si auditoría/negocio
-la exigen.
+**DECISIÓN V1:** aceptar **consistencia eventual hasta la expiración
+configurada** del JWT. La duración debe mantenerse suficientemente acotada
+según la política de despliegue/seguridad; el valor real de producción queda
+**PENDIENTE DE VALIDAR** (no se fija 15 ni 480 como política V1). La
+alternativa de revocación inmediata (denylist/JTI indexado, versión de token,
+re-validación por request) se marca como **trabajo adicional, NO capacidad
+actual**, y solo si auditoría/negocio la exigen.
 
 ## 19. Vigencia — semántica exacta
 
@@ -758,9 +786,13 @@ Secuencial — no comenzar FASE N+1 sin cerrar FASE N:
 
 ```text
 FASE 1  Hardening previo:
-        - PerfilApp.estado efectivo en auth (login + findPermisosByUsuario);
+        - PerfilApp.estado efectivo en auth: validación inequívoca del estado
+          del perfil (login + findPermisosByUsuario), sin inferirlo por lista
+          de permisos; login genérico 401 si perfil INACTIVO (§17);
         - transaction manager explícito appDataSource + tests (§29);
-        - handler 404/409 y convención de errores.
+        - handler 404/409 y convención de errores;
+        - tests de: perfil ACTIVO con permisos; perfil ACTIVO sin permisos;
+          perfil INACTIVO.
 
 FASE 2  Usuarios read-only:
         - query/paginación con JOIN PerfilApp;
@@ -792,7 +824,8 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 1. **PerfilInactivo-concede-permisos (§6/§17):** corregido solo en FASE 1; hoy
    sigue siendo un hueco real.
 2. JWT emitidos no revocables (consistencia eventual aceptada, §18) — revisar
-   con auditoría si la ventana de 15 min no es aceptable.
+   con auditoría si la ventana definida por la expiración JWT configurada no
+   es aceptable.
 3. Desplegar `04-app-runtime-permissions.sql` y verificar runtime con TLS
    confiable (FASE 7).
 4. Confirmar timezone JVM en producción para semántica de `vigencia` (§19).
