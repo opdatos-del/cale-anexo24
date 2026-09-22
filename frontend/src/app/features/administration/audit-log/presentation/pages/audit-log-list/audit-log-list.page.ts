@@ -23,11 +23,16 @@ import {
 import { SearchAuditLogUseCase } from '../../../application/use-cases/search-audit-log.use-case';
 
 /** Combina fecha local y hora local en un instante absoluto. */
-export function buildInstant(date: Date | null, time: string | null): Date | null {
+export function buildInstant(date: Date | null, time: string | null, endOfSecond = false): Date | null {
   if (!date || Number.isNaN(date.getTime()) || !time) return null;
-  const [hours, minutes] = time.split(':').map((part) => Number.parseInt(part, 10));
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
+  const parts = time.split(':');
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  const seconds = parts.length > 2 ? Number(parts[2]) : 0;
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23) return null;
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return null;
+  if (!Number.isInteger(seconds) || seconds < 0 || seconds > 59) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, seconds, endOfSecond ? 999 : 0);
 }
 
 /** Convierte un instante a ISO-8601 absoluto. */
@@ -94,7 +99,7 @@ function startOfDay(value: Date): Date {
 }
 
 function timePart(value: Date): string {
-  return `${pad2(value.getHours())}:${pad2(value.getMinutes())}`;
+  return `${pad2(value.getHours())}:${pad2(value.getMinutes())}:${pad2(value.getSeconds())}`;
 }
 
 interface AuditLogSearchResult {
@@ -138,7 +143,7 @@ interface AuditLogSearchResult {
             </mat-form-field>
             <label>
               <span class="mb-1 block text-xs font-medium text-slate-700">Hora desde</span>
-              <input type="time" name="fromTime" [(ngModel)]="fromTime" (change)="onPeriodChange()" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+              <input type="time" step="1" name="fromTime" [(ngModel)]="fromTime" (change)="onPeriodChange()" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
             </label>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Fecha hasta</mat-label>
@@ -148,7 +153,7 @@ interface AuditLogSearchResult {
             </mat-form-field>
             <label>
               <span class="mb-1 block text-xs font-medium text-slate-700">Hora hasta</span>
-              <input type="time" name="toTime" [(ngModel)]="toTime" (change)="onPeriodChange()" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
+              <input type="time" step="1" name="toTime" [(ngModel)]="toTime" (change)="onPeriodChange()" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" />
             </label>
           </div>
 
@@ -198,7 +203,7 @@ interface AuditLogSearchResult {
           </div>
         </section>
 
-        @if (hasSearched()) {
+        @if (hasSearched() && !validationMessage()) {
           <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
             <span class="text-xs font-medium text-slate-500" aria-live="polite">{{ formatTotal() }} resultados</span>
             <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de bitácora">
@@ -207,7 +212,12 @@ interface AuditLogSearchResult {
           </div>
         }
 
-        @if (isLoading()) {
+        @if (validationMessage()) {
+          <section class="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-8 text-center" aria-label="Filtros incompletos">
+            <mat-icon class="mb-2 h-8 w-8 text-[32px]! text-slate-300" aria-hidden="true">tune</mat-icon>
+            <p class="m-0 text-sm font-medium text-slate-600">Corrige los filtros para consultar la bitácora.</p>
+          </section>
+        } @else if (isLoading()) {
           <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Cargando eventos de bitácora" aria-busy="true">
             @for (row of loadingRows; track row) { <div class="h-10 animate-pulse rounded-lg bg-slate-100"></div> }
           </div>
@@ -287,9 +297,9 @@ export class AuditLogListPage {
   protected readonly error = signal<string | null>(null);
 
   protected fromDate: Date | null = null;
-  protected fromTime = '00:00';
+  protected fromTime = '00:00:00';
   protected toDate: Date | null = null;
-  protected toTime = '00:00';
+  protected toTime = '00:00:00';
   protected userIdFilter: number | null = null;
   protected moduleFilter: AuditLogModule | '' = '';
   protected resultFilter: AuditLogResult | '' = '';
@@ -358,17 +368,29 @@ export class AuditLogListPage {
 
   protected onPeriodChange(): void {
     this.currentPage = 1;
+    if (this.validationMessage() !== null) {
+      this.invalidateResults();
+      return;
+    }
     this.hasSearched.set(true);
     this.scheduleSearch(true);
   }
 
   protected onImmediateFilterChange(): void {
+    if (this.validationMessage() !== null) {
+      this.invalidateResults();
+      return;
+    }
     this.currentPage = 1;
     this.hasSearched.set(true);
     this.scheduleSearch(true);
   }
 
   protected onDebouncedFilterChange(): void {
+    if (this.validationMessage() !== null) {
+      this.invalidateResults();
+      return;
+    }
     this.currentPage = 1;
     this.hasSearched.set(true);
     this.scheduleSearch(false);
@@ -384,22 +406,19 @@ export class AuditLogListPage {
   }
 
   protected clearFilters(): void {
-    this.requestSequence += 1;
     this.userIdFilter = null;
     this.moduleFilter = '';
     this.resultFilter = '';
     this.correlationFilter = '';
     this.setRange(startOfDay(new Date()), new Date());
     this.currentPage = 1;
-    this.items.set([]);
-    this.totalItems.set(0);
-    this.error.set(null);
-    this.isLoading.set(false);
+    this.invalidateResults();
     this.hasSearched.set(true);
     this.scheduleSearch(true);
   }
 
   protected changePage(event: PageEvent): void {
+    if (!this.canRefresh()) return;
     this.currentPage = event.pageIndex + 1;
     this.pageSize = event.pageSize;
     this.scheduleSearch(true);
@@ -445,7 +464,7 @@ export class AuditLogListPage {
   private buildCriteria(): AuditLogSearchCriteria | null {
     if (this.validationMessage() !== null) return null;
     const from = buildInstant(this.fromDate, this.fromTime);
-    const to = buildInstant(this.toDate, this.toTime);
+    const to = buildInstant(this.toDate, this.toTime, true);
     if (!from || !to) return null;
 
     return {
@@ -458,6 +477,15 @@ export class AuditLogListPage {
       page: this.currentPage,
       pageSize: this.pageSize,
     };
+  }
+
+  private invalidateResults(): void {
+    this.requestSequence += 1;
+    this.items.set([]);
+    this.totalItems.set(0);
+    this.error.set(null);
+    this.isLoading.set(false);
+    this.hasSearched.set(false);
   }
 
   private scheduleSearch(immediate: boolean): void {
