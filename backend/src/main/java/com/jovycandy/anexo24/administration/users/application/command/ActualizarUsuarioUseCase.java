@@ -1,6 +1,6 @@
 package com.jovycandy.anexo24.administration.users.application.command;
 
-import com.jovycandy.anexo24.administration.users.api.dto.ActualizarUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
 import com.jovycandy.anexo24.administration.users.domain.port.UsuarioComandoRepository;
 import com.jovycandy.anexo24.administration.users.domain.port.UsuarioConsultaRepository;
@@ -38,11 +38,11 @@ public class ActualizarUsuarioUseCase {
     }
 
     @Transactional(transactionManager = "appTransactionManager")
-    public UsuarioAdministracion ejecutar(Long id, ActualizarUsuarioRequest request, String correlationId) {
+    public UsuarioAdministracion ejecutar(Long id, ActualizarUsuarioCommand command, String correlationId) {
         if (id == null || id <= 0) throw new SolicitudInvalidaException("El parámetro id debe ser positivo.");
         UsuarioAdministracion actual = consultaRepository.findById(id).orElseThrow(RecursoNoEncontradoException::new);
-        String nombre = request.nombre().trim();
-        String correo = request.correo().trim();
+        String nombre = command.nombre().trim();
+        String correo = command.correo().trim();
         if (comandoRepository.existsByCorreoExceptoUsuario(correo, id)) throw new RecursoDuplicadoException();
         List<String> campos = new ArrayList<>();
         if (!nombre.equals(actual.nombre())) campos.add("nombre");

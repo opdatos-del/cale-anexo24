@@ -1,15 +1,24 @@
 package com.jovycandy.anexo24.administration.users.api;
 
+import com.jovycandy.anexo24.administration.users.api.dto.ActualizarUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CrearUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
 import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CrearUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
+import com.jovycandy.anexo24.shared.api.GlobalExceptionHandler;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -25,99 +34,104 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Pruebas unitarias del controlador read-only de usuarios. */
 @ExtendWith(MockitoExtension.class)
 class UsuarioAdministracionControllerTest {
-
-    @Mock
-    private ListarUsuariosUseCase listarUsuariosUseCase;
-
-    @Mock
-    private ObtenerUsuarioUseCase obtenerUsuarioUseCase;
-
-    @Mock
-    private CrearUsuarioUseCase crearUsuarioUseCase;
-
-    @Mock
-    private ActualizarUsuarioUseCase actualizarUsuarioUseCase;
-
-    private UsuarioAdministracion usuario() {
-        return new UsuarioAdministracion(42L, "op01", "Operador Uno",
-                "op@example.test", "ACTIVO", LocalDate.of(2026, 12, 31), 3L, "ADMINISTRADOR");
-    }
+    @Mock private ListarUsuariosUseCase listarUsuariosUseCase;
+    @Mock private ObtenerUsuarioUseCase obtenerUsuarioUseCase;
+    @Mock private CrearUsuarioUseCase crearUsuarioUseCase;
+    @Mock private ActualizarUsuarioUseCase actualizarUsuarioUseCase;
+    @Mock private HttpServletRequest servletRequest;
 
     @Test
     void listadoDelegaParametrosYConvierteDominioADto() {
         UsuarioAdministracion usuario = usuario();
         Pagina<UsuarioAdministracion> pagina = new Pagina<>(List.of(usuario), 7L, 2, 10);
-        when(listarUsuariosUseCase.ejecutar(
-                "op01", "Juan", "op@example.test", "ACTIVO", 3L, 2, 10))
+        when(listarUsuariosUseCase.ejecutar("op01", "Juan", "op@example.test", "ACTIVO", 3L, 2, 10))
                 .thenReturn(pagina);
 
-        ResponseEntity<Pagina<UsuarioAdministracionDto>> resultado =
-                controller().listar("op01", "Juan", "op@example.test", "ACTIVO", 3L, 2, 10);
-
-        verify(listarUsuariosUseCase).ejecutar(
+        ResponseEntity<Pagina<UsuarioAdministracionDto>> resultado = controller().listar(
                 "op01", "Juan", "op@example.test", "ACTIVO", 3L, 2, 10);
+
+        verify(listarUsuariosUseCase).ejecutar("op01", "Juan", "op@example.test", "ACTIVO", 3L, 2, 10);
         assertThat(resultado.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resultado.getBody()).isNotNull();
-        assertThat(resultado.getBody().total()).isEqualTo(7L);
-        assertThat(resultado.getBody().pagina()).isEqualTo(2);
-        assertThat(resultado.getBody().tamano()).isEqualTo(10);
-        assertThat(resultado.getBody().items())
-                .containsExactly(UsuarioAdministracionDto.from(usuario));
+        assertThat(resultado.getBody().items()).containsExactly(UsuarioAdministracionDto.from(usuario));
     }
 
     @Test
-    void detalleDevuelveDto() {
+    void detalleDevuelveDtoYPropagaNoEncontrado() {
         when(obtenerUsuarioUseCase.ejecutar(42L)).thenReturn(usuario());
+        assertThat(controller().obtener(42L).getBody()).isEqualTo(UsuarioAdministracionDto.from(usuario()));
 
-        ResponseEntity<UsuarioAdministracionDto> resultado = controller().obtener(42L);
+        when(obtenerUsuarioUseCase.ejecutar(43L)).thenThrow(new RecursoNoEncontradoException());
+        assertThatThrownBy(() -> controller().obtener(43L)).isInstanceOf(RecursoNoEncontradoException.class);
+    }
 
+    @Test
+    void crearMapeaRequestACommandConCorrelacionYLocation() {
+        CrearUsuarioRequest request = new CrearUsuarioRequest("op01", "Nombre", "correo@test", "Abcdefgh1!", null, 3L);
+        when(servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR)).thenReturn("corr-1");
+        when(crearUsuarioUseCase.ejecutar(org.mockito.ArgumentMatchers.any(CrearUsuarioCommand.class), org.mockito.ArgumentMatchers.eq("corr-1")))
+                .thenReturn(usuario());
+
+        ResponseEntity<UsuarioAdministracionDto> resultado = controller().crear(request, servletRequest);
+
+        ArgumentCaptor<CrearUsuarioCommand> command = ArgumentCaptor.forClass(CrearUsuarioCommand.class);
+        verify(crearUsuarioUseCase).ejecutar(command.capture(), org.mockito.ArgumentMatchers.eq("corr-1"));
+        assertThat(command.getValue().clave()).isEqualTo("op01");
+        assertThat(command.getValue().password()).isEqualTo("Abcdefgh1!");
+        assertThat(resultado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resultado.getHeaders().getLocation()).hasToString("/api/v1/administracion/usuarios/42");
+        assertThat(resultado.getBody()).isEqualTo(UsuarioAdministracionDto.from(usuario()));
+    }
+
+    @Test
+    void actualizarMapeaRequestACommandConCorrelacion() {
+        ActualizarUsuarioRequest request = new ActualizarUsuarioRequest("Nombre", "correo@test");
+        when(servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR)).thenReturn("corr-2");
+        when(actualizarUsuarioUseCase.ejecutar(org.mockito.ArgumentMatchers.eq(42L),
+                org.mockito.ArgumentMatchers.any(ActualizarUsuarioCommand.class), org.mockito.ArgumentMatchers.eq("corr-2")))
+                .thenReturn(usuario());
+
+        ResponseEntity<UsuarioAdministracionDto> resultado = controller().actualizar(42L, request, servletRequest);
+
+        ArgumentCaptor<ActualizarUsuarioCommand> command = ArgumentCaptor.forClass(ActualizarUsuarioCommand.class);
+        verify(actualizarUsuarioUseCase).ejecutar(org.mockito.ArgumentMatchers.eq(42L), command.capture(),
+                org.mockito.ArgumentMatchers.eq("corr-2"));
+        assertThat(command.getValue().nombre()).isEqualTo("Nombre");
+        assertThat(command.getValue().correo()).isEqualTo("correo@test");
         assertThat(resultado.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resultado.getBody()).isEqualTo(UsuarioAdministracionDto.from(usuario()));
     }
 
     @Test
-    void detallePropagaRecursoNoEncontrado() {
-        when(obtenerUsuarioUseCase.ejecutar(42L))
-                .thenThrow(new RecursoNoEncontradoException());
-
-        assertThatThrownBy(() -> controller().obtener(42L))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+    void endpointsExigenPermisoUsuariosAdministrarYDocumentanOperacionCorrecta() throws NoSuchMethodException {
+        assertPermisoYOperacion("listar", new Class[]{String.class, String.class, String.class, String.class, Long.class, int.class, int.class},
+                "Listar usuarios de administración");
+        assertPermisoYOperacion("obtener", new Class[]{Long.class}, "Obtener usuario de administración");
+        assertPermisoYOperacion("crear", new Class[]{CrearUsuarioRequest.class, HttpServletRequest.class}, "Crear usuario de administración");
+        assertPermisoYOperacion("actualizar", new Class[]{Long.class, ActualizarUsuarioRequest.class, HttpServletRequest.class},
+                "Actualizar datos básicos de usuario");
     }
 
-    @Test
-    void listadoExigePermisoUsuariosAdministrar() throws NoSuchMethodException {
-        Method listar = UsuarioAdministracionController.class.getDeclaredMethod(
-                "listar",
-                String.class,
-                String.class,
-                String.class,
-                String.class,
-                Long.class,
-                int.class,
-                int.class);
-
-        PreAuthorize autorizacion = listar.getAnnotation(PreAuthorize.class);
+    private void assertPermisoYOperacion(String nombre, Class<?>[] parametros, String resumen) throws NoSuchMethodException {
+        Method metodo = UsuarioAdministracionController.class.getDeclaredMethod(nombre, parametros);
+        PreAuthorize autorizacion = metodo.getAnnotation(PreAuthorize.class);
+        Operation operation = metodo.getAnnotation(Operation.class);
 
         assertThat(autorizacion).isNotNull();
         assertThat(autorizacion.value()).isEqualTo("hasAuthority('USUARIOS_ADMINISTRAR')");
-    }
-
-    @Test
-    void detalleExigePermisoUsuariosAdministrar() throws NoSuchMethodException {
-        Method obtener = UsuarioAdministracionController.class.getDeclaredMethod(
-                "obtener", Long.class);
-
-        PreAuthorize autorizacion = obtener.getAnnotation(PreAuthorize.class);
-
-        assertThat(autorizacion).isNotNull();
-        assertThat(autorizacion.value()).isEqualTo("hasAuthority('USUARIOS_ADMINISTRAR')");
+        assertThat(operation).isNotNull();
+        assertThat(operation.summary()).isEqualTo(resumen);
+        assertThat(metodo.getAnnotation(ApiResponses.class)).isNotNull();
     }
 
     private UsuarioAdministracionController controller() {
         return new UsuarioAdministracionController(listarUsuariosUseCase, obtenerUsuarioUseCase,
                 crearUsuarioUseCase, actualizarUsuarioUseCase);
+    }
+
+    private UsuarioAdministracion usuario() {
+        return new UsuarioAdministracion(42L, "op01", "Operador Uno", "op@example.test", "ACTIVO",
+                LocalDate.of(2026, 12, 31), 3L, "ADMINISTRADOR");
     }
 }

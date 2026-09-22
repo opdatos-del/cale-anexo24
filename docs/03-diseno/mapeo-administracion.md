@@ -29,12 +29,12 @@ actual.
 | `infra/sql/02-app-schema.sql` | DDL de `app24` (PerfilApp, Actividad, PerfilActividad, UsuarioApp, BitacoraEvento, CargaFacturacion, ErrorCarga, ConfiguracionPlantilla) | **CONFIRMADO** para esquema versionado |
 | `infra/sql/03-app-seed-security.sql` | Perfiles `ADMINISTRADOR`/`CONSULTA`, 12 actividades, asignaciones y usuario `admin` | **CONFIRMADO** |
 | `infra/sql/04-app-runtime-permissions.sql` | Política mínima por objeto para `anexo24_app` vía rol `app24_runtime` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** |
-| `administration/users/**` | Modelo `UsuarioApp`, puerto `UsuarioRepository`, `UsuarioJdbcAdapter` | **IMPLEMENTADO EN REPOSITORIO**; solo lectura de autenticación |
+| `administration/users/**` | Puertos separados de autenticación, lectura y command; GETs, POST y PUT de usuarios | **IMPLEMENTADO EN REPOSITORIO**; Fase 3A pendiente de validación runtime remota |
 | `security/**` | Login, JWT, filtro, contexto de usuario, entry point y excepciones | **IMPLEMENTADO EN REPOSITORIO** |
-| `auditlog/**` | Catálogo de módulos/acciones y writer append-only | **IMPLEMENTADO EN REPOSITORIO**; acciones de Administración pendientes |
-| `shared/config/DataSourceConfig.java` | Dos orígenes: `primaryDataSource`/`jdbcTemplate` (Módulo C) y `appDataSource`/`appJdbcTemplate` (app24); sin transaction manager declarado | **CONFIRMADO**; hallazgo transaccional en §29 |
+| `auditlog/**` | Catálogo de módulos/acciones y writer append-only | **IMPLEMENTADO EN REPOSITORIO**; `USUARIO_CREADO` y `USUARIO_ACTUALIZADO` conectados en Fase 3A |
+| `shared/config/DataSourceConfig.java` | Dos orígenes, templates y transaction managers explícitos para Módulo C y `app24` | **CONFIRMADO**; `transactionManager` y `appTransactionManager` documentados en §29 |
 | `frontend/src/app/features/administration/**` | Solo `audit-log` implementado; `users`, `profiles`, `permissions` vacíos (`.gitkeep`) | **IMPLEMENTADO EN REPOSITORIO** (bitácora); **NO IMPLEMENTADO** (resto) |
-| `docs/03-diseno/modelo-datos.md`, `docs/04-desarrollo/api.md` | Modelo lógico y contrato API documentado | **CONFIRMADO** como documentación; `api.md` describe rutas prospectivas de administración **NO implementadas** |
+| `docs/03-diseno/modelo-datos.md`, `docs/04-desarrollo/api.md` | Modelo lógico y contrato API documentado | **CONFIRMADO**; usuarios GET/POST/PUT están implementados en repositorio |
 
 No se ejecutó SQL, no se consultó runtime remoto y no se debilitó TLS.
 
@@ -173,12 +173,12 @@ por perfil se registra en bitácora como `LOGIN_FALLIDO` con el actor real.
 ## 7. Bitácora y eventos de Administración
 
 **CONFIRMADO:** `BitacoraModulo` incluye `ADMINISTRACION`; `BitacoraAccion`
-solo define `LOGIN_OK`/`LOGIN_FALLIDO`.
+define `LOGIN_OK`, `LOGIN_FALLIDO`, `USUARIO_CREADO` y `USUARIO_ACTUALIZADO`.
 
-**PENDIENTE:** acciones de Administración (catálogo V1 cerrado en **§28**)
-se aprueban junto con la implementación. Writer append-only existente
-(`RegistrarEventoBitacoraService` + `BitacoraJdbcAdapter`) está listo para
-conectarse a los futuros commands con `AuthenticatedUserContext` como actor.
+En Fase 3A, el writer append-only existente (`RegistrarEventoBitacoraService`
++ `BitacoraJdbcAdapter`) registra creación y edición con
+`AuthenticatedUserContext` como actor. Las acciones de estado, perfil,
+vigencia y reset de contraseña permanecen pendientes.
 
 **CONFIRMADO (hallazgo de diseño):** `AuthenticationEntryPoint` responde 401 sin
 registrar evento; 403 de `@PreAuthorize` tampoco registra evento. Política de
@@ -202,9 +202,9 @@ registro de 401/403 sigue **PENDIENTE** (mapeo-bitacora.md §10).
 administración. Usuario `admin` (hash bcrypt de reemplazo obligatorio en
 producción) pertenece a `ADMINISTRADOR`.
 
-**NO IMPLEMENTADO:** los permisos `USUARIOS_ADMINISTRAR`,
-`PERFILES_ADMINISTRAR` y `ACTIVIDADES_ADMINISTRAR` no protegen ningún endpoint
-porque no existen endpoints de administración.
+**IMPLEMENTADO:** `USUARIOS_ADMINISTRAR` protege `GET` listado, `GET` detalle,
+`POST` y `PUT` de `/api/v1/administracion/usuarios`. `PERFILES_ADMINISTRAR`
+permanece pendiente y `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
 
 ## 9. Permisos runtime de base de datos — estado actual
 
@@ -213,7 +213,8 @@ porque no existen endpoints de administración.
 
 | Objeto | Permiso |
 |---|---|
-| `app24.UsuarioApp` | `SELECT` |
+| `app24.UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo)` |
+| `app24.PerfilApp` | `SELECT` |
 | `app24.PerfilActividad` | `SELECT` |
 | `app24.Actividad` | `SELECT` |
 | `app24.BitacoraEvento` | `SELECT, INSERT` |
@@ -601,7 +602,7 @@ razonable. **Nunca:** password, hash, request completo, JWT, `Authorization`.
 Resultado: `EXITO`/`FALLO` (catálogo de `mapeo-bitacora.md` §8). Actor:
 `AuthenticatedUserContext.currentUser()`, nunca identidad de body/query.
 
-## 29. Transaccionalidad — HALLAZGO CONFIRMADO
+## 29. Transaccionalidad — IMPLEMENTADA EN REPOSITORIO
 
 **CONFIRMADO (código, `shared/config/DataSourceConfig.java`):** existen los
 beans:
@@ -609,32 +610,17 @@ beans:
 ```text
 primaryDataSourceProperties, primaryDataSource   (@Primary — Módulo C / CALE_IMMEX)
 jdbcTemplate                                     (Módulo C)
+transactionManager                               (primaryDataSource)
 appDataSourceProperties, appDataSource           (ANEXO24_DEV / app24)
 appJdbcTemplate                                  (app24)
+appTransactionManager                            (appDataSource)
 ```
 
-**PERO NO existe** en `DataSourceConfig` — ni en el resto de
-`backend/src/main/java` (grep completo) — un
-`PlatformTransactionManager` / `DataSourceTransactionManager` /
-`JdbcTransactionManager` / `TransactionTemplate` específico para
-`appDataSource`. Cero apariciones de `@Transactional` en el backend.
-
-**Por tanto:** NO está demostrado que un futuro `@Transactional` sobre commands
-de Administración englobe correctamente `UPDATE/INSERT app24.*` **+**
-`INSERT app24.BitacoraEvento`. Por auto-configuración de Spring Boot, el
-transaction manager único se enlaza al DataSource `@Primary` (Módulo C); **no
-asumir que el default apunta a `appDataSource`**.
-
-**DECISIÓN V1:** antes del primer command administrativo mutable:
-1. configurar un transaction manager explícito para `appDataSource`
-   (`DataSourceTransactionManager` o `JdbcTransactionManager` sobre
-   `appDataSource`, expuesto con `@Qualifier` propio);
-2. usarlo en los commands de negocio **y** en el evento final de Bitácora (la
-   operación de negocio y su evento en la misma transacción);
-3. probar con tests la participación conjunta (rollback del evento si falla la
-   operación y viceversa).
-
-**NO implementar todavía.** Queda en FASE 1 del roadmap (§38).
+`CrearUsuarioUseCase` y `ActualizarUsuarioUseCase` usan
+`@Transactional(transactionManager = "appTransactionManager")`. La escritura
+de negocio en `UsuarioApp` y el evento de `BitacoraEvento` participan en la
+misma transacción; no usan `REQUIRES_NEW`. Runtime remoto sigue pendiente de
+validación.
 
 ## 30. Estrategia de persistencia app24 — DECISIÓN V1
 
@@ -650,24 +636,21 @@ exclusivamente para `CALE_IMMEX` / Módulo C. Un SP en `app24` solo tendría
 sentido si aparece lógica DB compleja con valor real demostrado. Evitar
 sobreingeniería.
 
-## 31. Runtime permissions — matriz futura candidata
+## 31. Runtime permissions — estado versionado
 
-Estado actual (§9) + **candidata V1 para Administración** (no modificar `04`
-todavía):
+`04-app-runtime-permissions.sql` versiona los mínimos siguientes, todos
+pendientes de despliegue remoto:
 
-| Objeto | Hoy | Administración futura |
-|---|---|---|
-| `UsuarioApp` | `SELECT` | `SELECT, INSERT, UPDATE` — **NO DELETE** |
-| `PerfilApp` | — | `SELECT, INSERT, UPDATE` — **NO DELETE** |
-| `PerfilActividad` | `SELECT` | `SELECT, INSERT, DELETE` |
-| `Actividad` | `SELECT` | `SELECT` — **NO INSERT/UPDATE/DELETE** |
-| `BitacoraEvento` | `SELECT, INSERT` | `SELECT, INSERT` (sin cambio) |
+| Objeto | Permiso versionado |
+|---|---|
+| `UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo)` |
+| `PerfilApp` | `SELECT` |
+| `PerfilActividad` | `SELECT` |
+| `Actividad` | `SELECT` |
+| `BitacoraEvento` | `SELECT`, `INSERT` |
 
-**Explicación:** `DELETE` en `PerfilActividad` es necesario para reemplazar
-asignaciones (`PUT /{id}/permisos`, §24), pero **NO implica** DELETE de
-`PerfilApp`, `UsuarioApp` ni `Actividad` — esos objetos nunca reciben DELETE
-(§13, §26, §27). El despliegue de esta matriz va en FASE 7 (§38) con TLS
-confiable.
+No hay grants de escritura para estado, perfil, vigencia, contraseña,
+`PerfilApp` ni `PerfilActividad`. No hay `DELETE`.
 
 ## 32. Rutas API V1 — DECISIÓN
 
@@ -803,6 +786,18 @@ estable:** Usuarios `clave ASC, id ASC`; Perfiles `nombre ASC, id ASC`;
 Actividades `clave ASC`. No se aceptan filtros ni orden arbitrario por
 columnas sensibles (`password_hash`, etc.).
 
+## 37.1 Compatibilidad usuario legacy → usuario nuevo
+
+| Aspecto | Legacy | Nuevo | Estado |
+|---|---|---|---|
+| Clave | máximo 35 | máximo 30 | Rediseñado; pendiente validación negocio |
+| Nombre | máximo 100 | máximo 120 | Rediseñado; pendiente validación negocio |
+| Password | máximo 50; mínimo 10, mayúscula, número y especial | baseline 10..50, mayúscula, número y especial | Baseline funcional conservado |
+| Vigencia | sin vigencia / 2 / 4 / 8 / 12 semanas | `LocalDate` nullable | Rediseñado; backend más flexible; frontend futuro puede ofrecer presets equivalentes |
+| Usuario SAT | existe | sin campo equivalente explícito | Pendiente de definición funcional |
+| Bloqueo | existe | estado `ACTIVO`/`INACTIVO` | Equivalencia parcial; validar si bloqueo legacy tenía semántica adicional |
+| Administrador | no editable | nombre/correo técnicamente editables en Fase 3A | Decisión de rediseño pendiente de validar antes de runtime productivo |
+
 ## 38. Roadmap de implementación recomendado
 
 Secuencial — no comenzar FASE N+1 sin cerrar FASE N:
@@ -834,10 +829,13 @@ FASE 2  Usuarios read-only: **IMPLEMENTADO EN REPOSITORIO**
           autenticación); appJdbcTemplate únicamente;
         - sin DML, sin @Transactional, sin bitácora por GET.
 
-FASE 3  Usuarios commands:
-        - crear, editar, estado, perfil, vigencia, reset password;
-        - guardrails auto-bloqueo (§25);
-        - Bitácora (§28); grants UsuarioApp (§31).
+FASE 3A Usuarios commands: **IMPLEMENTADA EN REPOSITORIO**
+        (PENDIENTE DE VALIDACIÓN RUNTIME REMOTA): create, edit de nombre/correo,
+        bitácora y grants mínimos.
+
+FASE 3B Pendiente: estado, perfil, vigencia y guardrails.
+
+FASE 3C Pendiente: reset password.
 
 FASE 4  Frontend Usuarios.
 
