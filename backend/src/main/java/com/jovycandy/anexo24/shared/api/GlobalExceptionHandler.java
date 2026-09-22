@@ -1,6 +1,9 @@
 package com.jovycandy.anexo24.shared.api;
 
 import com.jovycandy.anexo24.security.CredencialesInvalidasException;
+import com.jovycandy.anexo24.shared.exception.EstadoIncompatibleException;
+import com.jovycandy.anexo24.shared.exception.RecursoDuplicadoException;
+import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -104,6 +107,48 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",
                 "La solicitud tiene un formato o parámetro inválido.", request);
+    }
+
+    /**
+     * Maneja recursos inexistentes con respuesta 404.
+     *
+     * @param ex      excepción de recurso no encontrado
+     * @param request solicitud HTTP actual
+     * @return 404 con código RECURSO_NO_ENCONTRADO y correlación
+     */
+    @ExceptionHandler(RecursoNoEncontradoException.class)
+    public ResponseEntity<ApiError> handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
+                                                               HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RECURSO_NO_ENCONTRADO",
+                ex.getMessage(), request);
+    }
+
+    /**
+     * Maneja duplicados con respuesta 409.
+     *
+     * @param ex      excepción de recurso duplicado
+     * @param request solicitud HTTP actual
+     * @return 409 con código RECURSO_DUPLICADO y correlación
+     */
+    @ExceptionHandler(RecursoDuplicadoException.class)
+    public ResponseEntity<ApiError> handleRecursoDuplicado(RecursoDuplicadoException ex,
+                                                             HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "RECURSO_DUPLICADO",
+                ex.getMessage(), request);
+    }
+
+    /**
+     * Maneja conflictos de estado con respuesta 409.
+     *
+     * @param ex      excepción de estado incompatible
+     * @param request solicitud HTTP actual
+     * @return 409 con código ESTADO_INCOMPATIBLE y correlación
+     */
+    @ExceptionHandler(EstadoIncompatibleException.class)
+    public ResponseEntity<ApiError> handleEstadoIncompatible(EstadoIncompatibleException ex,
+                                                              HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "ESTADO_INCOMPATIBLE",
+                ex.getMessage(), request);
     }
 
     /**

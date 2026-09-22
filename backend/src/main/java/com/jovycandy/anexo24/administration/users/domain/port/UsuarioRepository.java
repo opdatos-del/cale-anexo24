@@ -1,8 +1,8 @@
 package com.jovycandy.anexo24.administration.users.domain.port;
 
+import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAcceso;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioApp;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -22,10 +22,14 @@ public interface UsuarioRepository {
     Optional<UsuarioApp> findByClave(String clave);
 
     /**
-     * Obtiene los permisos (claves de actividades) del usuario.
+     * Obtiene la proyección de acceso del usuario: perfil asignado y
+     * permisos, sin filtrar el estado del perfil.
+     *
+     * <p>Devuelve vacío cuando el usuario no existe o su registro es
+     * inconsistente (sin perfil asignado).</p>
      *
      * @param usuarioId identificador del usuario
-     * @return lista de claves de permiso
+     * @return acceso del usuario o vacío
      */
-    List<String> findPermisosByUsuario(Long usuarioId);
+    Optional<UsuarioAcceso> findAccesoByUsuario(Long usuarioId);
 }

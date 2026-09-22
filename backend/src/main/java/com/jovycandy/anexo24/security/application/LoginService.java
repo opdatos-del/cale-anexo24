@@ -1,5 +1,6 @@
 package com.jovycandy.anexo24.security.application;
 
+import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAcceso;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioApp;
 import com.jovycandy.anexo24.administration.users.domain.port.UsuarioRepository;
 import com.jovycandy.anexo24.auditlog.application.RegistrarEventoBitacoraService;
@@ -69,12 +70,29 @@ public class LoginService {
         }
 
         UsuarioApp usuario = usuarioEncontrado.get();
-        if (!usuario.estaActiva() || !passwordEncoder.matches(request.password(), usuario.passwordHash())) {
+        if (!usuario.estaActiva()) {
             registrarLoginFallido(usuario.id(), correlationId);
             throw new CredencialesInvalidasException();
         }
 
-        List<String> permisos = usuarioRepository.findPermisosByUsuario(usuario.id());
+        if (!passwordEncoder.matches(request.password(), usuario.passwordHash())) {
+            registrarLoginFallido(usuario.id(), correlationId);
+            throw new CredencialesInvalidasException();
+        }
+
+        Optional<UsuarioAcceso> accesoEncontrado = usuarioRepository.findAccesoByUsuario(usuario.id());
+        if (accesoEncontrado.isEmpty()) {
+            registrarLoginFallido(usuario.id(), correlationId);
+            throw new CredencialesInvalidasException();
+        }
+
+        UsuarioAcceso acceso = accesoEncontrado.get();
+        if (!acceso.perfilActivo()) {
+            registrarLoginFallido(usuario.id(), correlationId);
+            throw new CredencialesInvalidasException();
+        }
+
+        List<String> permisos = acceso.permisos();
         bitacoraService.registrar(new BitacoraEvento(
                 usuario.id(),
                 BitacoraModulo.SEGURIDAD,

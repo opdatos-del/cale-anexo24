@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 
@@ -91,5 +93,37 @@ public class DataSourceConfig {
     public JdbcTemplate appJdbcTemplate(
             @Qualifier("appDataSource") DataSource dataSource) {
         return new JdbcTemplate(dataSource);
+    }
+
+    /**
+     * Gestor transaccional del origen primario (Módulo C).
+     *
+     * <p>Reemplaza al auto-configurado; los comandos del Módulo C lo
+     * usan por defecto con {@code @Transactional}.</p>
+     *
+     * @param dataSource origen de datos primario
+     * @return gestor transaccional JDBC del Módulo C
+     */
+    @Bean
+    @Primary
+    public JdbcTransactionManager transactionManager(
+            @Qualifier("primaryDataSource") DataSource dataSource) {
+        return new JdbcTransactionManager(dataSource);
+    }
+
+    /**
+     * Gestor transaccional del esquema complementario.
+     *
+     * <p>Los comandos de administración futura lo referencian
+     * explícitamente con {@code @Transactional(transactionManager = "appTransactionManager")}
+     * para no mezclar transacciones entre orígenes de datos.</p>
+     *
+     * @param dataSource origen de datos secundario
+     * @return gestor transaccional JDBC del esquema {@code app24}
+     */
+    @Bean
+    public JdbcTransactionManager appTransactionManager(
+            @Qualifier("appDataSource") DataSource dataSource) {
+        return new JdbcTransactionManager(dataSource);
     }
 }

@@ -1,5 +1,6 @@
 package com.jovycandy.anexo24.security.application;
 
+import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAcceso;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioApp;
 import com.jovycandy.anexo24.administration.users.domain.port.UsuarioRepository;
 import com.jovycandy.anexo24.auditlog.application.RegistrarEventoBitacoraService;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -67,7 +69,8 @@ class LoginServiceTest {
         List<String> permisos = List.of("OPERACIONES_CONSULTAR");
         when(usuarioRepository.findByClave(request.clave())).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches(request.password(), usuario.passwordHash())).thenReturn(true);
-        when(usuarioRepository.findPermisosByUsuario(usuario.id())).thenReturn(permisos);
+        when(usuarioRepository.findAccesoByUsuario(usuario.id()))
+                .thenReturn(Optional.of(new UsuarioAcceso(7L, "ACTIVO", permisos)));
         when(tokenService.generateToken(usuario.id(), usuario.clave(), permisos)).thenReturn("token-ficticio");
         when(tokenService.expirationMinutes()).thenReturn(15L);
 
@@ -114,6 +117,7 @@ class LoginServiceTest {
 
         assertEventoFallido(usuario.id());
         verify(tokenService, never()).generateToken(any(), any(), any());
+        verify(usuarioRepository, never()).findAccesoByUsuario(anyLong());
     }
 
     @Test
@@ -130,6 +134,7 @@ class LoginServiceTest {
         assertEventoFallido(usuario.id());
         verifyNoInteractions(passwordEncoder);
         verify(tokenService, never()).generateToken(any(), any(), any());
+        verify(usuarioRepository, never()).findAccesoByUsuario(anyLong());
     }
 
     @Test
@@ -139,7 +144,8 @@ class LoginServiceTest {
         DataAccessResourceFailureException error = new DataAccessResourceFailureException("BD no disponible");
         when(usuarioRepository.findByClave(request.clave())).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches(request.password(), usuario.passwordHash())).thenReturn(true);
-        when(usuarioRepository.findPermisosByUsuario(usuario.id())).thenReturn(List.of());
+        when(usuarioRepository.findAccesoByUsuario(usuario.id()))
+                .thenReturn(Optional.of(new UsuarioAcceso(7L, "ACTIVO", List.of())));
         doThrow(error).when(bitacoraService).registrar(any(BitacoraEvento.class));
 
         assertThatThrownBy(() -> service.login(request, CORRELATION_ID)).isSameAs(error);
@@ -158,6 +164,58 @@ class LoginServiceTest {
                 .isInstanceOf(CredencialesInvalidasException.class)
                 .hasMessage("Credenciales inválidas o cuenta no disponible.");
 
+        verify(tokenService, never()).generateToken(any(), any(), any());
+    }
+
+    @Test
+    void perfilActivoSinPermisosGeneraTokenConAutenticacionVacia() {
+        UsuarioApp usuario = usuarioActivo();
+        LoginRequest request = new LoginRequest("operador", "secreto-ficticio");
+        when(usuarioRepository.findByClave(request.clave())).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches(request.password(), usuario.passwordHash())).thenReturn(true);
+        when(usuarioRepository.findAccesoByUsuario(usuario.id()))
+                .thenReturn(Optional.of(new UsuarioAcceso(7L, "ACTIVO", List.of())));
+        when(tokenService.generateToken(usuario.id(), usuario.clave(), List.of()))
+                .thenReturn("token-ficticio");
+        when(tokenService.expirationMinutes()).thenReturn(15L);
+
+        LoginResponse response = service.login(request, CORRELATION_ID);
+
+        assertThat(response).isEqualTo(
+                new LoginResponse("token-ficticio", 15L, usuario.nombre(), List.of()));
+    }
+
+    @Test
+    void perfilInactivoAuditaFalloYNoGeneraToken() {
+        UsuarioApp usuario = usuarioActivo();
+        LoginRequest request = new LoginRequest("operador", "secreto-ficticio");
+        when(usuarioRepository.findByClave(request.clave())).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches(request.password(), usuario.passwordHash())).thenReturn(true);
+        when(usuarioRepository.findAccesoByUsuario(usuario.id()))
+                .thenReturn(Optional.of(new UsuarioAcceso(7L, "INACTIVO",
+                        List.of("OPERACIONES_CONSULTAR"))));
+
+        assertThatThrownBy(() -> service.login(request, CORRELATION_ID))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessage("Credenciales inválidas o cuenta no disponible.");
+
+        assertEventoFallido(usuario.id());
+        verify(tokenService, never()).generateToken(any(), any(), any());
+    }
+
+    @Test
+    void accesoSinPerfilAuditaFalloYNoGeneraToken() {
+        UsuarioApp usuario = usuarioActivo();
+        LoginRequest request = new LoginRequest("operador", "secreto-ficticio");
+        when(usuarioRepository.findByClave(request.clave())).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches(request.password(), usuario.passwordHash())).thenReturn(true);
+        when(usuarioRepository.findAccesoByUsuario(usuario.id())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.login(request, CORRELATION_ID))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessage("Credenciales inválidas o cuenta no disponible.");
+
+        assertEventoFallido(usuario.id());
         verify(tokenService, never()).generateToken(any(), any(), any());
     }
 

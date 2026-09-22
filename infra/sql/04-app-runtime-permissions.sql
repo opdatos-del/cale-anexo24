@@ -73,8 +73,9 @@ BEGIN
 END
 GO
 
--- Autenticación actual: sólo lectura de usuario y permisos asociados.
+-- Autenticación actual: sólo lectura de usuario, perfil y permisos asociados.
 GRANT SELECT ON OBJECT::app24.UsuarioApp TO app24_runtime;
+GRANT SELECT ON OBJECT::app24.PerfilApp TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.PerfilActividad TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.Actividad TO app24_runtime;
 

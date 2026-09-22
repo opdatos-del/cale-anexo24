@@ -7,7 +7,7 @@ repositorio: modelo de datos, dominio, autenticación, permisos runtime y
 contratos candidatos V1. Fase 0: **solo documentación, sin código nuevo**.
 
 **CONFIRMADO:** solo existe la lectura orientada a autenticación
-(`findByClave`, `findPermisosByUsuario`) y el flujo de login/JWT. No hay
+(`findByClave`, `findAccesoByUsuario`) y el flujo de login/JWT. No hay
 controllers, services ni adapters de escritura para administrar usuarios,
 perfiles o actividades. Los permisos `USUARIOS_ADMINISTRAR`,
 `PERFILES_ADMINISTRAR` y `ACTIVIDADES_ADMINISTRAR` existen solo como seed SQL;
@@ -95,8 +95,9 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | Archivo | Contenido | Conclusión |
 |---|---|---|
 | `UsuarioApp` | record: `id`, `clave`, `nombre`, `correo`, `passwordHash`, `estado`, `vigencia`, `perfilId`; `estaActiva()` = `ACTIVO` y (`vigencia == null` o no vencida) | **IMPLEMENTADO EN REPOSITORIO**; lógica de vigencia solo en memoria, no en SQL |
-| `UsuarioRepository` | `findByClave(String)`, `findPermisosByUsuario(Long)` | **IMPLEMENTADO EN REPOSITORIO**; puerto mínimo de autenticación |
-| `UsuarioJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; SQL parametrizado contra `app24.UsuarioApp` | **IMPLEMENTADO EN REPOSITORIO**; usa base de aplicación, no Módulo C |
+| `UsuarioAcceso` | record: `perfilId`, `perfilEstado`, `permisos`; `perfilActivo()` = `ACTIVO` ignorando mayúsculas; permisos con copia inmutable | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); distingue perfil ACTIVO con/sin permisos e INACTIVO |
+| `UsuarioRepository` | `findByClave(String)`, `findAccesoByUsuario(Long)` → `Optional<UsuarioAcceso>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); proyección de acceso sin filtrar el estado del perfil |
+| `UsuarioJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; consulta de acceso con JOIN `PerfilApp` + LEFT JOIN `PerfilActividad`/`Actividad` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); sin filtro `p.estado`; vacío si usuario sin perfil |
 
 **CONFIRMADO:** el paquete `administration` contiene únicamente esos 3
 archivos. No hay dominio para PerfilApp ni Actividad: se referencian solo por
@@ -109,22 +110,22 @@ SQL y seed.
 | `LoginController` | `POST /api/v1/auth/login`, público; pasa correlationId normalizado | **IMPLEMENTADO EN REPOSITORIO** |
 | `LoginRequest` | `clave` y `password` `@NotBlank` | **IMPLEMENTADO EN REPOSITORIO** |
 | `LoginResponse` | `token`, `expiraEn`, `usuario`, `permisos` | **IMPLEMENTADO EN REPOSITORIO** |
-| `LoginService` | `findByClave`; `estaActiva()` + `passwordEncoder.matches`; permisos; `LOGIN_OK`/`LOGIN_FALLIDO`; JWT con permisos | **IMPLEMENTADO EN REPOSITORIO** |
+| `LoginService` | orden fijo: `findByClave` → `estaActiva()` → `passwordEncoder.matches` → `findAccesoByUsuario` → `perfilActivo()`; 401 genérico en cada fallo; `LOGIN_OK`/`LOGIN_FALLIDO`; JWT con permisos (lista vacía permitida) | **IMPLEMENTADO EN REPOSITORIO** (FASE 1) |
 | `JwtTokenService` | HS256; claims `subject=clave`, `uid`, `auth`; expiración `${jwt.expiration-minutes}` | **IMPLEMENTADO EN REPOSITORIO** |
 | `JwtAuthFilter` | Bearer; valida firma; `uid` numérico entero positivo obligatorio; falla → anónimo (fail-closed) | **IMPLEMENTADO EN REPOSITORIO** |
 | `AuthenticatedUserPrincipal` / `AuthenticatedUserContext` | Identidad confiable desde contexto; `currentUser()` solo con principal esperado | **IMPLEMENTADO EN REPOSITORIO** |
 | `SecurityConfig` | Stateless; `permitAll` login/health/info/swagger; resto `authenticated`; `@EnableMethodSecurity`; bcrypt | **IMPLEMENTADO EN REPOSITORIO** |
 | `ApiAuthenticationEntryPoint` | 401 JSON con correlación | **IMPLEMENTADO EN REPOSITORIO** |
-| `GlobalExceptionHandler` | 401 credenciales, 403 acceso, 401 auth, 400 validación/formato, 503 datos, 500 inesperado | **IMPLEMENTADO EN REPOSITORIO** |
+| `GlobalExceptionHandler` | 401 credenciales, 403 acceso, 401 auth, 400 validación/formato, 404 `RECURSO_NO_ENCONTRADO`, 409 `RECURSO_DUPLICADO`/`ESTADO_INCOMPATIBLE`, 503 datos, 500 inesperado | **IMPLEMENTADO EN REPOSITORIO** (FASE 1) |
 
 **CONFIRMADO:** la autorización por endpoint usa `@PreAuthorize("hasAuthority('...')")`
 — 9 controladores existentes (bitácora, materiales, productos, estructuras,
 entradas, salidas, materiales utilizados, activos fijos). La autorización recae
 enteramente en el claim `auth` del token.
 
-## 6. HALLAZGO CRÍTICO — permisos sin validar `PerfilApp.estado`
+## 6. HALLAZGO — permisos sin validar `PerfilApp.estado` (RESUELTO EN FASE 1)
 
-`UsuarioJdbcAdapter.findPermisosByUsuario` ejecuta:
+Antes (FASE 0): `UsuarioJdbcAdapter.findPermisosByUsuario` ejecutaba:
 
 ```sql
 SELECT a.clave FROM app24.UsuarioApp u
@@ -145,7 +146,24 @@ usuario que lo tiene asignado (mientras el usuario esté ACTIVO y vigente). El
 La decisión de diseño que cierra este hallazgo está en **§17 — Semántica de
 perfil INACTIVO** (login debe rechazar, no emitir JWT vacío) y **§18 —
 Sesiones JWT ya emitidas** (consistencia eventual; sin revocación inmediata en
-V1). **NO implementado todavía.**
+V1). **RESUELTO EN FASE 1** (IMPLEMENTADO EN REPOSITORIO; aún PENDIENTE DE
+VALIDACIÓN RUNTIME REMOTA):
+
+`findAccesoByUsuario` consulta el estado del perfil **sin filtrarlo** y el login
+decide (401 genérico si INACTIVO, ausente o inconsistente):
+
+```sql
+SELECT p.id AS perfil_id, p.estado AS perfil_estado, a.clave AS permiso
+FROM app24.UsuarioApp u
+JOIN app24.PerfilApp p ON p.id = u.perfil_id
+LEFT JOIN app24.PerfilActividad pa ON pa.perfil_id = p.id
+LEFT JOIN app24.Actividad a ON a.id = pa.actividad_id
+WHERE u.id = ?
+ORDER BY a.clave ASC
+```
+
+El perfil `ACTIVO` sin permisos autentica con JWT de `auth` vacía; el rechazo
+por perfil se registra en bitácora como `LOGIN_FALLIDO` con el actor real.
 
 ## 7. Bitácora y eventos de Administración
 
@@ -500,8 +518,8 @@ PerfilApp    N ↔ N   Actividad   (mediante PerfilActividad)
 ```
 
 Los permisos de un usuario se derivan **SIEMPRE del perfil**
-(`findPermisosByUsuario`). **NO implementar permisos directos por usuario en
-V1** — exigiría cambio DDL y complejiza la auditoría.
+(consulta de acceso `findAccesoByUsuario`). **NO implementar permisos directos
+por usuario en V1** — exigiría cambio DDL y complejiza la auditoría.
 
 **DECISIÓN V1 — command de reemplazo:** implementar
 `PUT /{id}/permisos` que reemplace el conjunto completo de actividades del
@@ -785,14 +803,19 @@ columnas sensibles (`password_hash`, etc.).
 Secuencial — no comenzar FASE N+1 sin cerrar FASE N:
 
 ```text
-FASE 1  Hardening previo:
-        - PerfilApp.estado efectivo en auth: validación inequívoca del estado
-          del perfil (login + findPermisosByUsuario), sin inferirlo por lista
-          de permisos; login genérico 401 si perfil INACTIVO (§17);
-        - transaction manager explícito appDataSource + tests (§29);
-        - handler 404/409 y convención de errores;
-        - tests de: perfil ACTIVO con permisos; perfil ACTIVO sin permisos;
-          perfil INACTIVO.
+FASE 1  Hardening previo: **IMPLEMENTADO EN REPOSITORIO** (PENDIENTE DE
+        VALIDACIÓN RUNTIME REMOTA):
+        - PerfilApp.estado efectivo en auth: consulta única `findAccesoByUsuario`
+          sin filtrar el estado; login rechaza con 401 genérico si el perfil es
+          INACTIVO, no existe o el registro es inconsistente (§17);
+        - distinción explícita: perfil ACTIVO con permisos; ACTIVO sin permisos
+          (autentica con JWT de auth vacía); INACTIVO; inexistente-inconsistente;
+        - transaction managers explícitos `transactionManager` (primario) y
+          `appTransactionManager` (aplicación) + tests (§29);
+        - errores base 404/409 y handlers en `GlobalExceptionHandler`;
+        - tests: ACTIVO con permisos, ACTIVO sin permisos, INACTIVO,
+          acceso inconsistente y rollback del gestor de aplicación;
+        - SQL 04 versionado: `GRANT SELECT` sobre `PerfilApp`, sin escrituras.
 
 FASE 2  Usuarios read-only:
         - query/paginación con JOIN PerfilApp;
@@ -821,8 +844,8 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 
 ## 39. Riesgos y pendientes
 
-1. **PerfilInactivo-concede-permisos (§6/§17):** corregido solo en FASE 1; hoy
-   sigue siendo un hueco real.
+1. **PerfilInactivo-concede-permisos (§6/§17):** corregido en FASE 1
+   (IMPLEMENTADO EN REPOSITORIO); **PENDIENTE DE VALIDACIÓN RUNTIME REMOTA**.
 2. JWT emitidos no revocables (consistencia eventual aceptada, §18) — revisar
    con auditoría si la ventana definida por la expiración JWT configurada no
    es aceptable.
