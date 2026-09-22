@@ -3,15 +3,15 @@
 ## 1. Objetivo y decisión arquitectónica
 
 Esta auditoría define fuente canónica, modelo, seguridad y contratos candidatos
-de la bitácora de la **nueva aplicación**. La fase posterior de hardening
-versionó identidad JWT confiable y permisos SQL mínimos; no implementa writer,
-endpoint, frontend, triggers ni eventos de prueba.
+de la bitácora de la **nueva aplicación**. Hardening y writer interno append-only
+están versionados; no se conectan eventos, endpoint, frontend, triggers ni
+eventos de prueba.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
 > canónica candidata para eventos funcionales y de seguridad de la aplicación
-> nueva. El modelo permite cerrar una consulta HTTP read-only candidata, pero
-> **no debe implementarse hasta ajustar la inmutabilidad por privilegios y
-> diseñar el writer**. No existe fuente legacy canónica demostrada.
+> nueva. Writer interno tipado y append-only están implementados en repositorio;
+> su permiso mínimo sigue pendiente de despliegue. Consulta HTTP aún no debe
+> implementarse. No existe fuente legacy canónica demostrada.
 
 La bitácora legacy, si se demuestra, será histórica y separada. No se unifica
 con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
@@ -23,7 +23,8 @@ con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
 | `infra/sql/02-app-schema.sql` | DDL, FK, default e índices de `app24.BitacoraEvento` | **CONFIRMADO** para esquema versionado |
 | `infra/sql/00-bootstrap.sql` y `04-app-runtime-permissions.sql` | Bootstrap sin permisos globales y política mínima por objeto para `anexo24_app` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** en servidor |
 | `infra/sql/03-app-seed-security.sql` | Permiso y asignación inicial de perfiles | **CONFIRMADO** |
-| `CorrelationIdFilter`, filtros JWT, login, excepciones y adapter de usuarios | Propagación actual de identidad y correlación | **CONFIRMADO** por código |
+| `CorrelationIdFilter`, filtros JWT, `AuthenticatedUserContext`, login, excepciones y adapter de usuarios | Propagación de identidad y correlación | **IMPLEMENTADO EN REPOSITORIO** por código |
+| Paquete `auditlog` | Modelo tipado, puerto append-only, servicio interno y adapter JDBC con `appJdbcTemplate` | **IMPLEMENTADO EN REPOSITORIO**; eventos aún no conectados |
 | Auditoría Web Forms | Existió reporte Bitácora con fechas, pero falló al generar | **CONFIRMADO** para pantalla; no para fuente física |
 | CALE_IMMEX actual | Objetos `BITACORA`, `HISTORIA`, `LOG`, `AUDIT`, grants, metadata y datos | **PENDIENTE DE REVALIDACIÓN**; TLS bloqueado sin bypass |
 
@@ -69,8 +70,10 @@ sólo inserción ni mecanismo DDL que impida `UPDATE`/`DELETE` sobre esta tabla.
 La palabra “inmutable” en comentario y documentos es una intención, no una
 garantía actual:
 
-- **CONFIRMADO:** no existe `BitacoraRepository`, `BitacoraService`, writer,
-  controlador ni endpoint de Bitácora en backend.
+- **IMPLEMENTADO EN REPOSITORIO:** `BitacoraEventoRepository` expone sólo
+  `registrar`; `RegistrarEventoBitacoraService` y `BitacoraJdbcAdapter` ejecutan
+  un `INSERT` parametrizado contra `app24.BitacoraEvento`. No hay controlador,
+  endpoint ni métodos de actualización/borrado.
 - **CONFIRMADO:** no hay `UPDATE`/`DELETE`/trigger de Bitácora versionado.
 - **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE DESPLIEGUE:**
   `00-bootstrap.sql` ya no asigna `db_datareader`, `db_datawriter` ni
@@ -81,14 +84,15 @@ garantía actual:
   `ANEXO24_DEV`; un futuro adaptador de Bitácora pertenece a este esquema,
   nunca a `CALE_IMMEX` ni a un `APP24_Q_*` legacy.
 
-Estrategia mínima futura, antes de implementar:
+Estrategia mínima actual:
 
-1. arquitectura: puerto/repository interno con sólo `registrar` y `listar`;
-   sin método de actualización/borrado;
-2. API externa: `GET` únicamente; nunca `POST`, `PUT`, `PATCH` ni `DELETE`;
-3. privilegios: retirar `db_datawriter` de la cuenta que no deba mutar todo el
-   esquema y usar roles/cuentas de mínimo privilegio, con `INSERT`/`SELECT`
-   estrictamente necesarios sobre Bitácora y sin `UPDATE`/`DELETE`;
+1. **IMPLEMENTADO EN REPOSITORIO:** puerto interno con sólo `registrar`, sin
+   método de actualización/borrado; adapter con `INSERT` parametrizado y control
+   de exactamente una fila afectada;
+2. API externa futura: `GET` únicamente; nunca `POST`, `PUT`, `PATCH` ni
+   `DELETE`;
+3. **PENDIENTE DE DESPLIEGUE:** retirar privilegios globales y aplicar
+   `app24_runtime` con `INSERT`/`SELECT` necesarios, sin `UPDATE`/`DELETE`;
 4. evaluar después si una restricción DB adicional es necesaria.
 
 No se aprueba blockchain, hash chain ni sobreingeniería equivalente. El cambio
@@ -112,8 +116,10 @@ requiere `uid` numérico, entero y positivo, además de subject no vacío. Luego
 construye `AuthenticatedUserPrincipal(userId, username)`, que implementa
 `Principal`: `authentication.getPrincipal()` conserva identidad confiable y
 `authentication.getName()` conserva username. Un token sin `uid`, con `uid`
-inválido/no positivo o subject inválido queda anónimo. Writer futuro no debe
-reparsear JWT ni aceptar `userId` cliente.
+inválido/no positivo o subject inválido queda anónimo.
+`AuthenticatedUserContext.currentUser()` expone ese principal sólo cuando la
+Authentication actual es válida y su principal tiene tipo esperado. Writer no
+reparsea JWT ni acepta `userId` cliente.
 
 **PENDIENTE:** `usuario_id` más JOIN a `UsuarioApp` muestra clave/nombre
 actuales, no snapshot histórico si esos atributos cambian. V1 puede presentar
@@ -244,7 +250,7 @@ pero no es asignación de seed. No se modifica seguridad.
 
 ## 14. Contratos V1 candidatos
 
-### 14.1 Writer interno — no implementado
+### 14.1 Writer interno — IMPLEMENTADO EN REPOSITORIO
 
 ```text
 registrarEvento(
@@ -258,8 +264,12 @@ registrarEvento(
 ```
 
 Sólo servicios internos lo invocan. No existe endpoint público que acepte un
-evento arbitrario. Debe usar `appJdbcTemplate` y parámetros SQL; no toca
-`CALE_IMMEX`.
+evento arbitrario. `BitacoraEvento` valida actor opcional positivo, enums
+controlados, detalle seguro de hasta 500 caracteres y correlación normalizada.
+`BitacoraJdbcAdapter` usa exclusivamente `appJdbcTemplate` e inserta
+`usuario_id`, `modulo`, `accion`, `detalle`, `correlacion_id` y `resultado`;
+no envía `id`/`fecha`, delegados a `IDENTITY` y `SYSUTCDATETIME()`. No toca
+`CALE_IMMEX`, no genera correlationId y no declara `REQUIRES_NEW`.
 
 ### 14.2 Consulta HTTP — contrato cerrado como candidato, no implementado
 
@@ -286,10 +296,10 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
 
 ## 15. Riesgos y pendientes
 
-1. Desplegar y verificar con acceso SQL confiable el hardening versionado:
+1. Desplegar y verificar con acceso SQL confiable hardening y permisos mínimos:
    retiro de privilegios globales y aplicación de `app24_runtime`.
-2. Diseñar writer interno que consuma `AuthenticatedUserPrincipal` desde
-   `SecurityContext`, sin aceptar identidad del cliente.
+2. Conectar eventos aprobados a callers futuros usando
+   `AuthenticatedUserContext`, sin aceptar identidad del cliente.
 3. Cerrar retención, archivado, anonimización, clasificación sensible,
    capacidad y límites de rango.
 4. Confirmar fuente legacy con TLS confiable y distinguir su historial del app
@@ -305,7 +315,9 @@ La etiqueta de usuario no es snapshot histórico. GET nunca escribe ni
 
 - Hardening backend y SQL versionado: `AuthenticatedUserPrincipal`, validación
   fail-closed de `uid` y `04-app-runtime-permissions.sql`.
-- Cero writer, endpoint, frontend, triggers o eventos implementados.
+- Writer interno append-only implementado: modelo tipado, puerto, servicio,
+  adapter `appJdbcTemplate` y `AuthenticatedUserContext`.
+- Cero endpoint, frontend, triggers o conexiones de eventos implementadas.
 - Cero eventos insertados y cero SQL remoto ejecutado; despliegue de permisos
   sigue pendiente de acceso TLS confiable.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.
