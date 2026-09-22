@@ -65,6 +65,14 @@ lectura.
 | Facturación | Flujo `TmpFC` / facturas creadas | SP LEGACY | `dbo.INSTERTAFACTURASFC` | IMPORT | Sí | Sí | CONFIRMADO por snapshot de metadata; `TmpFC`, `TMPFCERROR`, `FacturasCreadas`; propósito y vigencia pendientes |
 | Facturación | Vínculo especializado CTM | SP LEGACY | `dbo.LIGACTMFACTURA` | PROCESS | Sí | Sí | CONFIRMADO; usa `FACTURASCTM`; subdominio CTM fuera de V1 general |
 | Facturación | API V1 de carga/confirmación | NO IMPLEMENTAR | — | — | — | — | DECISIÓN V1 — sin contrato; faltan plantilla oficial, granularidad, identidad, duplicados, transacción, aislamiento por lote y decisión de persistencia de validación |
+| Administración | Autenticación de usuario | APP DATABASE | `ANEXO24_DEV.app24.UsuarioApp` + `PerfilActividad` + `Actividad` | QUERY | Sí | No | CONFIRMADO — `POST /api/v1/auth/login` implementado; JWT HS256 con claims `uid`/`auth`, bcrypt, actor confiable; fuente propia, no Módulo C. HALLAZGO: `findPermisosByUsuario` no filtra `PerfilApp.estado` |
+| Administración | Administración de usuarios (CRUD) | APP DATABASE | `ANEXO24_DEV.app24.UsuarioApp` | COMMAND | — | — | NO IMPLEMENTADO — DECISIÓN V1 — solo existe lectura de autenticación; permiso `USUARIOS_ADMINISTRAR` sembrado sin backend ni frontend |
+| Administración | Administración de perfiles | APP DATABASE | `ANEXO24_DEV.app24.PerfilApp` + `PerfilActividad` | COMMAND | — | — | NO IMPLEMENTADO — DECISIÓN V1 — seed `ADMINISTRADOR`/`CONSULTA`; permiso `PERFILES_ADMINISTRAR` sin backend; inactivación de perfil sin efecto operativo (ver HALLAZGO) |
+| Administración | Catálogo de actividades/permisos | APP DATABASE | `ANEXO24_DEV.app24.Actividad` | QUERY | — | — | NO IMPLEMENTADO — DECISIÓN V1 — 12 actividades sembradas; permiso `ACTIVIDADES_ADMINISTRAR` sin backend |
+
+> El módulo Administración (como Bitácora) usa la base de aplicación
+> `ANEXO24_DEV.app24`; la regla STORED PROCEDURE FIRST aplica únicamente al
+> Módulo C. Evidencia detallada en [`mapeo-administracion.md`](mapeo-administracion.md).
 
 ## Estado de Productos
 
