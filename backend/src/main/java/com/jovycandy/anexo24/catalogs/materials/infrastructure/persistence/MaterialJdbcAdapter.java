@@ -6,23 +6,25 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.SqlReturnResultSet;
 import org.springframework.stereotype.Repository;
 
+import java.sql.CallableStatement;
+import java.sql.Types;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Implementación del puerto de materiales contra el Módulo C.
- *
- * <p>Consultas parametrizadas (principio 2 del contrato de integración)
- * sobre {@code dbo.material} de CALE_IMMEX.</p>
- */
+/** Adapter que consume el procedimiento APP24 de consulta de Materiales. */
 @Repository
 public class MaterialJdbcAdapter implements MaterialRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    static final String PROCEDURE_NAME = "dbo.APP24_Q_MATERIALES_LISTAR";
+    static final String RESULT_SET_NAME = "items";
+    static final String TOTAL_PARAMETER = "Total";
 
-    /** Mapea una fila de la tabla material a un objeto de dominio. */
-    private static final RowMapper<Material> MAPPER = (rs, rowNum) -> new Material(
+    private static final RowMapper<Material> MATERIAL_MAPPER = (rs, rowNum) -> new Material(
             rs.getBigDecimal("materialkey"),
             rs.getString("clave"),
             rs.getString("descripcion"),
@@ -34,10 +36,19 @@ public class MaterialJdbcAdapter implements MaterialRepository {
             rs.getBigDecimal("FactorUM"),
             rs.getBigDecimal("IGIE"));
 
+    private static final List<SqlParameter> DECLARED_PARAMETERS = List.of(
+            new SqlParameter("Filtro", Types.VARCHAR),
+            new SqlParameter("Pagina", Types.INTEGER),
+            new SqlParameter("Tamano", Types.INTEGER),
+            new SqlOutParameter(TOTAL_PARAMETER, Types.BIGINT),
+            new SqlReturnResultSet(RESULT_SET_NAME, MATERIAL_MAPPER));
+
+    private final JdbcTemplate jdbcTemplate;
+
     /**
-     * Constructor con la plantilla del Módulo C.
+     * Constructor con la plantilla JDBC de CALE_IMMEX.
      *
-     * @param jdbcTemplate plantilla JDBC de CALE_IMMEX
+     * @param jdbcTemplate plantilla JDBC del Módulo C
      */
     public MaterialJdbcAdapter(@Qualifier("jdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -47,42 +58,20 @@ public class MaterialJdbcAdapter implements MaterialRepository {
      * {@inheritDoc}
      */
     @Override
+    @SuppressWarnings("unchecked")
     public Pagina<Material> findPage(String filtro, int pagina, int tamano) {
-        String where = "";
-        Object[] params;
-        if (filtro != null && !filtro.isBlank()) {
-            where = " WHERE clave LIKE ? OR descripcion LIKE ? OR fraccion LIKE ?";
-            String patron = "%" + filtro + "%";
-            params = new Object[]{patron, patron, patron};
-        } else {
-            params = new Object[]{};
-        }
+        Map<String, Object> resultado = jdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + PROCEDURE_NAME + "(?, ?, ?, ?)}");
+            statement.setString(1, filtro);
+            statement.setInt(2, pagina);
+            statement.setInt(3, tamano);
+            statement.registerOutParameter(4, Types.BIGINT);
+            return statement;
+        }, DECLARED_PARAMETERS);
 
-        long total = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dbo.material" + where, Long.class, params);
-
-        int offset = (pagina - 1) * tamano;
-        List<Material> items = jdbcTemplate.query(
-                "SELECT materialkey, clave, descripcion, fraccion, unidad, unidadt, "
-                        + "tipomaterial, tipo, FactorUM, IGIE FROM dbo.material"
-                        + where + " ORDER BY clave, materialkey OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
-                MAPPER, appendParams(params, offset, tamano));
-        return new Pagina<>(items, total, pagina, tamano);
-    }
-
-    /**
-     * Une los parámetros de filtro con los de paginación.
-     *
-     * @param base   parámetros de filtro
-     * @param offset desplazamiento de página
-     * @param tamano tamaño de página
-     * @return arreglo combinado de parámetros
-     */
-    private Object[] appendParams(Object[] base, int offset, int tamano) {
-        Object[] resultado = new Object[base.length + 2];
-        System.arraycopy(base, 0, resultado, 0, base.length);
-        resultado[base.length] = offset;
-        resultado[base.length + 1] = tamano;
-        return resultado;
+        List<Material> items = (List<Material>) resultado.getOrDefault(RESULT_SET_NAME, List.of());
+        Number total = (Number) resultado.get(TOTAL_PARAMETER);
+        return new Pagina<>(items, total == null ? 0L : total.longValue(), pagina, tamano);
     }
 }

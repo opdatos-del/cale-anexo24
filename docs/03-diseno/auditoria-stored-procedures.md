@@ -45,7 +45,7 @@ La auditoría del backend identificó SQL funcional inline en los siguientes ada
 
 | Dominio | Adapter | Datasource | Operación inline | Objetos | Clasificación | Decisión LIVE |
 |---|---|---|---|---|---|---|
-| Materiales | `MaterialJdbcAdapter` | CALE_IMMEX | `COUNT` + listado paginado | `dbo.material` | `MIGRAR_A_SP` | `CREAR` |
+| Materiales | `MaterialJdbcAdapter` | CALE_IMMEX | llamada SP para count + listado paginado | `dbo.material` vía `dbo.APP24_Q_MATERIALES_LISTAR` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Auth | `UsuarioJdbcAdapter` | ANEXO24_DEV | usuario por clave; acceso/permisos | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `MIGRAR_A_SP` | `CREAR` |
 | Usuarios read | `UsuarioConsultaJdbcAdapter` | ANEXO24_DEV | lista, count, detalle | `UsuarioApp`, `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
 | Usuarios commands | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | duplicados, insert, datos básicos | `UsuarioApp`, `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
@@ -63,7 +63,7 @@ La auditoría del backend identificó SQL funcional inline en los siguientes ada
 
 | Dominio / necesidad | Base | SP encontrado LIVE | Parámetros / result set | Mutabilidad | Propiedad | Cumple contrato | Decisión | Acción siguiente |
 |---|---|---|---|---|---|---|---|---|
-| Materiales: listar, filtrar, total, paginar, ordenar `clave, materialkey` | CALE_IMMEX | Ningún SP de catálogo | No aplica | No aplica | — | No | `CREAR` | Proponer `dbo.APP24_Q_MATERIALES_LISTAR` con filtro `clave/descripcion/fraccion`, total, offset y orden estable |
+| Materiales: listar, filtrar, total, paginar, ordenar `clave, materialkey` | CALE_IMMEX | `dbo.APP24_Q_MATERIALES_LISTAR` | `@Filtro varchar(250)`, `@Pagina int`, `@Tamano int`, `@Total bigint OUTPUT`; 10 columnas | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | SP creado, versionado y desplegado LIVE en SP-1A; adapter migrado |
 | `CARGA_MATERIALES` | CALE_IMMEX | `dbo.CARGA_MATERIALES` | Sin parámetros; sin result set contractual | `MIXED` / proceso | `LEGACY_COMPARTIDO` | No | `PENDIENTE` | No reutilizar para REST; no modificar legacy |
 | Auth: usuario por clave | ANEXO24_DEV | Ninguno; total APP24_DEV = 0 | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIO_POR_CLAVE` |
 | Auth: perfil, estado y permisos | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIO_ACCESO` con permisos efectivos |
@@ -92,7 +92,42 @@ La búsqueda por definición, no sólo por nombre, encontró estas referencias a
 | `DESCARGASALIDAPEPS`, `DESCARGASCTMF`, `DESCARGATSALIDA1`, `DESCARGATSALIDAFECHA`, `DESCARGAXFECHA51` | `PROCESS` / `REPORT`, `MIXED` | Descargas/procesos; no cumplen catálogo y no se ejecutaron. |
 | `ESTRUCTURAS1A1`, `PR_INFORME_ESTRUCTURAS`, `PR_INFORME_IMPORTACIONES`, `PR_INFORME_SALDOS`, `SALDOS`, `SALDOS_FAMILIA`, `SALDOSCTM`, `SP_DESENSAMBLE`, `SP_GENERA_TXT_COMPLETO`, `SP_MensajesInicio`, `Trazo_report`, `VALIDA_I_DETALLENP` | `PROCESS` / `REPORT`, `MIXED` | Referencias indirectas o funcionales a materiales; contratos incompatibles. |
 
-**Decisión Materiales: `CREAR dbo.APP24_Q_MATERIALES_LISTAR`.** `CARGA_MATERIALES` es una carga mutable sin parámetros ni contrato de result set. Los SP de estructuras/materiales utilizados tienen otro propósito, filtros y columnas. No existe LIVE un SP que cubra filtro por clave/descripción/fracción, total, paginación y orden `clave, materialkey` requerido por `MaterialJdbcAdapter`.
+**Decisión Materiales SP-1A: `REUTILIZAR / IMPLEMENTADO dbo.APP24_Q_MATERIALES_LISTAR`.** `CARGA_MATERIALES` sigue siendo carga mutable y no fue modificada. El nuevo SP cubre filtro por clave/descripción/fracción, `COUNT_BIG`, paginación BIGINT, orden `clave, materialkey` y las diez columnas del contrato. Metadata y pruebas LIVE confirmaron `QUERY / READ_ONLY / CONFIRMADO / APP24_PROPIO`.
+
+## SP-1A — Materiales implementado
+
+SP versionado en `infra/sql/procedures/queries/APP24_Q_MATERIALES_LISTAR.sql` y desplegado en CALE_IMMEX mediante `CREATE OR ALTER`.
+
+Metadata LIVE posterior al despliegue:
+
+| Elemento | Resultado |
+|---|---|
+| Schema/nombre | `dbo.APP24_Q_MATERIALES_LISTAR` |
+| `modify_date` | 2026-09-22 13:33:26 |
+| Parámetros | `@Filtro varchar(250)`, `@Pagina int`, `@Tamano int`, `@Total bigint OUTPUT` |
+| Result set | `materialkey`, `clave`, `descripcion`, `fraccion`, `unidad`, `unidadt`, `tipomaterial`, `tipo`, `FactorUM`, `IGIE` |
+| Mutabilidad | `READ_ONLY` |
+| Clasificación | `QUERY / READ_ONLY / CONFIRMADO / APP24_PROPIO` |
+
+Tipos LIVE de `dbo.material` usados para contrato: `materialkey numeric(18,0)`, `clave varchar(50)`, `descripcion varchar(250)`, `fraccion char(10)`, `unidad char(5)`, `unidadt char(5)`, `tipomaterial char(100)`, `tipo char(5)`, `FactorUM float`, `IGIE bigint`.
+
+Pruebas LIVE read-only, sin volcar filas:
+
+| Caso | Resultado |
+|---|---|
+| Sin filtro, página 1/tamaño 20 | PASS; 2 filas, total 2, 10 columnas |
+| Filtro por clave existente | PASS; 1 fila, total 1 |
+| Filtro por descripción existente | PASS; 1 fila, total 1 |
+| Filtro sin coincidencias | PASS; 0 filas, total 0 |
+| Página posterior | PASS; 0 filas, total 2 |
+| Página muy alta | PASS; 0 filas, total 2 |
+| Página inválida (`0`) | PASS; error SQL controlado |
+| Tamaño inválido (`101`) | PASS; error SQL controlado |
+| Orden `clave ASC, materialkey ASC` | PASS |
+
+El filtro conserva semántica actual de `LIKE '%filtro%'`; no se introdujo escape de `%` o `_`. `MaterialJdbcAdapter` ya no contiene SQL funcional inline: sólo invoca el procedimiento, registra `@Total` y mapea las diez columnas.
+
+No se agregó grant: no existe archivo de permisos runtime para CALE_IMMEX en este repositorio y el despliegue usó la identidad local existente. La futura cuenta runtime deberá recibir únicamente `GRANT EXECUTE ON OBJECT::dbo.APP24_Q_MATERIALES_LISTAR` cuando corresponda, sin ampliar permisos sobre `dbo.material`.
 
 ## Auth, usuarios, Fase 3A, Fase 3B, perfil y bitácora
 
@@ -153,12 +188,14 @@ GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CREAR TO app24_runtime;
 
 La lista final deberá incluir sólo SPs aprobados y creados para cada operación. No se modifica `infra/sql/04-app-runtime-permissions.sql` en SP-0D. No se conceden permisos nuevos en esta auditoría.
 
-## Estado final SP-0D
+## Estado final SP-0D / SP-1A
 
 - Conexiones LIVE: exitosas para ambas bases.
 - SPs WRITE/MIXED/UNKNOWN ejecutados: **0**.
-- SPs READ_ONLY ejecutados: **0**; metadata de result set obtenida sin ejecutar.
+- SPs READ_ONLY ejecutados: sólo `dbo.APP24_Q_MATERIALES_LISTAR`, en pruebas controladas SP-1A.
 - Datos modificados: **0**.
-- SPs creados o alterados: **0**.
-- Backend, frontend e `infra/sql`: sin cambios.
-- Siguiente fase: revisar/aprobar esta matriz antes de implementar cualquier SP.
+- SPs legacy modificados: **0**.
+- SPs nuevos creados: sólo `dbo.APP24_Q_MATERIALES_LISTAR`.
+- Backend funcional migrado únicamente en Materiales; Auth, Usuarios, Fase 3A/3B, Perfil y Bitácora siguen pendientes.
+- Frontend e `infra/sql/04-app-runtime-permissions.sql`: sin cambios.
+- Siguiente fase: migrar otro dominio sólo con aprobación explícita.
