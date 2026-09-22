@@ -3,9 +3,13 @@
 ## 1. Objetivo y decisión arquitectónica
 
 Esta auditoría define fuente canónica, modelo, seguridad y contratos candidatos
-de la bitácora de la **nueva aplicación**. Hardening, writer interno append-only
-y eventos `LOGIN_OK`/`LOGIN_FALLIDO` están implementados en repositorio; GET,
-frontend, eventos 401/403 y otros dominios permanecen pendientes.
+de la bitácora de la **nueva aplicación**.
+
+**IMPLEMENTADO EN REPOSITORIO:** hardening; writer interno append-only; eventos
+`LOGIN_OK`/`LOGIN_FALLIDO`; `GET /api/v1/bitacora` read-only.
+
+**PENDIENTE:** validación runtime remota; frontend; eventos 401/403; demás
+dominios; despliegue de permisos.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
 > canónica candidata para eventos funcionales y de seguridad de la aplicación
@@ -62,8 +66,13 @@ Fuente candidata: `ANEXO24_DEV.app24.BitacoraEvento`.
 | `FK_BitacoraEvento_Usuario` | Sin `ON DELETE CASCADE` declarado | Protege relación por comportamiento `NO ACTION` predeterminado |
 | Índices | `fecha DESC`; `correlacion_id` | No hay índices actuales por usuario/módulo/resultado ni desempate `(fecha, id)` |
 
-No hay `CHECK` de catálogos, trigger, SP de escritura, `GRANT` específico de
-sólo inserción ni mecanismo DDL que impida `UPDATE`/`DELETE` sobre esta tabla.
+DDL de tabla: no hay `CHECK` de catálogos, trigger, SP de escritura ni
+protección intrínseca dentro de la tabla que impida `UPDATE`/`DELETE`.
+
+Permisos runtime versionados en `04-app-runtime-permissions.sql`: `SELECT` +
+`INSERT` sobre `app24.BitacoraEvento` para `app24_runtime`, sin `UPDATE` ni
+`DELETE`; **PENDIENTES DE DESPLIEGUE/VERIFICACIÓN REMOTA**. No están aplicados
+en SQL Server todavía.
 
 ## 5. Inmutabilidad real
 
@@ -89,8 +98,9 @@ Estrategia mínima actual:
 1. **IMPLEMENTADO EN REPOSITORIO:** puerto interno con sólo `registrar`, sin
    método de actualización/borrado; adapter con `INSERT` parametrizado y control
    de exactamente una fila afectada;
-2. API externa futura: `GET` únicamente; nunca `POST`, `PUT`, `PATCH` ni
-   `DELETE`;
+2. API externa: `GET /api/v1/bitacora` **IMPLEMENTADO EN REPOSITORIO**; nunca
+   `POST`, `PUT`, `PATCH` ni `DELETE` (**PENDIENTE DE VALIDACIÓN RUNTIME
+   REMOTA**);
 3. **PENDIENTE DE DESPLIEGUE:** retirar privilegios globales y aplicar
    `app24_runtime` con `INSERT`/`SELECT` necesarios, sin `UPDATE`/`DELETE`;
 4. evaluar después si una restricción DB adicional es necesaria.
