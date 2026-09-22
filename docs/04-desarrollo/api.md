@@ -13,7 +13,12 @@
 | POST | `/facturacion/cargas` | Valida archivo y crea lote no persistido. | `FACTURACION_CARGAR` |
 | POST | `/facturacion/cargas/{id}/confirmar` | Guarda lote validado. | `FACTURACION_GUARDAR` |
 | GET | `/bitacora` | Consulta read-only paginada con rango UTC obligatorio (`desde`/`hasta`), filtros `usuarioId`, `modulo`, `resultado`, `correlationId` y orden `fecha DESC, id DESC`. | `BITACORA_CONSULTAR` |
+| GET | `/administracion/usuarios` | Lista usuarios paginados con filtros `clave` (exacto), `nombre` (parcial con comodines escapados), `correo` (exacto), `estado` (solo `ACTIVO`/`INACTIVO`) y `perfilId` (exacto); orden `clave ASC, id ASC`. | `USUARIOS_ADMINISTRAR` |
+| GET | `/administracion/usuarios/{id}` | Detalle read-only de un usuario con su perfil; sin secretos. | `USUARIOS_ADMINISTRAR` |
 
-Los endpoints de administración siguen `/usuarios`, `/perfiles` y `/actividades`; aplican validación de esquema, paginación y bitácora. Los nombres de procedimientos detrás de la API se mantienen internos.
+Los endpoints de administración **implementados** son únicamente los dos de
+consultas de usuarios anteriores. **NO implementados todavía:** escrituras de
+usuarios (`POST`/`PATCH`), perfiles y actividades; el resto del contrato sigue
+pendiente. Los nombres de procedimientos detrás de la API se mantienen internos.
 
 Consumidor frontend del endpoint `GET /bitacora`: pantalla read-only en `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso `BITACORA_CONSULTAR`). Sin consumidores frontend de escritura.

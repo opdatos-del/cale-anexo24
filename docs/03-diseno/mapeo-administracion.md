@@ -98,10 +98,16 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | `UsuarioAcceso` | record: `perfilId`, `perfilEstado`, `permisos`; `perfilActivo()` = `ACTIVO` ignorando mayúsculas; permisos con copia inmutable | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); distingue perfil ACTIVO con/sin permisos e INACTIVO |
 | `UsuarioRepository` | `findByClave(String)`, `findAccesoByUsuario(Long)` → `Optional<UsuarioAcceso>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); proyección de acceso sin filtrar el estado del perfil |
 | `UsuarioJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; consulta de acceso con JOIN `PerfilApp` + LEFT JOIN `PerfilActividad`/`Actividad` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); sin filtro `p.estado`; vacío si usuario sin perfil |
+| `UsuarioAdministracion` | record: `id`, `clave`, `nombre`, `correo`, `estado`, `vigencia`, `perfilId`, `perfilNombre` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); sin secretos, jamás `passwordHash` |
+| `UsuarioConsultaRepository` | `findPage(...)` y `findById(Long)` → `Optional<UsuarioAdministracion>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); puerto separado de autenticación |
+| `UsuarioConsultaJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; SELECT/COUNT con JOIN `PerfilApp`, filtros parametrizados y comodines escapados | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); no selecciona `password_hash`; sin DML |
+| `ListarUsuariosUseCase` / `ObtenerUsuarioUseCase` | normalizan filtros y validan longitudes, estado, perfilId y paginación; 404 si no existe | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
+| `UsuarioAdministracionController` + `UsuarioAdministracionDto` | `GET /api/v1/administracion/usuarios` y `/{id}` con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
 
-**CONFIRMADO:** el paquete `administration` contiene únicamente esos 3
-archivos. No hay dominio para PerfilApp ni Actividad: se referencian solo por
-SQL y seed.
+**CONFIRMADO:** el paquete `administration/users` conserva la separación:
+autenticación (`UsuarioRepository`/`UsuarioJdbcAdapter`) vs. consulta
+administrativa read-only (`UsuarioConsultaRepository`/`UsuarioConsultaJdbcAdapter`).
+No hay dominio para PerfilApp ni Actividad: se referencian solo por SQL y seed.
 
 ## 5. Autenticación (`security/**`)
 
@@ -817,9 +823,17 @@ FASE 1  Hardening previo: **IMPLEMENTADO EN REPOSITORIO** (PENDIENTE DE
           acceso inconsistente y rollback del gestor de aplicación;
         - SQL 04 versionado: `GRANT SELECT` sobre `PerfilApp`, sin escrituras.
 
-FASE 2  Usuarios read-only:
-        - query/paginación con JOIN PerfilApp;
-        - GET /administracion/usuarios (+ /{id}).
+FASE 2  Usuarios read-only: **IMPLEMENTADO EN REPOSITORIO**
+        (PENDIENTE DE VALIDACIÓN RUNTIME REMOTA):
+        - contrato: GET /api/v1/administracion/usuarios y /{id};
+        - permiso único: USUARIOS_ADMINISTRAR;
+        - fuentes: app24.UsuarioApp JOIN app24.PerfilApp, sin password_hash;
+        - filtros: clave/correo/perfilId/estado exactos, nombre parcial
+          con comodines escapados (\, %, _); paginación estricta 1..100;
+        - orden estable: u.clave ASC, u.id ASC;
+        - puerto separado UsuarioConsultaRepository (no se amplía el de
+          autenticación); appJdbcTemplate únicamente;
+        - sin DML, sin @Transactional, sin bitácora por GET.
 
 FASE 3  Usuarios commands:
         - crear, editar, estado, perfil, vigencia, reset password;
