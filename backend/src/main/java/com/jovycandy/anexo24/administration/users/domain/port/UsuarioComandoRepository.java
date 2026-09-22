@@ -9,4 +9,8 @@ public interface UsuarioComandoRepository {
     boolean existsByCorreoExceptoUsuario(String correo, Long usuarioId);
     Long crear(String clave, String nombre, String correo, String passwordHash, LocalDate vigencia, Long perfilId);
     int actualizarDatos(Long usuarioId, String nombre, String correo);
+    int actualizarEstado(Long usuarioId, String estado);
+    int actualizarPerfil(Long usuarioId, Long perfilId);
+    int actualizarVigencia(Long usuarioId, LocalDate vigencia);
+    boolean existsConCapacidadAdministrativa(LocalDate fechaActual);
 }

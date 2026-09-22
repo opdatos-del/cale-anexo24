@@ -23,6 +23,45 @@ public class UsuarioComandoJdbcAdapter implements UsuarioComandoRepository {
             SET nombre = ?, correo = ?
             WHERE id = ?
             """;
+    private static final String UPDATE_ESTADO = """
+            UPDATE app24.UsuarioApp
+            SET estado = ?
+            WHERE id = ?
+            """;
+    private static final String UPDATE_PERFIL = """
+            UPDATE app24.UsuarioApp
+            SET perfil_id = ?
+            WHERE id = ?
+            """;
+    private static final String UPDATE_VIGENCIA = """
+            UPDATE app24.UsuarioApp
+            SET vigencia = ?
+            WHERE id = ?
+            """;
+    private static final String EXISTS_CAPACIDAD_ADMINISTRATIVA = """
+            SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM app24.UsuarioApp u
+                JOIN app24.PerfilApp p ON p.id = u.perfil_id
+                WHERE u.estado = 'ACTIVO'
+                  AND (u.vigencia IS NULL OR u.vigencia >= ?)
+                  AND p.estado = 'ACTIVO'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM app24.PerfilActividad pa
+                      JOIN app24.Actividad a ON a.id = pa.actividad_id
+                      WHERE pa.perfil_id = p.id
+                        AND a.clave = 'USUARIOS_ADMINISTRAR'
+                  )
+                  AND EXISTS (
+                      SELECT 1
+                      FROM app24.PerfilActividad pa
+                      JOIN app24.Actividad a ON a.id = pa.actividad_id
+                      WHERE pa.perfil_id = p.id
+                        AND a.clave = 'PERFILES_ADMINISTRAR'
+                  )
+            ) THEN 1 ELSE 0 END
+            """;
     private final JdbcTemplate appJdbcTemplate;
 
     public UsuarioComandoJdbcAdapter(@Qualifier("appJdbcTemplate") JdbcTemplate appJdbcTemplate) {
@@ -61,6 +100,27 @@ public class UsuarioComandoJdbcAdapter implements UsuarioComandoRepository {
         } catch (DuplicateKeyException exception) {
             throw new RecursoDuplicadoException();
         }
+    }
+
+    @Override
+    public int actualizarEstado(Long usuarioId, String estado) {
+        return appJdbcTemplate.update(UPDATE_ESTADO, estado, usuarioId);
+    }
+
+    @Override
+    public int actualizarPerfil(Long usuarioId, Long perfilId) {
+        return appJdbcTemplate.update(UPDATE_PERFIL, perfilId, usuarioId);
+    }
+
+    @Override
+    public int actualizarVigencia(Long usuarioId, LocalDate vigencia) {
+        return appJdbcTemplate.update(UPDATE_VIGENCIA, vigencia, usuarioId);
+    }
+
+    @Override
+    public boolean existsConCapacidadAdministrativa(LocalDate fechaActual) {
+        Integer existe = appJdbcTemplate.queryForObject(EXISTS_CAPACIDAD_ADMINISTRATIVA, Integer.class, fechaActual);
+        return existe != null && existe == 1;
     }
 
     private long contar(String sql, Object... params) {

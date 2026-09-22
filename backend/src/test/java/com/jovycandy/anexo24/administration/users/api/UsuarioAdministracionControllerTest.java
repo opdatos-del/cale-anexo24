@@ -2,11 +2,20 @@ package com.jovycandy.anexo24.administration.users.api;
 
 import com.jovycandy.anexo24.administration.users.api.dto.ActualizarUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.CrearUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarEstadoUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarPerfilUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarVigenciaUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
 import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarEstadoUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarPerfilUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarVigenciaUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CrearUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarEstadoUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarPerfilUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarVigenciaUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
@@ -40,6 +49,9 @@ class UsuarioAdministracionControllerTest {
     @Mock private ObtenerUsuarioUseCase obtenerUsuarioUseCase;
     @Mock private CrearUsuarioUseCase crearUsuarioUseCase;
     @Mock private ActualizarUsuarioUseCase actualizarUsuarioUseCase;
+    @Mock private CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase;
+    @Mock private CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase;
+    @Mock private CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase;
     @Mock private HttpServletRequest servletRequest;
 
     @Test
@@ -104,6 +116,21 @@ class UsuarioAdministracionControllerTest {
     }
 
     @Test
+    void patchesMapeanCommandsYCorrelacion() {
+        when(servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR)).thenReturn("corr-3");
+        when(cambiarEstadoUsuarioUseCase.ejecutar(org.mockito.ArgumentMatchers.eq(42L), org.mockito.ArgumentMatchers.any(CambiarEstadoUsuarioCommand.class), org.mockito.ArgumentMatchers.eq("corr-3"))).thenReturn(usuario());
+        when(cambiarPerfilUsuarioUseCase.ejecutar(org.mockito.ArgumentMatchers.eq(42L), org.mockito.ArgumentMatchers.any(CambiarPerfilUsuarioCommand.class), org.mockito.ArgumentMatchers.eq("corr-3"))).thenReturn(usuario());
+        when(cambiarVigenciaUsuarioUseCase.ejecutar(org.mockito.ArgumentMatchers.eq(42L), org.mockito.ArgumentMatchers.any(CambiarVigenciaUsuarioCommand.class), org.mockito.ArgumentMatchers.eq("corr-3"))).thenReturn(usuario());
+
+        assertThat(controller().cambiarEstado(42L, new CambiarEstadoUsuarioRequest("ACTIVO"), servletRequest).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller().cambiarPerfil(42L, new CambiarPerfilUsuarioRequest(7L), servletRequest).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller().cambiarVigencia(42L, new CambiarVigenciaUsuarioRequest(null), servletRequest).getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(cambiarEstadoUsuarioUseCase).ejecutar(42L, new CambiarEstadoUsuarioCommand("ACTIVO"), "corr-3");
+        verify(cambiarPerfilUsuarioUseCase).ejecutar(42L, new CambiarPerfilUsuarioCommand(7L), "corr-3");
+        verify(cambiarVigenciaUsuarioUseCase).ejecutar(42L, new CambiarVigenciaUsuarioCommand(null), "corr-3");
+    }
+
+    @Test
     void endpointsExigenPermisoUsuariosAdministrarYDocumentanOperacionCorrecta() throws NoSuchMethodException {
         assertPermisoYOperacion("listar", new Class[]{String.class, String.class, String.class, String.class, Long.class, int.class, int.class},
                 "Listar usuarios de administración");
@@ -111,6 +138,12 @@ class UsuarioAdministracionControllerTest {
         assertPermisoYOperacion("crear", new Class[]{CrearUsuarioRequest.class, HttpServletRequest.class}, "Crear usuario de administración");
         assertPermisoYOperacion("actualizar", new Class[]{Long.class, ActualizarUsuarioRequest.class, HttpServletRequest.class},
                 "Actualizar datos básicos de usuario");
+        assertPermisoYOperacion("cambiarEstado", new Class[]{Long.class, CambiarEstadoUsuarioRequest.class, HttpServletRequest.class},
+                "Cambiar estado de usuario");
+        assertPermisoYOperacion("cambiarPerfil", new Class[]{Long.class, CambiarPerfilUsuarioRequest.class, HttpServletRequest.class},
+                "Cambiar perfil de usuario");
+        assertPermisoYOperacion("cambiarVigencia", new Class[]{Long.class, CambiarVigenciaUsuarioRequest.class, HttpServletRequest.class},
+                "Cambiar vigencia de usuario");
     }
 
     private void assertPermisoYOperacion(String nombre, Class<?>[] parametros, String resumen) throws NoSuchMethodException {
@@ -127,7 +160,8 @@ class UsuarioAdministracionControllerTest {
 
     private UsuarioAdministracionController controller() {
         return new UsuarioAdministracionController(listarUsuariosUseCase, obtenerUsuarioUseCase,
-                crearUsuarioUseCase, actualizarUsuarioUseCase);
+                crearUsuarioUseCase, actualizarUsuarioUseCase, cambiarEstadoUsuarioUseCase,
+                cambiarPerfilUsuarioUseCase, cambiarVigenciaUsuarioUseCase);
     }
 
     private UsuarioAdministracion usuario() {

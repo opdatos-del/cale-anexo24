@@ -2,11 +2,20 @@ package com.jovycandy.anexo24.administration.users.api;
 
 import com.jovycandy.anexo24.administration.users.api.dto.ActualizarUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.CrearUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarEstadoUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarPerfilUsuarioRequest;
+import com.jovycandy.anexo24.administration.users.api.dto.CambiarVigenciaUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
 import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarEstadoUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarPerfilUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.CambiarVigenciaUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CrearUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarEstadoUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarPerfilUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.CambiarVigenciaUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
@@ -26,6 +35,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +54,9 @@ public class UsuarioAdministracionController {
     private final ObtenerUsuarioUseCase obtenerUsuarioUseCase;
     private final CrearUsuarioUseCase crearUsuarioUseCase;
     private final ActualizarUsuarioUseCase actualizarUsuarioUseCase;
+    private final CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase;
+    private final CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase;
+    private final CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase;
 
     /**
      * Construye el controlador con los casos de uso de usuarios.
@@ -56,11 +69,17 @@ public class UsuarioAdministracionController {
     public UsuarioAdministracionController(ListarUsuariosUseCase listarUsuariosUseCase,
                                            ObtenerUsuarioUseCase obtenerUsuarioUseCase,
                                            CrearUsuarioUseCase crearUsuarioUseCase,
-                                           ActualizarUsuarioUseCase actualizarUsuarioUseCase) {
+                                           ActualizarUsuarioUseCase actualizarUsuarioUseCase,
+                                           CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase,
+                                           CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase,
+                                           CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase) {
         this.listarUsuariosUseCase = listarUsuariosUseCase;
         this.obtenerUsuarioUseCase = obtenerUsuarioUseCase;
         this.crearUsuarioUseCase = crearUsuarioUseCase;
         this.actualizarUsuarioUseCase = actualizarUsuarioUseCase;
+        this.cambiarEstadoUsuarioUseCase = cambiarEstadoUsuarioUseCase;
+        this.cambiarPerfilUsuarioUseCase = cambiarPerfilUsuarioUseCase;
+        this.cambiarVigenciaUsuarioUseCase = cambiarVigenciaUsuarioUseCase;
     }
 
     @Operation(
@@ -153,6 +172,66 @@ public class UsuarioAdministracionController {
         ActualizarUsuarioCommand command = new ActualizarUsuarioCommand(request.nombre(), request.correo());
         return ResponseEntity.ok(UsuarioAdministracionDto.from(
                 actualizarUsuarioUseCase.ejecutar(id, command, correlationId(servletRequest))));
+    }
+
+    @Operation(summary = "Cambiar estado de usuario", description = "Cambia exclusivamente estado ACTIVO/INACTIVO; protege al último administrador efectivo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Estado actualizado"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+            @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+            @ApiResponse(responseCode = "403", description = "Permiso insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "409", description = "Estado incompatible"),
+            @ApiResponse(responseCode = "503", description = "Servicio de datos no disponible")
+    })
+    @PatchMapping("/{id}/estado")
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<UsuarioAdministracionDto> cambiarEstado(@PathVariable Long id,
+                                                                    @Valid @RequestBody CambiarEstadoUsuarioRequest request,
+                                                                    HttpServletRequest servletRequest) {
+        UsuarioAdministracion usuario = cambiarEstadoUsuarioUseCase.ejecutar(id,
+                new CambiarEstadoUsuarioCommand(request.estado()), correlationId(servletRequest));
+        return ResponseEntity.ok(UsuarioAdministracionDto.from(usuario));
+    }
+
+    @Operation(summary = "Cambiar perfil de usuario", description = "Asigna un perfil existente y ACTIVO; protege al último administrador efectivo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil actualizado"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+            @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+            @ApiResponse(responseCode = "403", description = "Permiso insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario o perfil no encontrado"),
+            @ApiResponse(responseCode = "409", description = "Estado incompatible"),
+            @ApiResponse(responseCode = "503", description = "Servicio de datos no disponible")
+    })
+    @PatchMapping("/{id}/perfil")
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<UsuarioAdministracionDto> cambiarPerfil(@PathVariable Long id,
+                                                                    @Valid @RequestBody CambiarPerfilUsuarioRequest request,
+                                                                    HttpServletRequest servletRequest) {
+        UsuarioAdministracion usuario = cambiarPerfilUsuarioUseCase.ejecutar(id,
+                new CambiarPerfilUsuarioCommand(request.perfilId()), correlationId(servletRequest));
+        return ResponseEntity.ok(UsuarioAdministracionDto.from(usuario));
+    }
+
+    @Operation(summary = "Cambiar vigencia de usuario", description = "Actualiza vigencia; null representa cuenta sin vencimiento.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Vigencia actualizada"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+            @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+            @ApiResponse(responseCode = "403", description = "Permiso insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "409", description = "Estado incompatible"),
+            @ApiResponse(responseCode = "503", description = "Servicio de datos no disponible")
+    })
+    @PatchMapping("/{id}/vigencia")
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<UsuarioAdministracionDto> cambiarVigencia(@PathVariable Long id,
+                                                                      @Valid @RequestBody CambiarVigenciaUsuarioRequest request,
+                                                                      HttpServletRequest servletRequest) {
+        UsuarioAdministracion usuario = cambiarVigenciaUsuarioUseCase.ejecutar(id,
+                new CambiarVigenciaUsuarioCommand(request.vigencia()), correlationId(servletRequest));
+        return ResponseEntity.ok(UsuarioAdministracionDto.from(usuario));
     }
 
     private String correlationId(HttpServletRequest servletRequest) {

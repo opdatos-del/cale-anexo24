@@ -279,7 +279,7 @@ de aplicación. **No se modifica DDL en esta fase.**
 | INACTIVAR | Sí | mismo endpoint → `INACTIVO`; con guardrail de auto-bloqueo (§25) |
 | CAMBIAR PERFIL | Sí | `PATCH /api/v1/administracion/usuarios/{id}/perfil` → `perfilId` |
 | CAMBIAR VIGENCIA | Sí | `PATCH /api/v1/administracion/usuarios/{id}/vigencia` → fecha o `null` (§19) |
-| RESTABLECER CONTRASEÑA | Sí | `POST /api/v1/administracion/usuarios/{id}/password` (§15) |
+| RESTABLECER CONTRASEÑA | Pendiente (Fase 3C) | `POST /api/v1/administracion/usuarios/{id}/password` (§15) |
 | **DELETE físico** | **NO** | FK `BitacoraEvento.usuario_id`, FK `CargaFacturacion.usuario_id`, trazabilidad histórica; `estado` cubre la necesidad |
 
 **DECISIÓN V1 — NO DELETE físico de UsuarioApp.** Justificación: (a) FK de
@@ -553,12 +553,14 @@ permisos del usuario debe incluir `USUARIOS_ADMINISTRAR` **y**
 reservado, §23). No se depende del nombre del perfil (`ADMINISTRADOR`) si la
 capacidad puede evaluarse por permisos — preferir permisos.
 
-**Documentación de implementación:** la validación C necesita una consulta
-adicional (existencia de al menos un usuario en las condiciones anteriores con
-perfil ACTIVO y los dos permisos). Es un puerto/método nuevo de repositorio
-(por ej. `existsConCapacidadAdministrativa()` o equivalente) y se ejecuta en la
-misma transacción del command que inactiva un usuario/perfil. **PENDIENTE de
-implementar** — no existe hoy.
+**Implementado en Fase 3B:** después de cada mutación de estado, perfil o
+vigencia, se valida que subsista al menos un usuario con capacidad
+administrativa efectiva: `UsuarioApp` ACTIVO, vigencia `null` o
+`>= LocalDate.now()` de la JVM, `PerfilApp` ACTIVO y ambas actividades
+`USUARIOS_ADMINISTRAR` y `PERFILES_ADMINISTRAR`. La comprobación se ejecuta en
+la misma transacción serializable del command. La auto-inactivación y el cambio
+real del propio perfil se rechazan; la vigencia propia sí se permite, sujeta al
+guardrail global.
 
 ## 26. Borrado de perfil — DECISIÓN V1
 
@@ -616,11 +618,12 @@ appJdbcTemplate                                  (app24)
 appTransactionManager                            (appDataSource)
 ```
 
-`CrearUsuarioUseCase` y `ActualizarUsuarioUseCase` usan
-`@Transactional(transactionManager = "appTransactionManager")`. La escritura
-de negocio en `UsuarioApp` y el evento de `BitacoraEvento` participan en la
-misma transacción; no usan `REQUIRES_NEW`. Runtime remoto sigue pendiente de
-validación.
+Los commands de usuarios usan
+`@Transactional(transactionManager = "appTransactionManager")`. Fase 3B
+configura aislamiento `SERIALIZABLE` para las mutaciones de estado, perfil y
+vigencia, incluido su guardrail global. La escritura de negocio en `UsuarioApp`
+y el evento de `BitacoraEvento` participan en la misma transacción; no usan
+`REQUIRES_NEW`. Runtime remoto sigue pendiente de validación.
 
 ## 30. Estrategia de persistencia app24 — DECISIÓN V1
 
@@ -643,13 +646,14 @@ pendientes de despliegue remoto:
 
 | Objeto | Permiso versionado |
 |---|---|
-| `UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo)` |
+| `UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo, estado, perfil_id, vigencia)` |
 | `PerfilApp` | `SELECT` |
 | `PerfilActividad` | `SELECT` |
 | `Actividad` | `SELECT` |
 | `BitacoraEvento` | `SELECT`, `INSERT` |
 
-No hay grants de escritura para estado, perfil, vigencia, contraseña,
+Los grants versionados para `UPDATE (estado, perfil_id, vigencia)` están
+pendientes de despliegue remoto. No hay grants de escritura para contraseña,
 `PerfilApp` ni `PerfilActividad`. No hay `DELETE`.
 
 ## 32. Rutas API V1 — DECISIÓN
@@ -705,7 +709,9 @@ POST   /{id}/password               → { password } (reset) (§15)
 
 Justificación: estado/perfil/vigencia/password son acciones con evento de
 Bitácora específico (§28) y validación propia; separarlas evita PATCH
-multi-propósito ambiguo. **NO implementar.**
+multi-propósito ambiguo. Los tres `PATCH` de Fase 3B están implementados en
+repositorio y pendientes de validación runtime remota; el reset permanece
+pendiente en Fase 3C.
 
 ## 34. Contratos — PERFILES (candidatos)
 
@@ -833,7 +839,11 @@ FASE 3A Usuarios commands: **IMPLEMENTADA EN REPOSITORIO**
         (PENDIENTE DE VALIDACIÓN RUNTIME REMOTA): create, edit de nombre/correo,
         bitácora y grants mínimos.
 
-FASE 3B Pendiente: estado, perfil, vigencia y guardrails.
+FASE 3B Estado, perfil, vigencia y guardrails: **IMPLEMENTADA EN
+        REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA**. Incluye los tres
+        `PATCH`, auto-inactivación y cambio real de perfil propio prohibidos,
+        guardrail global de al menos un administrador efectivo y transacciones
+        `SERIALIZABLE` con `appTransactionManager`.
 
 FASE 3C Pendiente: reset password.
 
@@ -860,7 +870,8 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 2. JWT emitidos no revocables (consistencia eventual aceptada, §18) — revisar
    con auditoría si la ventana definida por la expiración JWT configurada no
    es aceptable.
-3. Desplegar `04-app-runtime-permissions.sql` y verificar runtime con TLS
+3. Desplegar `04-app-runtime-permissions.sql`, incluidos los grants
+   `UPDATE (estado, perfil_id, vigencia)`, y verificar runtime con TLS
    confiable (FASE 7).
 4. Confirmar timezone JVM en producción para semántica de `vigencia` (§19).
 5. Política de complejidad de contraseñas y de reset (generada vs. provista)
@@ -868,7 +879,8 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 6. Aprobar preventivamente `must_change_password`/historial/MFA si negocio los
    exige — FUERA DE V1 (§15).
 7. Posible limpieza futura de `ACTIVIDADES_ADMINISTRAR` del seed (§23).
-8. Corregir `api.md` (rutas y permisos reales) al implementar (§32).
+8. Compatibilidad legacy pendiente: semántica de usuario SAT, bloqueo y edición
+   administrativa deben validarse antes de runtime productivo (§37.1).
 
 ## 40. Restricciones cumplidas
 

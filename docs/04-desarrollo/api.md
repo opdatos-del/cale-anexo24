@@ -18,6 +18,9 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 | GET | `/administracion/usuarios/{id}` | Obtiene el detalle sin secretos de un usuario. | `USUARIOS_ADMINISTRAR` |
 | POST | `/administracion/usuarios` | Crea un usuario activo, registra auditoría y devuelve `201 Created`. | `USUARIOS_ADMINISTRAR` |
 | PUT | `/administracion/usuarios/{id}` | Modifica exclusivamente `nombre` y `correo`; registra auditoría. | `USUARIOS_ADMINISTRAR` |
+| PATCH | `/administracion/usuarios/{id}/estado` | Cambia el estado del usuario. | `USUARIOS_ADMINISTRAR` |
+| PATCH | `/administracion/usuarios/{id}/perfil` | Cambia el perfil asignado. | `USUARIOS_ADMINISTRAR` |
+| PATCH | `/administracion/usuarios/{id}/vigencia` | Cambia la vigencia o la elimina. | `USUARIOS_ADMINISTRAR` |
 
 ## Administración de usuarios — Fase 3A
 
@@ -55,6 +58,36 @@ parte de Fase 3A.
 
 Los commands de creación y edición escriben el usuario y el evento de bitácora
 correspondiente en una única transacción mediante `appTransactionManager`.
+
+## Administración de usuarios — Fase 3B
+
+Fase 3B está implementada en repositorio y pendiente de validación runtime
+remota. Las mutaciones usan `appTransactionManager` con aislamiento
+`SERIALIZABLE` y preservan al menos un administrador efectivo: usuario `ACTIVO`,
+vigencia `null` o `>= LocalDate.now()` de la JVM, perfil `ACTIVO` y permisos
+`USUARIOS_ADMINISTRAR` y `PERFILES_ADMINISTRAR`. No se permite la
+auto-inactivación ni el cambio real del perfil propio; la vigencia propia se
+permite, sujeta a ese guardrail. Los JWT ya emitidos no se revocan y conservan
+sus autoridades hasta expirar.
+
+### `PATCH /administracion/usuarios/{id}/estado`
+
+Recibe `{ "estado": "ACTIVO" | "INACTIVO" }`. Cambia únicamente el estado;
+rechaza la auto-inactivación y cualquier resultado que incumpla el guardrail
+administrativo global.
+
+### `PATCH /administracion/usuarios/{id}/perfil`
+
+Recibe `{ "perfilId": number }`. El perfil debe existir y estar `ACTIVO`.
+Rechaza un cambio real del perfil del propio actor y cualquier resultado que
+incumpla el guardrail administrativo global.
+
+### `PATCH /administracion/usuarios/{id}/vigencia`
+
+Recibe `{ "vigencia": "YYYY-MM-DD" }` o `{ "vigencia": null }`. `null`
+elimina el vencimiento; una fecha es válida si es igual o posterior a
+`LocalDate.now()` de la JVM. La modificación de la vigencia propia se permite,
+pero debe conservar el guardrail administrativo global.
 
 ## Bitácora de Administración
 

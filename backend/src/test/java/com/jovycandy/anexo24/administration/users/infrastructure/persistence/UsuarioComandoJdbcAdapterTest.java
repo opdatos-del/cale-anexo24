@@ -158,6 +158,29 @@ class UsuarioComandoJdbcAdapterTest {
     }
 
     @Test
+    void updatesSensiblesModificanSoloSuColumnaYGuardrailEsParametrizado() {
+        when(appJdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
+        adapter.actualizarEstado(42L, "INACTIVO");
+        adapter.actualizarPerfil(42L, 7L);
+        adapter.actualizarVigencia(42L, null);
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> parametros = ArgumentCaptor.forClass(Object[].class);
+        verify(appJdbcTemplate, org.mockito.Mockito.times(3)).update(sql.capture(), parametros.capture());
+        assertThat(sql.getAllValues()).allSatisfy(valor -> assertThat(valor).contains("UPDATE app24.UsuarioApp").contains("WHERE id = ?"));
+        assertThat(sql.getAllValues().get(0)).contains("SET estado = ?").doesNotContain("password_hash").doesNotContain("clave");
+        assertThat(sql.getAllValues().get(1)).contains("SET perfil_id = ?").doesNotContain("estado").doesNotContain("vigencia");
+        assertThat(sql.getAllValues().get(2)).contains("SET vigencia = ?").doesNotContain("estado").doesNotContain("perfil_id");
+        assertThat(parametros.getAllValues().get(2)).containsExactly(null, 42L);
+
+        when(appJdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1);
+        assertThat(adapter.existsConCapacidadAdministrativa(LocalDate.of(2026, 1, 1))).isTrue();
+        ArgumentCaptor<String> guardrailSql = ArgumentCaptor.forClass(String.class);
+        verify(appJdbcTemplate).queryForObject(guardrailSql.capture(), eq(Integer.class), any(Object[].class));
+        assertThat(guardrailSql.getValue()).contains("app24.UsuarioApp", "app24.PerfilApp", "app24.PerfilActividad", "app24.Actividad")
+                .contains("USUARIOS_ADMINISTRAR", "PERFILES_ADMINISTRAR", "u.estado = 'ACTIVO'", "p.estado = 'ACTIVO'", "u.vigencia IS NULL OR u.vigencia >= ?");
+    }
+
+    @Test
     void actualizarDatosPropagaErroresDeAccesoADatosDistintosDeDuplicado() {
         DataAccessResourceFailureException error =
                 new DataAccessResourceFailureException("Base de datos no disponible");
