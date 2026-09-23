@@ -36,3 +36,16 @@ export interface ChangeUserExpirationRequestDto {
 export interface ResetUserPasswordRequestDto {
   password: string;
 }
+
+export interface CreateUserRequestDto {
+  clave: string;
+  nombre: string;
+  correo: string;
+  password: string;
+  vigencia: string | null;
+  perfilId: number;
+}
+
+export interface ChangeUserProfileRequestDto {
+  perfilId: number;
+}

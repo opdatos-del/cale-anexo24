@@ -66,5 +66,9 @@ describe('UserMapper', () => {
     expect(UserMapper.toStatusRequest({ status: 'INACTIVO' })).toEqual({ estado: 'INACTIVO' });
     expect(UserMapper.toExpirationRequest({ expiration: null })).toEqual({ vigencia: null });
     expect(UserMapper.toPasswordRequest({ password: 'valor-no-expuesto' })).toEqual({ password: 'valor-no-expuesto' });
+    expect(UserMapper.toCreateRequest({ key: 'NUEVO', name: 'Nuevo', email: 'nuevo@example.test', password: 'ClaveSegura1!', expiration: null, profileId: 3 })).toEqual({
+      clave: 'NUEVO', nombre: 'Nuevo', correo: 'nuevo@example.test', password: 'ClaveSegura1!', vigencia: null, perfilId: 3,
+    });
+    expect(UserMapper.toProfileRequest({ profileId: 4 })).toEqual({ perfilId: 4 });
   });
 });

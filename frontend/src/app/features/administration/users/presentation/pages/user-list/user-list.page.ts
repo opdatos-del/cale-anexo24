@@ -17,12 +17,17 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
 import { ChangeUserStatusUseCase } from '../../../application/use-cases/change-user-status.use-case';
+
 import { GetUserUseCase } from '../../../application/use-cases/get-user.use-case';
 import { SearchUsersUseCase } from '../../../application/use-cases/search-users.use-case';
+import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
+import { ProfileAdministration } from '../../../../profiles/domain/models/profile-administration.model';
 import { UserAdministration, UserStatus } from '../../../domain/models/user-administration.model';
+import { UserCreateDialog } from '../../dialogs/user-create/user-create.dialog';
 import { UserEditDialog } from '../../dialogs/user-edit/user-edit.dialog';
 import { UserExpirationDialog } from '../../dialogs/user-expiration/user-expiration.dialog';
 import { UserPasswordDialog } from '../../dialogs/user-password/user-password.dialog';
+import { UserProfileDialog } from '../../dialogs/user-profile/user-profile.dialog';
 
 /** Formatea una fecha civil sin conversiones de zona horaria. */
 export function formatExpiration(value: string | null): string {
@@ -60,6 +65,9 @@ export function formatExpiration(value: string | null): string {
             <button mat-stroked-button type="button" (click)="load()" [disabled]="loading()" aria-label="Actualizar listado de usuarios">
               <mat-icon aria-hidden="true">refresh</mat-icon> Actualizar
             </button>
+            <button mat-flat-button type="button" (click)="openCreate()" aria-label="Crear usuario">
+              <mat-icon aria-hidden="true">person_add</mat-icon> Nuevo usuario
+            </button>
           </div>
         </header>
 
@@ -82,6 +90,16 @@ export function formatExpiration(value: string | null): string {
                 <mat-option value="ACTIVO">Activo</mat-option>
                 <mat-option value="INACTIVO">Inactivo</mat-option>
               </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Perfil</mat-label>
+              <mat-select formControlName="profileId" aria-label="Filtrar por perfil">
+                <mat-option [value]="null">Todos los perfiles</mat-option>
+                @for (profile of profiles(); track profile.id) {
+                  <mat-option [value]="profile.id">{{ profile.name }}{{ profile.status === 'INACTIVO' ? ' (Inactivo)' : '' }}</mat-option>
+                }
+              </mat-select>
+              @if (profilesError()) { <mat-hint>Perfiles no disponibles.</mat-hint> }
             </mat-form-field>
           </form>
           <div class="mt-3 flex justify-end border-t border-slate-100 pt-3">
@@ -124,6 +142,7 @@ export function formatExpiration(value: string | null): string {
                 <button mat-menu-item type="button" (click)="openEdit(user)"><mat-icon>edit</mat-icon><span>Editar datos</span></button>
                 <button mat-menu-item type="button" (click)="confirmStatusChange(user)"><mat-icon>{{ user.status === 'ACTIVO' ? 'person_off' : 'person' }}</mat-icon><span>{{ user.status === 'ACTIVO' ? 'Inactivar usuario' : 'Activar usuario' }}</span></button>
                 <button mat-menu-item type="button" (click)="openExpiration(user)"><mat-icon>event</mat-icon><span>Cambiar vigencia</span></button>
+                <button mat-menu-item type="button" (click)="openProfile(user)"><mat-icon>manage_accounts</mat-icon><span>Cambiar perfil</span></button>
                 <button mat-menu-item type="button" (click)="openPassword(user)"><mat-icon>key</mat-icon><span>Restablecer contraseña</span></button>
               </ng-template>
             </mat-menu>
@@ -133,7 +152,7 @@ export function formatExpiration(value: string | null): string {
                 <article class="p-4">
                   <div class="flex items-start justify-between gap-3"><div><h3 class="m-0 font-semibold text-slate-900">{{ user.name }}</h3><p class="m-0 text-xs text-slate-500">{{ user.key }} · {{ user.profileName }}</p></div><span class="rounded-full px-2 py-1 text-xs font-semibold" [class]="user.status === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'">{{ user.status === 'ACTIVO' ? 'Activo' : 'Inactivo' }}</span></div>
                   <dl class="my-3 grid gap-1 text-sm"><div><dt class="inline text-slate-500">Correo: </dt><dd class="inline break-all">{{ user.email }}</dd></div><div><dt class="inline text-slate-500">Vigencia: </dt><dd class="inline">{{ formatExpiration(user.expiration) }}</dd></div></dl>
-                  <div class="flex flex-wrap gap-1"><button mat-button type="button" (click)="openEdit(user)">Editar</button><button mat-button type="button" (click)="openExpiration(user)">Vigencia</button><button mat-button type="button" (click)="openPassword(user)">Contraseña</button><button mat-button type="button" (click)="confirmStatusChange(user)">{{ user.status === 'ACTIVO' ? 'Inactivar' : 'Activar' }}</button></div>
+                  <div class="flex flex-wrap gap-1"><button mat-button type="button" (click)="openEdit(user)">Editar</button><button mat-button type="button" (click)="openProfile(user)">Perfil</button><button mat-button type="button" (click)="openExpiration(user)">Vigencia</button><button mat-button type="button" (click)="openPassword(user)">Contraseña</button><button mat-button type="button" (click)="confirmStatusChange(user)">{{ user.status === 'ACTIVO' ? 'Inactivar' : 'Activar' }}</button></div>
                 </article>
               }
             </div>
@@ -148,6 +167,8 @@ export function formatExpiration(value: string | null): string {
 export class UserListPage implements OnInit {
   private readonly searchUsers = inject(SearchUsersUseCase);
   private readonly getUser = inject(GetUserUseCase);
+  private readonly loadAllProfiles = inject(LoadAllProfilesUseCase);
+
   private readonly changeStatus = inject(ChangeUserStatusUseCase);
   private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
@@ -163,12 +184,16 @@ export class UserListPage implements OnInit {
   protected readonly pageSize = signal(20);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly profiles = signal<ProfileAdministration[]>([]);
+  protected readonly profilesLoading = signal(false);
+  protected readonly profilesError = signal<string | null>(null);
   protected readonly formatExpiration = formatExpiration;
   protected readonly filters = new FormGroup({
     name: new FormControl('', { nonNullable: true }),
     key: new FormControl('', { nonNullable: true }),
     email: new FormControl('', { nonNullable: true }),
     status: new FormControl<UserStatus | null>(null),
+    profileId: new FormControl<number | null>(null),
   });
 
   ngOnInit(): void {
@@ -176,6 +201,8 @@ export class UserListPage implements OnInit {
       .pipe(debounceTime(500), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.filtersChanged());
     this.filters.controls.status.valueChanges.pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.filtersChanged());
+    this.filters.controls.profileId.valueChanges.pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.filtersChanged());
+    this.loadProfiles();
     this.load();
   }
 
@@ -208,11 +235,11 @@ export class UserListPage implements OnInit {
 
   protected hasFilters(): boolean {
     const values = this.filters.getRawValue();
-    return Boolean(values.name.trim() || values.key.trim() || values.email.trim() || values.status);
+    return Boolean(values.name.trim() || values.key.trim() || values.email.trim() || values.status || values.profileId !== null);
   }
 
   protected clearFilters(): void {
-    this.filters.reset({ name: '', key: '', email: '', status: null }, { emitEvent: false });
+    this.filters.reset({ name: '', key: '', email: '', status: null, profileId: null }, { emitEvent: false });
     this.page.set(1);
     this.load();
   }
@@ -221,6 +248,21 @@ export class UserListPage implements OnInit {
     this.page.set(event.pageIndex + 1);
     this.pageSize.set(event.pageSize);
     this.load();
+  }
+
+  protected openCreate(): void {
+    this.dialog.open(UserCreateDialog, {
+      viewContainerRef: this.viewContainerRef,
+      width: 'min(94vw, 560px)',
+      maxWidth: 'calc(100vw - 24px)',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+    }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((result: unknown) => {
+      if (result) {
+        this.page.set(1);
+        this.load();
+      }
+    });
   }
 
   protected openEdit(user: UserAdministration): void {
@@ -233,6 +275,10 @@ export class UserListPage implements OnInit {
 
   protected openPassword(user: UserAdministration): void {
     this.openDetailDialog(user.id, UserPasswordDialog, false);
+  }
+
+  protected openProfile(user: UserAdministration): void {
+    this.openDetailDialog(user.id, UserProfileDialog);
   }
 
   protected confirmStatusChange(user: UserAdministration): void {
@@ -250,6 +296,23 @@ export class UserListPage implements OnInit {
         },
         error: (error: unknown) => this.notifications.error(userFacingApiError(error, 'No fue posible cambiar el estado.')),
       });
+    });
+  }
+
+  private loadProfiles(): void {
+    this.profilesLoading.set(true);
+    this.profilesError.set(null);
+    this.filters.controls.profileId.disable({ emitEvent: false });
+    this.loadAllProfiles.execute().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (profiles) => {
+        this.profiles.set(profiles);
+        this.profilesLoading.set(false);
+        this.filters.controls.profileId.enable({ emitEvent: false });
+      },
+      error: () => {
+        this.profilesLoading.set(false);
+        this.profilesError.set('Perfiles no disponibles.');
+      },
     });
   }
 

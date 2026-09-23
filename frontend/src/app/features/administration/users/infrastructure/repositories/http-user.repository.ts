@@ -2,7 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
   ChangeUserExpirationCommand,
+  ChangeUserProfileCommand,
   ChangeUserStatusCommand,
+  CreateUserCommand,
   ResetUserPasswordCommand,
   UpdateUserCommand,
   UserAdministration,
@@ -26,6 +28,10 @@ export class HttpUserRepository implements UserRepository {
     return this.api.getById(id).pipe(map(UserMapper.toDomain));
   }
 
+  create(command: CreateUserCommand): Observable<UserAdministration> {
+    return this.api.create(UserMapper.toCreateRequest(command)).pipe(map(UserMapper.toDomain));
+  }
+
   update(id: number, command: UpdateUserCommand): Observable<UserAdministration> {
     return this.api.update(id, UserMapper.toUpdateRequest(command)).pipe(map(UserMapper.toDomain));
   }
@@ -36,6 +42,10 @@ export class HttpUserRepository implements UserRepository {
 
   changeExpiration(id: number, command: ChangeUserExpirationCommand): Observable<UserAdministration> {
     return this.api.changeExpiration(id, UserMapper.toExpirationRequest(command)).pipe(map(UserMapper.toDomain));
+  }
+
+  changeProfile(id: number, command: ChangeUserProfileCommand): Observable<UserAdministration> {
+    return this.api.changeProfile(id, UserMapper.toProfileRequest(command)).pipe(map(UserMapper.toDomain));
   }
 
   resetPassword(id: number, command: ResetUserPasswordCommand): Observable<void> {

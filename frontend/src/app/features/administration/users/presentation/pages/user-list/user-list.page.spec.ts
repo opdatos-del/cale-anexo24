@@ -7,23 +7,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmService } from '../../../../../../core/ui/confirm-dialog/confirm.service';
 import { NotificationService } from '../../../../../../core/notifications/notification.service';
 import { ChangeUserExpirationUseCase } from '../../../application/use-cases/change-user-expiration.use-case';
+import { ChangeUserProfileUseCase } from '../../../application/use-cases/change-user-profile.use-case';
 import { ChangeUserStatusUseCase } from '../../../application/use-cases/change-user-status.use-case';
+import { CreateUserUseCase } from '../../../application/use-cases/create-user.use-case';
 import { GetUserUseCase } from '../../../application/use-cases/get-user.use-case';
 import { ResetUserPasswordUseCase } from '../../../application/use-cases/reset-user-password.use-case';
 import { SearchUsersUseCase } from '../../../application/use-cases/search-users.use-case';
 import { UpdateUserUseCase } from '../../../application/use-cases/update-user.use-case';
 import { UserAdministration, UserPage, UserStatus } from '../../../domain/models/user-administration.model';
+import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
 import { UserRepository } from '../../../domain/repositories/user.repository';
+import { UserCreateDialog } from '../../dialogs/user-create/user-create.dialog';
 import { UserEditDialog } from '../../dialogs/user-edit/user-edit.dialog';
 import { UserExpirationDialog } from '../../dialogs/user-expiration/user-expiration.dialog';
 import { UserPasswordDialog } from '../../dialogs/user-password/user-password.dialog';
+import { UserProfileDialog } from '../../dialogs/user-profile/user-profile.dialog';
 import { UserListPage } from './user-list.page';
 
 interface PageInternals {
   filters: {
-    controls: { name: { setValue(value: string): void }; status: { setValue(value: UserStatus): void } };
-    setValue(value: { key: string; name: string; email: string; status: UserStatus }): void;
-    getRawValue(): { key: string; name: string; email: string; status: UserStatus | null };
+    controls: { name: { setValue(value: string): void }; status: { setValue(value: UserStatus): void }; profileId: { setValue(value: number | null): void } };
+    setValue(value: { key: string; name: string; email: string; status: UserStatus; profileId: number | null }): void;
+    getRawValue(): { key: string; name: string; email: string; status: UserStatus | null; profileId: number | null };
   };
   loading(): boolean;
   users(): UserAdministration[];
@@ -32,7 +37,9 @@ interface PageInternals {
   clearFilters(): void;
   onPage(event: { pageIndex: number; pageSize: number }): void;
   confirmStatusChange(user: UserAdministration): void;
+  openCreate(): void;
   openEdit(user: UserAdministration): void;
+  openProfile(user: UserAdministration): void;
   openExpiration(user: UserAdministration): void;
   openPassword(user: UserAdministration): void;
 }
@@ -49,6 +56,7 @@ describe('UserListPage', () => {
   const notifications = { success: vi.fn(), error: vi.fn() };
   const confirm = { ask: vi.fn() };
   const dialog = { open: vi.fn() };
+  const loadProfiles = { execute: vi.fn() };
 
   function createPage(): void {
     TestBed.configureTestingModule({
@@ -61,6 +69,7 @@ describe('UserListPage', () => {
         { provide: NotificationService, useValue: notifications },
         { provide: ConfirmService, useValue: confirm },
         { provide: MatDialog, useValue: dialog },
+        { provide: LoadAllProfilesUseCase, useValue: loadProfiles },
       ],
     });
     fixture = TestBed.createComponent(UserListPage);
@@ -77,6 +86,8 @@ describe('UserListPage', () => {
     notifications.error.mockReset();
     confirm.ask.mockReset();
     dialog.open.mockReset();
+    loadProfiles.execute.mockReset();
+    loadProfiles.execute.mockReturnValue(of([]));
   });
 
   afterEach(() => vi.useRealTimers());
@@ -87,7 +98,7 @@ describe('UserListPage', () => {
     createPage();
     const instance = component as unknown as PageInternals;
 
-    expect(search.execute).toHaveBeenCalledWith({ key: '', name: '', email: '', status: null, page: 1, pageSize: 20 });
+    expect(search.execute).toHaveBeenCalledWith({ key: '', name: '', email: '', status: null, profileId: null, page: 1, pageSize: 20 });
     expect(instance.loading()).toBe(true);
     response.next(firstPage);
     expect(instance.loading()).toBe(false);
@@ -103,23 +114,26 @@ describe('UserListPage', () => {
     vi.advanceTimersByTime(499);
     expect(search.execute).toHaveBeenCalledTimes(2);
     vi.advanceTimersByTime(1);
-    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: 'Operador', email: '', status: null, page: 1, pageSize: 20 });
+    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: 'Operador', email: '', status: null, profileId: null, page: 1, pageSize: 20 });
 
     instance.filters.controls.status.setValue('INACTIVO');
-    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: 'Operador', email: '', status: 'INACTIVO', page: 1, pageSize: 20 });
+    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: 'Operador', email: '', status: 'INACTIVO', profileId: null, page: 1, pageSize: 20 });
+
+    instance.filters.controls.profileId.setValue(3);
+    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: 'Operador', email: '', status: 'INACTIVO', profileId: 3, page: 1, pageSize: 20 });
   });
 
   it('cambia página, limpia filtros y vuelve a la primera página', () => {
     search.execute.mockReturnValue(of(firstPage));
     createPage();
     const instance = component as unknown as PageInternals;
-    instance.filters.setValue({ key: 'CLAVE', name: 'Nombre', email: 'correo@example.test', status: 'ACTIVO' });
+    instance.filters.setValue({ key: 'CLAVE', name: 'Nombre', email: 'correo@example.test', status: 'ACTIVO', profileId: null });
     instance.onPage({ pageIndex: 3, pageSize: 100 });
-    expect(search.execute).toHaveBeenLastCalledWith({ key: 'CLAVE', name: 'Nombre', email: 'correo@example.test', status: 'ACTIVO', page: 4, pageSize: 100 });
+    expect(search.execute).toHaveBeenLastCalledWith({ key: 'CLAVE', name: 'Nombre', email: 'correo@example.test', status: 'ACTIVO', profileId: null, page: 4, pageSize: 100 });
 
     instance.clearFilters();
-    expect(instance.filters.getRawValue()).toEqual({ key: '', name: '', email: '', status: null });
-    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: '', email: '', status: null, page: 1, pageSize: 20 });
+    expect(instance.filters.getRawValue()).toEqual({ key: '', name: '', email: '', status: null, profileId: null });
+    expect(search.execute).toHaveBeenLastCalledWith({ key: '', name: '', email: '', status: null, profileId: null, page: 1, pageSize: 20 });
   });
 
   it('presenta un error seguro y descarta respuestas obsoletas', () => {
@@ -153,16 +167,17 @@ describe('UserListPage', () => {
 
   it('resuelve los casos de uso de diálogos desde el inyector hijo asociado a la ruta', () => {
     const repository = {
-      search: vi.fn(() => of(firstPage)), getById: vi.fn(() => of(user)), update: vi.fn(() => of(user)),
-      changeStatus: vi.fn(() => of(user)), changeExpiration: vi.fn(() => of(user)), resetPassword: vi.fn(() => of(void 0)),
+      search: vi.fn(() => of(firstPage)), getById: vi.fn(() => of(user)), create: vi.fn(() => of(user)), update: vi.fn(() => of(user)),
+      changeStatus: vi.fn(() => of(user)), changeProfile: vi.fn(() => of(user)), changeExpiration: vi.fn(() => of(user)), resetPassword: vi.fn(() => of(void 0)),
     };
     TestBed.configureTestingModule({
       imports: [UserListPage, MatDialogModule],
       providers: [provideNoopAnimations(), { provide: NotificationService, useValue: notifications }, { provide: ConfirmService, useValue: confirm }],
     });
     const routeInjector = createEnvironmentInjector([
-      { provide: UserRepository, useValue: repository }, SearchUsersUseCase, GetUserUseCase, UpdateUserUseCase,
-      ChangeUserStatusUseCase, ChangeUserExpirationUseCase, ResetUserPasswordUseCase,
+      { provide: UserRepository, useValue: repository }, SearchUsersUseCase, GetUserUseCase, CreateUserUseCase, UpdateUserUseCase,
+      ChangeUserStatusUseCase, ChangeUserProfileUseCase, ChangeUserExpirationUseCase, ResetUserPasswordUseCase,
+      { provide: LoadAllProfilesUseCase, useValue: loadProfiles },
     ], TestBed.inject(EnvironmentInjector));
     const appRef = TestBed.inject(ApplicationRef);
     const componentRef: ComponentRef<UserListPage> = createComponent(UserListPage, { environmentInjector: routeInjector });
@@ -172,8 +187,12 @@ describe('UserListPage', () => {
     const actualDialog = TestBed.inject(MatDialog);
     const instance = component as unknown as PageInternals;
 
+    instance.openCreate();
+    expect(actualDialog.openDialogs.at(-1)?.componentInstance).toBeInstanceOf(UserCreateDialog);
     instance.openEdit(user);
     expect(actualDialog.openDialogs.at(-1)?.componentInstance).toBeInstanceOf(UserEditDialog);
+    instance.openProfile(user);
+    expect(actualDialog.openDialogs.at(-1)?.componentInstance).toBeInstanceOf(UserProfileDialog);
     instance.openExpiration(user);
     expect(actualDialog.openDialogs.at(-1)?.componentInstance).toBeInstanceOf(UserExpirationDialog);
     instance.openPassword(user);

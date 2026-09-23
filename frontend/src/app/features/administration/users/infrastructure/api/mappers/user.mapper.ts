@@ -1,6 +1,8 @@
 import {
   ChangeUserExpirationCommand,
+  ChangeUserProfileCommand,
   ChangeUserStatusCommand,
+  CreateUserCommand,
   ResetUserPasswordCommand,
   UpdateUserCommand,
   UserAdministration,
@@ -8,7 +10,9 @@ import {
 } from '../../../domain/models/user-administration.model';
 import {
   ChangeUserExpirationRequestDto,
+  ChangeUserProfileRequestDto,
   ChangeUserStatusRequestDto,
+  CreateUserRequestDto,
   ResetUserPasswordRequestDto,
   UpdateUserRequestDto,
   UserPageResponseDto,
@@ -53,5 +57,20 @@ export const UserMapper = {
 
   toPasswordRequest(command: ResetUserPasswordCommand): ResetUserPasswordRequestDto {
     return { password: command.password };
+  },
+
+  toCreateRequest(command: CreateUserCommand): CreateUserRequestDto {
+    return {
+      clave: command.key,
+      nombre: command.name,
+      correo: command.email,
+      password: command.password,
+      vigencia: command.expiration,
+      perfilId: command.profileId,
+    };
+  },
+
+  toProfileRequest(command: ChangeUserProfileCommand): ChangeUserProfileRequestDto {
+    return { perfilId: command.profileId };
   },
 };

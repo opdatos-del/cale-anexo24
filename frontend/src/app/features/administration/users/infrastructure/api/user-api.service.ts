@@ -4,7 +4,9 @@ import { Observable } from 'rxjs';
 import { UserSearchCriteria } from '../../domain/models/user-administration.model';
 import {
   ChangeUserExpirationRequestDto,
+  ChangeUserProfileRequestDto,
   ChangeUserStatusRequestDto,
+  CreateUserRequestDto,
   ResetUserPasswordRequestDto,
   UpdateUserRequestDto,
   UserPageResponseDto,
@@ -28,11 +30,16 @@ export class UserApiService {
       if (value) params = params.set(name, value);
     }
     if (criteria.status) params = params.set('estado', criteria.status);
+    if (criteria.profileId !== null) params = params.set('perfilId', criteria.profileId);
     return this.http.get<UserPageResponseDto>(this.baseUrl, { params });
   }
 
   getById(id: number): Observable<UserResponseDto> {
     return this.http.get<UserResponseDto>(`${this.baseUrl}/${id}`);
+  }
+
+  create(request: CreateUserRequestDto): Observable<UserResponseDto> {
+    return this.http.post<UserResponseDto>(this.baseUrl, request);
   }
 
   update(id: number, request: UpdateUserRequestDto): Observable<UserResponseDto> {
@@ -45,6 +52,10 @@ export class UserApiService {
 
   changeExpiration(id: number, request: ChangeUserExpirationRequestDto): Observable<UserResponseDto> {
     return this.http.patch<UserResponseDto>(`${this.baseUrl}/${id}/vigencia`, request);
+  }
+
+  changeProfile(id: number, request: ChangeUserProfileRequestDto): Observable<UserResponseDto> {
+    return this.http.patch<UserResponseDto>(`${this.baseUrl}/${id}/perfil`, request);
   }
 
   resetPassword(id: number, request: ResetUserPasswordRequestDto): Observable<void> {

@@ -27,6 +27,7 @@ export interface UserSearchCriteria {
   name: string;
   email: string;
   status: UserStatus | null;
+  profileId: number | null;
   page: number;
   pageSize: number;
 }
@@ -50,4 +51,19 @@ export interface ChangeUserExpirationCommand {
 /** Restablecimiento de contraseña. */
 export interface ResetUserPasswordCommand {
   password: string;
+}
+
+/** Datos requeridos para crear un usuario administrativo. */
+export interface CreateUserCommand {
+  key: string;
+  name: string;
+  email: string;
+  password: string;
+  expiration: string | null;
+  profileId: number;
+}
+
+/** Cambio aislado de perfil. */
+export interface ChangeUserProfileCommand {
+  profileId: number;
 }

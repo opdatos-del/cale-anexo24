@@ -1,5 +1,5 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
-import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,15 +9,9 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ResetUserPasswordUseCase } from '../../../application/use-cases/reset-user-password.use-case';
 import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '../../../domain/validation/password.validation';
 
-export const STRONG_PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{10,50}$/;
-
-/** Valida que contraseña y confirmación sean idénticas. */
-export const passwordsMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-  const password = control.get('password')?.value as string | undefined;
-  const confirmation = control.get('confirmation')?.value as string | undefined;
-  return password === confirmation ? null : { passwordsMismatch: true };
-};
+export { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '../../../domain/validation/password.validation';
 
 /** Restablece una contraseña aplicando la política de seguridad. */
 @Component({
