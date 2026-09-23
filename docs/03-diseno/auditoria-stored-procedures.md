@@ -277,6 +277,12 @@ SP-1C dejó seis `GRANT EXECUTE` versionados y conservó temporalmente permisos 
 
 Auditoría LIVE read-only ejecutada el 2026-09-23 desde `feature/backend-sp-closure`, sin `CREATE`, `ALTER`, DML ni ejecución de comandos mutables.
 
+## SP-1E — provisionamiento runtime least-privilege
+
+`04-app-runtime-permissions.sql` se ejecutó en `ANEXO24_DEV` el 2026-09-23. La identidad lógica fue `opdatos`/`dbo`; no se expusieron credenciales. La ejecución creó `app24_runtime`, agregó `anexo24_app`, removió `db_datareader` y `db_datawriter`, revocó EXECUTE global y aplicó los 11 grants EXECUTE por objeto. Segunda ejecución: PASS, sin diferencias.
+
+Impersonation legítima como `anexo24_app` confirmó: EXECUTE efectivo en queries/commands, SELECT/INSERT/UPDATE/DELETE directos sobre tablas objetivo = 0, SELECT directo `TOP (0)` = DENIED y query read-only = PASS. Esto valida ownership chain efectiva. No se ejecutaron commands ni se modificaron filas de negocio.
+
 | Control | Resultado |
 |---|---|
 | `CALE_IMMEX` SP total | 96 |
@@ -288,10 +294,11 @@ Auditoría LIVE read-only ejecutada el 2026-09-23 desde `feature/backend-sp-clos
 | Excepción técnica | `SystemStatusController` → `SELECT 1` |
 | Error code JDBC LIVE | `SQLServerException.getErrorCode() = 51102` confirmado |
 | Ownership efectivo | `dbo` en schema `app24`, tablas y SPs; chain compatible |
-| Runtime | `RUNTIME_PARTIAL`: `anexo24_app` existe, sigue en roles amplios; `app24_runtime` aún no existe |
+| Runtime previo | `RUNTIME_PARTIAL` |
+| Runtime SP-1E | `RUNTIME_READY`: rol dedicado, membership, EXECUTE específico y sin grants directos de tablas |
 
 `BitacoraEvento.fecha` se verificó directamente con `sys.columns`: `datetime2`, `scale=3`, no existe drift respecto a `02-app-schema.sql`. El reporte anterior que indicaba 7 correspondía a la escala del tipo base, no a la escala efectiva de la columna.
 
-`infra/sql/04-app-runtime-permissions.sql` queda versionado con `GRANT EXECUTE` sobre los 11 SP y `REVOKE` explícito de grants directos de tablas. No fue aplicado LIVE: falta provisión/autorización de `app24_runtime` y `anexo24_app`; la cuenta actual conserva membership `db_datareader`/`db_datawriter`.
+`infra/sql/04-app-runtime-permissions.sql` se aplicó dos veces en `ANEXO24_DEV` con la identidad administrativa `opdatos`; ambas ejecuciones pasaron. La primera creó `app24_runtime`, retiró memberships `db_datareader`/`db_datawriter`, revocó EXECUTE global y concedió los 11 EXECUTE específicos. La segunda confirmó idempotencia. Impersonation de `anexo24_app` confirmó EXECUTE efectivo, SELECT directo denegado y ejecución de query read-only mediante ownership chain.
 
-La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D agrega cobertura explícita de códigos SQL sin perseguir un número artificial. No integrar a `dev` hasta revisar el gate de permisos runtime.
+La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D agrega cobertura explícita de códigos SQL sin perseguir un número artificial. SP-1E cerró el gate runtime; no se modificaron datos de negocio.

@@ -211,22 +211,19 @@ permanece pendiente y `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
 
 ## 9. Permisos runtime de base de datos — estado actual
 
-**CONFIRMADO (script):** `04-app-runtime-permissions.sql` concede a
-`app24_runtime` (miembro `anexo24_app`):
+**CONFIRMADO LIVE (SP-1E):** `04-app-runtime-permissions.sql` fue aplicado dos veces en `ANEXO24_DEV` y dejó `app24_runtime` como rol de ejecución, con `anexo24_app` como miembro.
 
-| Objeto | Permiso |
+Estado efectivo:
+
+| Alcance | Estado |
 |---|---|
-| `app24.UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo)` |
-| `app24.PerfilApp` | `SELECT` |
-| `app24.PerfilActividad` | `SELECT` |
-| `app24.Actividad` | `SELECT` |
-| `app24.BitacoraEvento` | `SELECT, INSERT` |
+| `db_datareader` / `db_datawriter` | membership removida |
+| EXECUTE database/global | revocado |
+| tablas `app24` objetivo | SELECT/INSERT/UPDATE/DELETE directos = 0 |
+| 11 SP app24 | EXECUTE específico concedido |
+| idempotencia | segunda ejecución PASS, sin diferencias |
 
-Retira `db_datareader`/`db_datawriter` y `REVOKE EXECUTE` global; `ALTER ROLE ...
-DROP MEMBER` solo si la membership existe (idempotente).
-
-**PENDIENTE DE DESPLIEGUE:** script no aplicado en servidor. La matriz de
-permisos candidata para Administración futura está en **§31**.
+Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejecutó `APP24_Q_USUARIOS_LISTAR` sin SELECT directo sobre tablas; SELECT directo `TOP (0)` fue denegado.
 
 ## 10. Frontend
 
@@ -644,20 +641,7 @@ sobreingeniería.
 
 ## 31. Runtime permissions — estado versionado
 
-`04-app-runtime-permissions.sql` versiona los mínimos siguientes, todos
-pendientes de despliegue remoto:
-
-| Objeto | Permiso versionado |
-|---|---|
-| `UsuarioApp` | `SELECT`, `INSERT`, `UPDATE (nombre, correo, estado, perfil_id, vigencia)` |
-| `PerfilApp` | `SELECT` |
-| `PerfilActividad` | `SELECT` |
-| `Actividad` | `SELECT` |
-| `BitacoraEvento` | `SELECT`, `INSERT` |
-
-Los grants versionados para `UPDATE (estado, perfil_id, vigencia)` están
-pendientes de despliegue remoto. No hay grants de escritura para contraseña,
-`PerfilApp` ni `PerfilActividad`. No hay `DELETE`.
+`04-app-runtime-permissions.sql` versiona el estado final least-privilege, ya desplegado en `ANEXO24_DEV`: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 11 SP app24 aprobados. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
 
 ## 32. Rutas API V1 — DECISIÓN
 

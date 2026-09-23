@@ -1,6 +1,6 @@
 # Matriz de regresión SP-1D
 
-Estado de auditoría: 2026-09-23. Rama `feature/backend-sp-closure`.
+Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-sp-runtime`.
 
 `UNIT` indica cobertura automatizada en backend; `LIVE` indica ejecución controlada contra `ANEXO24_DEV`. No se ejecutaron mutaciones en `CALE_IMMEX`. Los casos LIVE no ejecutables por dataset se mantienen cubiertos por contrato SQL y tests unitarios.
 
@@ -57,3 +57,16 @@ SP-1B tenía 316 tests y SP-1C dejó 284. La reducción provino de eliminar prue
 ## Límites LIVE
 
 No se fabricaron perfiles alternativos, perfil inactivo ni segundo administrador. Por ello `51103` y `51107` sensibles a dataset se validan por definición SQL, locking, transacción y unit tests. No se marcaron escenarios funcionales sin cobertura equivalente.
+
+## Gate runtime SP-1E
+
+| Control | Estado | Evidencia |
+|---|---|---|
+| `app24_runtime` provisionado | PASS | LIVE metadata |
+| `anexo24_app` miembro del rol | PASS | LIVE role membership |
+| `db_datareader` / `db_datawriter` | PASS removidos | LIVE role membership |
+| EXECUTE específico | PASS, 11/11 | LIVE permissions |
+| grants directos de tablas | PASS, 0 | LIVE permissions + `HAS_PERMS_BY_NAME` |
+| query read-only como runtime | PASS | impersonation `anexo24_app` |
+| SELECT directo de tabla | DENIED | `TOP (0)` bajo impersonation |
+| segunda ejecución 04 | PASS | idempotencia confirmada |
