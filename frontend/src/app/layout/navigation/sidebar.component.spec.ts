@@ -1,0 +1,41 @@
+import { TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthService } from '../../core/auth/auth.service';
+import { SidebarComponent } from './sidebar.component';
+
+describe('SidebarComponent', () => {
+  const auth = {
+    hasPermission: vi.fn(),
+    initials: vi.fn(() => 'OP'),
+    userName: vi.fn(() => 'Operador'),
+  };
+
+  beforeEach(() => {
+    auth.hasPermission.mockReset();
+    TestBed.configureTestingModule({
+      imports: [SidebarComponent],
+      providers: [provideNoopAnimations(), provideRouter([]), { provide: AuthService, useValue: auth }],
+    });
+  });
+
+  it('oculta estructuralmente Usuarios sin el permiso administrativo', () => {
+    auth.hasPermission.mockReturnValue(false);
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Administración');
+    expect(fixture.nativeElement.textContent).not.toContain('Usuarios');
+  });
+
+  it('muestra Usuarios y la ruta administrativa al contar con el permiso', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'USUARIOS_ADMINISTRAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+
+    const links = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+        const link = Array.from(links).find((element) => element.textContent?.includes('Usuarios'));
+    expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/usuarios');
+  });
+});
