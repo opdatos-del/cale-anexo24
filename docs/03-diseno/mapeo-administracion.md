@@ -836,9 +836,15 @@ FASE 3B Estado, perfil, vigencia y guardrails: **COMPLETADA / INTEGRADA EN DEV /
 Migración SP app24/Módulo C: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 Runtime permissions: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 3C reset password: **COMPLETADA / VALIDADA LIVE**; pendiente integración a DEV.
+FASE 3C reset password: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 4 **PENDIENTE**: Frontend Usuarios.
+FASE 4A **IMPLEMENTADA**: Frontend Usuarios para listado, filtros, paginación,
+        edición de nombre/correo, estado, vigencia y restablecimiento de contraseña.
+        Alta de usuario y cambio de perfil quedan **PENDIENTES / BLOQUEADOS POR
+        CATÁLOGO DE PERFILES**, sin IDs manuales ni hardcodeados.
+
+FASE 5A **PENDIENTE**: `GET /api/v1/administracion/perfiles`, dependencia para
+        completar alta de usuario y cambio de perfil en frontend.
 
 FASE 5 **PENDIENTE**: Perfiles + consulta Actividades:
         - query; commands; reemplazo transaccional PerfilActividad;

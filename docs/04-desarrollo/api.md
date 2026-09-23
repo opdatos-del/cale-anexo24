@@ -26,8 +26,8 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 ## Administración de usuarios — Fase 3A
 
 Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
-Fases 3A y 3B están implementadas e integradas en DEV mediante commands SP
-atómicos. Fase 3C está implementada y validada LIVE en su rama. Runtime está
+Fases 3A, 3B y 3C están implementadas e integradas en DEV mediante commands SP
+atómicos. Fase 3C también está validada LIVE. Runtime está
 READY: `app24_runtime` provisionado, membership correcta, 12 EXECUTE específicos,
 cero grants directos de tablas y ownership chain compatible.
 
@@ -124,4 +124,16 @@ no forman parte del contrato implementado de administración de usuarios.
 
 Consumidor frontend de `GET /bitacora`: pantalla read-only en
 `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso
-`BITACORA_CONSULTAR`). No hay consumidor frontend de escritura administrativa.
+`BITACORA_CONSULTAR`).
+
+## Frontend Usuarios — Fase 4A
+
+**IMPLEMENTADA** en `frontend/src/app/features/administration/users`, ruta
+`/usuarios`, protegida por `USUARIOS_ADMINISTRAR`. La UI consume listado,
+detalle, edición de nombre/correo, cambio de estado, cambio de vigencia y reset
+de contraseña. No persiste ni muestra contraseñas.
+
+Alta de usuario y cambio de perfil permanecen **PENDIENTES / BLOQUEADOS POR
+CATÁLOGO DE PERFILES**. Dependencia Fase 5A:
+`GET /api/v1/administracion/perfiles`. La UI no solicita `perfilId` manual, no
+hardcodea IDs y no deduce catálogo desde usuarios.
