@@ -143,7 +143,9 @@ Antes de SP-1B, `ANEXO24_DEV` tenía 0 procedimientos. Después del despliegue L
 
 Scripts versionados en `infra/sql/procedures/queries/`. Las definiciones sólo contienen lectura, validación y paginación; no contienen DML, DDL ni `EXEC` mutable. `password_hash` no se imprime ni se devuelve mediante DTO/API.
 
-Pruebas LIVE controladas PASS: usuario existente/inexistente, acceso existente/inexistente, perfil sin permisos conservando fila, perfil inactivo sin filtro SQL, listado sin filtro, clave exacta, filtros acumulados, detalle existente/inexistente, bitácora con rango válido e identificador inexistente, errores de página/tamaño/rango. Base LIVE tenía 1 usuario y 0 eventos de bitácora; sólo se reportaron métricas, nunca filas sensibles.
+Metadata LIVE de tablas validada antes del diseño: 26 columnas en `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` y `BitacoraEvento`; PKs y únicos confirmados para IDs, claves de actividad, nombre de perfil, clave/correo de usuario; índices de fecha y correlación de bitácora presentes. Tipos relevantes coinciden con contratos (`UsuarioApp.clave varchar(30)`, nombre 120, correo 150, hash 100, IDs bigint; `BitacoraEvento.fecha datetime2(7)`).
+
+Pruebas LIVE controladas PASS: usuario existente/inexistente, acceso existente/inexistente, perfil sin permisos conservando fila, perfil inactivo sin filtro SQL, listado sin filtro, clave exacta, filtros acumulados, detalle existente/inexistente, bitácora con rango válido e identificador inexistente, errores de página/tamaño/rango. Base LIVE tenía 1 usuario y 0 eventos de bitácora; sólo se reportaron métricas, nunca filas sensibles. No había caso seguro con comodines en nombre para validar contra fila real; el escape literal queda implementado en definición y cubierto por contrato del SP.
 
 Decisiones restantes:
 
