@@ -10,7 +10,7 @@ import com.jovycandy.anexo24.auditlog.domain.model.BitacoraEvento;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraModulo;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraResultado;
 import com.jovycandy.anexo24.security.AuthenticatedUserContext;
-import com.jovycandy.anexo24.shared.exception.RecursoDuplicadoException;
+
 import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
@@ -43,12 +43,12 @@ public class ActualizarUsuarioUseCase {
         UsuarioAdministracion actual = consultaRepository.findById(id).orElseThrow(RecursoNoEncontradoException::new);
         String nombre = command.nombre().trim();
         String correo = command.correo().trim();
-        if (comandoRepository.existsByCorreoExceptoUsuario(correo, id)) throw new RecursoDuplicadoException();
+
         List<String> campos = new ArrayList<>();
         if (!nombre.equals(actual.nombre())) campos.add("nombre");
         if (!correo.equals(actual.correo())) campos.add("correo");
         if (campos.isEmpty()) return actual;
-        if (comandoRepository.actualizarDatos(id, nombre, correo) != 1) throw new RecursoNoEncontradoException();
+        comandoRepository.actualizarDatos(id, nombre, correo);
         Long actorId = authenticatedUserContext.currentUser().map(principal -> principal.userId())
                 .orElseThrow(() -> new IllegalStateException("Actor autenticado no disponible"));
         bitacoraService.registrar(new BitacoraEvento(actorId, BitacoraModulo.ADMINISTRACION,

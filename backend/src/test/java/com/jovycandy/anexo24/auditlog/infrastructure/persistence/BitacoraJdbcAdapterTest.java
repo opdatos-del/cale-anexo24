@@ -10,87 +10,55 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Pruebas del insert append-only de Bitácora contra app24. */
+/** Pruebas del command append-only de Bitácora. */
 @ExtendWith(MockitoExtension.class)
 class BitacoraJdbcAdapterTest {
-
-    @Mock
-    private JdbcTemplate jdbcTemplate;
-
+    @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private Connection connection;
+    @Mock private CallableStatement statement;
     private BitacoraJdbcAdapter adapter;
 
     @BeforeEach
-    void setUp() {
-        adapter = new BitacoraJdbcAdapter(jdbcTemplate);
+    void setUp() { adapter = new BitacoraJdbcAdapter(jdbcTemplate); }
+
+    @Test
+    void registraConUsuarioNuloYLeeEventoId() throws Exception {
+        when(jdbcTemplate.call(any(), anyList())).thenReturn(Map.of("EventoId", 9L));
+        adapter.registrar(new BitacoraEvento(null, BitacoraModulo.SEGURIDAD,
+                BitacoraAccion.LOGIN_OK, BitacoraResultado.EXITO, "detalle", "req"));
+        ArgumentCaptor<CallableStatementCreator> creator = ArgumentCaptor.forClass(CallableStatementCreator.class);
+        verify(jdbcTemplate).call(creator.capture(), anyList());
+        when(connection.prepareCall("{call app24.APP24_C_BITACORA_REGISTRAR(?, ?, ?, ?, ?, ?, ?)}"))
+                .thenReturn(statement);
+        creator.getValue().createCallableStatement(connection);
+        verify(statement).setNull(1, java.sql.Types.BIGINT);
+        verify(statement).setString(2, "SEGURIDAD");
+        verify(statement).setString(5, "req");
+        verify(statement).registerOutParameter(7, java.sql.Types.BIGINT);
     }
 
     @Test
-    void insertaColumnasYValoresAprobadosEnOrden() {
-        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
-        BitacoraEvento evento = new BitacoraEvento(
-                null,
-                BitacoraModulo.SEGURIDAD,
-                BitacoraAccion.LOGIN_OK,
-                BitacoraResultado.EXITO,
-                "Acceso autenticado",
-                "req-01");
-
-        adapter.registrar(evento);
-
-        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object[]> parametros = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).update(sql.capture(), parametros.capture());
-        assertThat(sql.getValue().trim()).isEqualTo("""
-                INSERT INTO app24.BitacoraEvento
-                    (usuario_id, modulo, accion, detalle, correlacion_id, resultado)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """.trim());
-        assertThat(parametros.getValue()).containsExactly(
-                null,
-                "SEGURIDAD",
-                "LOGIN_OK",
-                "Acceso autenticado",
-                "req-01",
-                "EXITO");
+    void eventoIdNuloOCeroEsInconsistente() {
+        when(jdbcTemplate.call(any(), anyList())).thenReturn(Map.of("EventoId", 0L));
+        assertThatThrownBy(() -> adapter.registrar(evento())).isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    void aceptaUnaFilaAfectada() {
-        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
-
-        adapter.registrar(eventoValido());
-    }
-
-    @Test
-    void rechazaCeroFilasAfectadas() {
-        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(0);
-
-        assertThatIllegalStateException().isThrownBy(() -> adapter.registrar(eventoValido()));
-    }
-
-    @Test
-    void rechazaMasDeUnaFilaAfectada() {
-        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(2);
-
-        assertThatIllegalStateException().isThrownBy(() -> adapter.registrar(eventoValido()));
-    }
-
-    private BitacoraEvento eventoValido() {
-        return new BitacoraEvento(
-                42L,
-                BitacoraModulo.OPERACIONES,
-                BitacoraAccion.LOGIN_FALLIDO,
-                BitacoraResultado.FALLO,
-                null,
-                null);
+    private BitacoraEvento evento() {
+        return new BitacoraEvento(42L, BitacoraModulo.OPERACIONES,
+                BitacoraAccion.LOGIN_FALLIDO, BitacoraResultado.FALLO, null, null);
     }
 }

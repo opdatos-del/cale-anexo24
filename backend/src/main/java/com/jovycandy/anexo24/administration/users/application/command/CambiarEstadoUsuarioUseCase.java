@@ -10,7 +10,7 @@ import com.jovycandy.anexo24.auditlog.domain.model.BitacoraEvento;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraModulo;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraResultado;
 import com.jovycandy.anexo24.security.AuthenticatedUserContext;
-import com.jovycandy.anexo24.shared.exception.EstadoIncompatibleException;
+
 import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
@@ -46,9 +46,7 @@ public class CambiarEstadoUsuarioUseCase {
         if (actual.estado().equals(nuevoEstado)) return actual;
         Long actorId = authenticatedUserContext.currentUser().map(principal -> principal.userId())
                 .orElseThrow(() -> new IllegalStateException("Actor autenticado no disponible"));
-        if (actorId.equals(id) && "INACTIVO".equals(nuevoEstado)) throw new EstadoIncompatibleException();
-        exigirUnaFila(comandoRepository.actualizarEstado(id, nuevoEstado));
-        validarCapacidadAdministrativa();
+        comandoRepository.actualizarEstado(id, nuevoEstado, actorId, LocalDate.now());
         bitacoraService.registrar(new BitacoraEvento(actorId, BitacoraModulo.ADMINISTRACION,
                 BitacoraAccion.USUARIO_ESTADO_CAMBIADO, BitacoraResultado.EXITO,
                 "usuarioObjetivoId=" + id + ";estadoAnterior=" + actual.estado() + ";estadoNuevo=" + nuevoEstado,
@@ -69,14 +67,4 @@ public class CambiarEstadoUsuarioUseCase {
         return normalizado;
     }
 
-    private void exigirUnaFila(int filas) {
-        if (filas == 0) throw new RecursoNoEncontradoException();
-        if (filas != 1) throw new IllegalStateException("Actualización de usuario inconsistente");
-    }
-
-    private void validarCapacidadAdministrativa() {
-        if (!comandoRepository.existsConCapacidadAdministrativa(LocalDate.now())) {
-            throw new EstadoIncompatibleException();
-        }
-    }
 }

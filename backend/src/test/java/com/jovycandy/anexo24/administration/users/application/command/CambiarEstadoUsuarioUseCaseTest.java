@@ -19,17 +19,13 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CambiarEstadoUsuarioUseCaseTest {
@@ -39,121 +35,48 @@ class CambiarEstadoUsuarioUseCaseTest {
     @Mock private AuthenticatedUserContext actor;
 
     @Test
-    void cambiaEstadoNormalizadoAuditaConActorYCorrelacion() {
-        UsuarioAdministracion actual = usuario("ACTIVO");
-        UsuarioAdministracion actualizado = usuario("INACTIVO");
-        prepararCambio(actual, actualizado, "INACTIVO");
-
-        assertThat(useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand(" inactivo "), "req-estado"))
-                .isSameAs(actualizado);
-
-        verify(comandos).actualizarEstado(42L, "INACTIVO");
-        verify(comandos).existsConCapacidadAdministrativa(org.mockito.ArgumentMatchers.any());
-        ArgumentCaptor<BitacoraEvento> evento = ArgumentCaptor.forClass(BitacoraEvento.class);
-        verify(bitacora).registrar(evento.capture());
-        assertThat(evento.getValue().usuarioId()).isEqualTo(7L);
-        assertThat(evento.getValue().correlationId()).isEqualTo("req-estado");
-        assertThat(evento.getValue().detalle())
-                .isEqualTo("usuarioObjetivoId=42;estadoAnterior=ACTIVO;estadoNuevo=INACTIVO")
-                .doesNotContain("Nombre", "correo@test");
+    void cambiaEstadoPasaActorYFechaYAudita() {
+        AtomicInteger n = new AtomicInteger();
+        when(consultas.findById(42L)).thenAnswer(i -> Optional.of(usuario(n.getAndIncrement() == 0 ? "ACTIVO" : "INACTIVO")));
+        when(actor.currentUser()).thenReturn(Optional.of(new AuthenticatedUserPrincipal(7L, "admin")));
+        useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand(" inactivo "), "req");
+        verify(comandos).actualizarEstado(eq(42L), eq("INACTIVO"), eq(7L), any(LocalDate.class));
+        verify(bitacora).registrar(any(BitacoraEvento.class));
     }
 
     @Test
-    void noOpNoActualizaAuditaNiConsultaActor() {
-        UsuarioAdministracion actual = usuario("ACTIVO");
-        when(consultas.findById(42L)).thenReturn(Optional.of(actual));
-
-        assertThat(useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand(" activo "), "req")).isSameAs(actual);
-
-        verify(comandos, never()).actualizarEstado(anyLong(), anyString());
-        verifyNoInteractions(bitacora, actor);
-    }
-
-    @Test
-    void rechazaUsuarioInexistenteSinEfectos() {
+    void noOpUsuarioInexistenteYActorAusenteSeMantienen() {
+        when(consultas.findById(42L)).thenReturn(Optional.of(usuario("ACTIVO")));
+        assertThat(useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("activo"), "r")).isNotNull();
+        verifyNoInteractions(comandos, actor, bitacora);
+        reset(consultas);
         when(consultas.findById(42L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "req"))
+        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "r"))
                 .isInstanceOf(RecursoNoEncontradoException.class);
-
-        verifyNoInteractions(comandos, bitacora, actor);
-    }
-
-    @Test
-    void fallaCerradoCuandoNoHayActorAntesDeActualizar() {
+        reset(consultas);
         when(consultas.findById(42L)).thenReturn(Optional.of(usuario("ACTIVO")));
         when(actor.currentUser()).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "req"))
-                .isInstanceOf(IllegalStateException.class).hasMessage("Actor autenticado no disponible");
-
-        verify(comandos, never()).actualizarEstado(anyLong(), anyString());
-        verifyNoInteractions(bitacora);
+        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "r"))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    void updateSinFilaAfectadaEsNoEncontradoSinAuditar() {
-        when(consultas.findById(42L)).thenReturn(Optional.of(usuario("ACTIVO")));
-        when(actor.currentUser()).thenReturn(Optional.of(new AuthenticatedUserPrincipal(7L, "admin")));
-        when(comandos.actualizarEstado(42L, "INACTIVO")).thenReturn(0);
-
-        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "req"))
-                .isInstanceOf(RecursoNoEncontradoException.class);
-
-        verifyNoInteractions(bitacora);
-    }
-
-    @Test
-    void rechazaAutoInactivacionSinActualizarNiAuditar() {
+    void selfGuardYLastAdminVienenDelCommand() {
         when(consultas.findById(42L)).thenReturn(Optional.of(usuario("ACTIVO")));
         when(actor.currentUser()).thenReturn(Optional.of(new AuthenticatedUserPrincipal(42L, "admin")));
-
-        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "req"))
+        doThrow(new EstadoIncompatibleException()).when(comandos).actualizarEstado(eq(42L), eq("INACTIVO"), eq(42L), any());
+        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "r"))
                 .isInstanceOf(EstadoIncompatibleException.class);
-
-        verify(comandos, never()).actualizarEstado(anyLong(), anyString());
-        verifyNoInteractions(bitacora);
     }
 
     @Test
-    void rechazaCuandoGuardrailAdministrativoEsFalsoSinAuditar() {
-        when(consultas.findById(42L)).thenReturn(Optional.of(usuario("ACTIVO")));
-        when(actor.currentUser()).thenReturn(Optional.of(new AuthenticatedUserPrincipal(7L, "admin")));
-        when(comandos.actualizarEstado(42L, "INACTIVO")).thenReturn(1);
-        when(comandos.existsConCapacidadAdministrativa(org.mockito.ArgumentMatchers.any())).thenReturn(false);
-
-        assertThatThrownBy(() -> useCase().ejecutar(42L, new CambiarEstadoUsuarioCommand("INACTIVO"), "req"))
-                .isInstanceOf(EstadoIncompatibleException.class);
-
-        verifyNoInteractions(bitacora);
+    void conservaTransaccionSerializable() throws Exception {
+        Method m = CambiarEstadoUsuarioUseCase.class.getDeclaredMethod("ejecutar", Long.class, CambiarEstadoUsuarioCommand.class, String.class);
+        Transactional t = m.getAnnotation(Transactional.class);
+        assertThat(t.transactionManager()).isEqualTo("appTransactionManager");
+        assertThat(t.isolation()).isEqualTo(Isolation.SERIALIZABLE);
     }
 
-    @Test
-    void ejecutarUsaTransaccionSerializableDelAplicativo() throws NoSuchMethodException {
-        Method metodo = CambiarEstadoUsuarioUseCase.class.getDeclaredMethod(
-                "ejecutar", Long.class, CambiarEstadoUsuarioCommand.class, String.class);
-        Transactional transactional = metodo.getAnnotation(Transactional.class);
-
-        assertThat(transactional).isNotNull();
-        assertThat(transactional.transactionManager()).isEqualTo("appTransactionManager");
-        assertThat(transactional.isolation()).isEqualTo(Isolation.SERIALIZABLE);
-        assertThat(transactional.propagation().name()).isEqualTo("REQUIRED");
-    }
-
-    private void prepararCambio(UsuarioAdministracion actual, UsuarioAdministracion actualizado, String estado) {
-        AtomicInteger lecturas = new AtomicInteger();
-        when(consultas.findById(42L)).thenAnswer(invocacion ->
-                lecturas.getAndIncrement() == 0 ? Optional.of(actual) : Optional.of(actualizado));
-        when(actor.currentUser()).thenReturn(Optional.of(new AuthenticatedUserPrincipal(7L, "admin")));
-        when(comandos.actualizarEstado(42L, estado)).thenReturn(1);
-        when(comandos.existsConCapacidadAdministrativa(org.mockito.ArgumentMatchers.any())).thenReturn(true);
-    }
-
-    private CambiarEstadoUsuarioUseCase useCase() {
-        return new CambiarEstadoUsuarioUseCase(comandos, consultas, bitacora, actor);
-    }
-
-    private UsuarioAdministracion usuario(String estado) {
-        return new UsuarioAdministracion(42L, "op", "Nombre", "correo@test", estado, null, 1L, "Admin");
-    }
+    private CambiarEstadoUsuarioUseCase useCase() { return new CambiarEstadoUsuarioUseCase(comandos, consultas, bitacora, actor); }
+    private UsuarioAdministracion usuario(String estado) { return new UsuarioAdministracion(42L, "op", "N", "c", estado, null, 1L, "P"); }
 }

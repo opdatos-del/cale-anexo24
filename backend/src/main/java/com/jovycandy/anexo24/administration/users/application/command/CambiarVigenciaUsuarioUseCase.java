@@ -10,7 +10,7 @@ import com.jovycandy.anexo24.auditlog.domain.model.BitacoraEvento;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraModulo;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraResultado;
 import com.jovycandy.anexo24.security.AuthenticatedUserContext;
-import com.jovycandy.anexo24.shared.exception.EstadoIncompatibleException;
+
 import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
@@ -46,8 +46,7 @@ public class CambiarVigenciaUsuarioUseCase {
         if (Objects.equals(actual.vigencia(), nuevaVigencia)) return actual;
         Long actorId = authenticatedUserContext.currentUser().map(principal -> principal.userId())
                 .orElseThrow(() -> new IllegalStateException("Actor autenticado no disponible"));
-        exigirUnaFila(comandoRepository.actualizarVigencia(id, nuevaVigencia));
-        if (!comandoRepository.existsConCapacidadAdministrativa(LocalDate.now())) throw new EstadoIncompatibleException();
+        comandoRepository.actualizarVigencia(id, nuevaVigencia, actorId, LocalDate.now());
         bitacoraService.registrar(new BitacoraEvento(actorId, BitacoraModulo.ADMINISTRACION,
                 BitacoraAccion.USUARIO_VIGENCIA_CAMBIADA, BitacoraResultado.EXITO,
                 "usuarioObjetivoId=" + id + ";vigenciaAnterior=" + etiquetaVigencia(actual.vigencia())
@@ -59,10 +58,6 @@ public class CambiarVigenciaUsuarioUseCase {
         if (id == null || id <= 0) throw new SolicitudInvalidaException("El parámetro id debe ser positivo.");
     }
 
-    private void exigirUnaFila(int filas) {
-        if (filas == 0) throw new RecursoNoEncontradoException();
-        if (filas != 1) throw new IllegalStateException("Actualización de usuario inconsistente");
-    }
 
     private String etiquetaVigencia(LocalDate vigencia) {
         return vigencia == null ? "SIN_VIGENCIA" : vigencia.toString();
