@@ -149,6 +149,7 @@ export class SidebarComponent implements OnDestroy {
     }
 
     const administrationItems: NavItem[] = [
+      { label: 'Usuarios', icon: 'group', route: '/usuarios', permission: 'USUARIOS_ADMINISTRAR' },
       { label: 'Bitácora', icon: 'manage_search', route: '/bitacora', permission: 'BITACORA_CONSULTAR' },
     ].filter((item) => this.auth.hasPermission(item.permission));
 

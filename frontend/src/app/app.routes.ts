@@ -48,6 +48,12 @@ export const routes: Routes = [
         loadChildren: () => import('@features/operations/operations.routes').then((routes) => routes.OPERATIONS_ROUTES),
       },
       {
+        path: 'usuarios',
+        canActivate: [permissionGuard],
+        data: { permission: 'USUARIOS_ADMINISTRAR' },
+        loadChildren: () => import('@features/administration/users/users.routes').then((routes) => routes.USERS_ROUTES),
+      },
+      {
         path: 'bitacora',
         canActivate: [permissionGuard],
         data: { permission: 'BITACORA_CONSULTAR' },
