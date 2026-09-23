@@ -25,9 +25,10 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 ## Administración de usuarios — Fase 3A
 
 Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
-Fases 3A y 3B están implementadas en repositorio mediante commands SP atómicos.
-El despliegue de grants runtime sigue pendiente por ownership chain incompatible
-y membership de runtime no confirmado.
+Fases 3A y 3B están implementadas e integradas en DEV mediante commands SP
+atómicos. Runtime está READY: `app24_runtime` provisionado, membership correcta,
+11 EXECUTE específicos, cero grants directos de tablas y ownership chain
+compatible.
 
 ### `GET /administracion/usuarios`
 
@@ -94,9 +95,11 @@ pero debe conservar el guardrail administrativo global.
 
 ## Bitácora de Administración
 
-Las acciones disponibles son `LOGIN_OK`, `LOGIN_FALLIDO`, `USUARIO_CREADO` y
-`USUARIO_ACTUALIZADO`. El detalle de los eventos no contiene contraseñas,
-hashes, JWT ni cabeceras de autorización.
+Las acciones disponibles incluyen `LOGIN_OK`, `LOGIN_FALLIDO`,
+`USUARIO_CREADO`, `USUARIO_ACTUALIZADO`, `USUARIO_ESTADO_CAMBIADO`,
+`USUARIO_PERFIL_CAMBIADO` y `USUARIO_VIGENCIA_CAMBIADA`. El detalle de los
+eventos no contiene contraseñas, hashes, JWT ni cabeceras de autorización.
+`USUARIO_PASSWORD_RESTABLECIDA` permanece pendiente junto con Fase 3C.
 
 ## Recursos no expuestos
 

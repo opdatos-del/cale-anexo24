@@ -6,10 +6,11 @@ Este documento define el estado del módulo Administración: modelo de datos,
 dominio, autenticación, commands, permisos runtime y contratos V1. SP-1C cerró
 la migración de commands a Stored Procedures app24.
 
-**IMPLEMENTADO EN REPOSITORIO:** FASE 2, FASE 3A y FASE 3B consumen SPs
-read-only/command mediante `appJdbcTemplate` y `appTransactionManager`.
-Commands sensibles conservan aislamiento `SERIALIZABLE` y guardrail atómico en
-SQL. Reset password, CRUD de perfiles/actividades y frontend permanecen pendientes.
+**IMPLEMENTADO E INTEGRADO EN DEV:** FASE 1, FASE 2, FASE 3A y FASE 3B consumen
+Stored Procedures mediante `appJdbcTemplate` y `appTransactionManager`.
+Commands sensibles conservan aislamiento `SERIALIZABLE`, locking `UPDLOCK`/`HOLDLOCK`
+y guardrail atómico en SQL. Reset password, CRUD de perfiles/actividades y
+frontend Usuarios/Perfiles/Permisos permanecen pendientes.
 
 Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
 cualquier command administrativo. No contradice la evidencia confirmada: la
@@ -27,17 +28,17 @@ actual.
 |---|---|---|
 | `infra/sql/02-app-schema.sql` | DDL de `app24` (PerfilApp, Actividad, PerfilActividad, UsuarioApp, BitacoraEvento, CargaFacturacion, ErrorCarga, ConfiguracionPlantilla) | **CONFIRMADO** para esquema versionado |
 | `infra/sql/03-app-seed-security.sql` | Perfiles `ADMINISTRADOR`/`CONSULTA`, 12 actividades, asignaciones y usuario `admin` | **CONFIRMADO** |
-| `infra/sql/04-app-runtime-permissions.sql` | Política mínima por objeto para `anexo24_app` vía rol `app24_runtime` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** |
-| `administration/users/**` | Puertos separados de autenticación, lectura y command; GETs, POST y PUT de usuarios | **IMPLEMENTADO EN REPOSITORIO**; Fase 3A pendiente de validación runtime remota |
+| `infra/sql/04-app-runtime-permissions.sql` | Política mínima por objeto para `anexo24_app` vía rol `app24_runtime` | **APLICADO LIVE** dos veces; idempotencia PASS; EXECUTE-only |
+| `administration/users/**` | Puertos separados de autenticación, lectura y command; GETs, POST, PUT y PATCH de usuarios | **IMPLEMENTADO, INTEGRADO EN DEV, VALIDADO LIVE** |
 | `security/**` | Login, JWT, filtro, contexto de usuario, entry point y excepciones | **IMPLEMENTADO EN REPOSITORIO** |
-| `auditlog/**` | Catálogo de módulos/acciones y writer append-only | **IMPLEMENTADO EN REPOSITORIO**; `USUARIO_CREADO` y `USUARIO_ACTUALIZADO` conectados en Fase 3A |
+| `auditlog/**` | Catálogo de módulos/acciones y writer append-only | **IMPLEMENTADO, INTEGRADO EN DEV**; login y acciones de usuarios Fase 3A/3B conectados |
 | `shared/config/DataSourceConfig.java` | Dos orígenes, templates y transaction managers explícitos para Módulo C y `app24` | **CONFIRMADO**; `transactionManager` y `appTransactionManager` documentados en §29 |
 | `frontend/src/app/features/administration/**` | Solo `audit-log` implementado; `users`, `profiles`, `permissions` vacíos (`.gitkeep`) | **IMPLEMENTADO EN REPOSITORIO** (bitácora); **NO IMPLEMENTADO** (resto) |
-| `docs/03-diseno/modelo-datos.md`, `docs/04-desarrollo/api.md` | Modelo lógico y contrato API documentado | **CONFIRMADO**; usuarios GET/POST/PUT están implementados en repositorio |
+| `docs/03-diseno/modelo-datos.md`, `docs/04-desarrollo/api.md` | Modelo lógico y contrato API documentado | **CONFIRMADO**; usuarios GET/POST/PUT/PATCH están implementados e integrados en DEV |
 
 SP-1C validó metadata y ejecutó pruebas LIVE sintéticas reversibles en
-`ANEXO24_DEV`; no se consultó ni modificó `CALE_IMMEX`. No se debilitó TLS ni se
-aplicó el script de permisos runtime.
+`ANEXO24_DEV`; no se consultó ni modificó `CALE_IMMEX`. SP-1E aplicó
+`04-app-runtime-permissions.sql` dos veces en `ANEXO24_DEV`; idempotencia PASS.
 
 ## 3. Modelo de datos `app24` (DDL versionado)
 
@@ -104,7 +105,7 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | `UsuarioComandoJdbcAdapter` | Invoca cinco `APP24_C_USUARIO_*`; traduce códigos SQL 51101–51108/51150 y 2601/2627 | **IMPLEMENTADO EN REPOSITORIO** (SP-1C); sin SQL funcional inline |
 | `BitacoraJdbcAdapter` | Invoca `APP24_C_BITACORA_REGISTRAR`; valida `EventoId` | **IMPLEMENTADO EN REPOSITORIO** (SP-1C); sin SQL funcional inline |
 | `ListarUsuariosUseCase` / `ObtenerUsuarioUseCase` | normalizan filtros y validan longitudes, estado, perfilId y paginación; 404 si no existe | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
-| `UsuarioAdministracionController` + DTOs | GETs FASE 2 y `POST`/`PUT` FASE 3A con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA** |
+| `UsuarioAdministracionController` + DTOs | GETs FASE 2, `POST`/`PUT` FASE 3A y PATCH FASE 3B con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO, INTEGRADO EN DEV, RUNTIME READY** |
 
 **CONFIRMADO:** el paquete `administration/users` conserva la separación:
 autenticación (`UsuarioRepository`/`UsuarioJdbcAdapter`) vs. consulta
@@ -131,7 +132,7 @@ No hay dominio para PerfilApp ni Actividad; sus invariantes de persistencia son 
 entradas, salidas, materiales utilizados, activos fijos). La autorización recae
 enteramente en el claim `auth` del token.
 
-## 6. HALLAZGO — permisos sin validar `PerfilApp.estado` (RESUELTO EN FASE 1)
+## 6. HALLAZGO HISTÓRICO — permisos sin validar `PerfilApp.estado` (RESUELTO EN FASE 1)
 
 Antes (FASE 0): `UsuarioJdbcAdapter.findPermisosByUsuario` ejecutaba:
 
@@ -142,33 +143,26 @@ JOIN app24.Actividad a ON a.id = pa.actividad_id
 WHERE u.id = ? AND u.estado = 'ACTIVO'
 ```
 
-**CONFIRMADO (código):** filtra `UsuarioApp.estado = 'ACTIVO'` pero **no**
-consulta `PerfilApp.estado`. `LoginService` valida `usuario.estaActiva()`
-(usuario + vigencia), pero ningún punto valida que el **perfil asignado** esté
-`ACTIVO`.
+**HISTÓRICO / RESUELTO:** la implementación anterior filtraba
+`UsuarioApp.estado = 'ACTIVO'` pero no consultaba `PerfilApp.estado`. La
+implementación vigente usa `APP24_Q_USUARIO_ACCESO`, devuelve `perfil_estado` sin
+filtrarlo y `LoginService` decide explícitamente si el perfil permite login.
 
-**Consecuencia:** un perfil `INACTIVO` sigue concediendo todos sus permisos al
-usuario que lo tiene asignado (mientras el usuario esté ACTIVO y vigente). El
-`PerfilApp.estado` quedó sin efecto operativo.
+**Consecuencia histórica:** un perfil `INACTIVO` podía seguir concediendo
+permisos. Hallazgo cerrado: perfil INACTIVO produce rechazo genérico; perfil
+ACTIVO sin permisos sigue siendo distinguible y permitido por la política V1.
 
 La decisión de diseño que cierra este hallazgo está en **§17 — Semántica de
 perfil INACTIVO** (login debe rechazar, no emitir JWT vacío) y **§18 —
 Sesiones JWT ya emitidas** (consistencia eventual; sin revocación inmediata en
-V1). **RESUELTO EN FASE 1** (IMPLEMENTADO EN REPOSITORIO; aún PENDIENTE DE
-VALIDACIÓN RUNTIME REMOTA):
+V1). **RESUELTO EN FASE 1** (IMPLEMENTADO, INTEGRADO EN DEV, VALIDADO LIVE):
 
 `findAccesoByUsuario` consulta el estado del perfil **sin filtrarlo** y el login
 decide (401 genérico si INACTIVO, ausente o inconsistente):
 
-```sql
-SELECT p.id AS perfil_id, p.estado AS perfil_estado, a.clave AS permiso
-FROM app24.UsuarioApp u
-JOIN app24.PerfilApp p ON p.id = u.perfil_id
-LEFT JOIN app24.PerfilActividad pa ON pa.perfil_id = p.id
-LEFT JOIN app24.Actividad a ON a.id = pa.actividad_id
-WHERE u.id = ?
-ORDER BY a.clave ASC
-```
+Contrato vigente: `UsuarioJdbcAdapter` invoca
+`app24.APP24_Q_USUARIO_ACCESO`; el SP devuelve `perfil_id`, `perfil_estado` y
+`permiso`, con cero permisos representado por una fila cuyo permiso es `NULL`.
 
 El perfil `ACTIVO` sin permisos autentica con JWT de `auth` vacía; el rechazo
 por perfil se registra en bitácora como `LOGIN_FALLIDO` con el actor real.
@@ -178,10 +172,10 @@ por perfil se registra en bitácora como `LOGIN_FALLIDO` con el actor real.
 **CONFIRMADO:** `BitacoraModulo` incluye `ADMINISTRACION`; `BitacoraAccion`
 define `LOGIN_OK`, `LOGIN_FALLIDO`, `USUARIO_CREADO` y `USUARIO_ACTUALIZADO`.
 
-En Fase 3A, el writer append-only existente (`RegistrarEventoBitacoraService`
-+ `BitacoraJdbcAdapter`) registra creación y edición con
-`AuthenticatedUserContext` como actor. Las acciones de estado, perfil,
-vigencia y reset de contraseña permanecen pendientes.
+En Fase 3A/3B, el writer append-only (`RegistrarEventoBitacoraService` +
+`BitacoraJdbcAdapter`) registra creación, edición, estado, perfil y vigencia con
+`AuthenticatedUserContext` como actor. `USUARIO_PASSWORD_RESTABLECIDA` permanece
+pendiente junto con el reset de contraseña; acciones futuras de perfiles también.
 
 **CONFIRMADO (hallazgo de diseño):** `AuthenticationEntryPoint` responde 401 sin
 registrar evento; 403 de `@PreAuthorize` tampoco registra evento. Política de
@@ -206,8 +200,9 @@ administración. Usuario `admin` (hash bcrypt de reemplazo obligatorio en
 producción) pertenece a `ADMINISTRADOR`.
 
 **IMPLEMENTADO:** `USUARIOS_ADMINISTRAR` protege `GET` listado, `GET` detalle,
-`POST` y `PUT` de `/api/v1/administracion/usuarios`. `PERFILES_ADMINISTRAR`
-permanece pendiente y `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
+`POST`, `PUT` y los tres `PATCH` de `/api/v1/administracion/usuarios`.
+`PERFILES_ADMINISTRAR` permanece pendiente para futuros commands de perfiles y
+`ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
 
 ## 9. Permisos runtime de base de datos — estado actual
 
@@ -397,8 +392,8 @@ política existente, generando una sesión sin `authorities` — pero **nunca** 
 confunde con perfil INACTIVO. Prohibir perfiles activos sin permisos sería una
 regla distinta y **NO está aprobada en V1**.
 
-**Estado: NO implementado todavía.** Se pone en FASE 1 del roadmap (§38) como
-hardening previo, junto con tests.
+**Estado: IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE.** Fase 1 cerrada con
+SP de acceso, decisión explícita en `LoginService` y tests.
 
 ## 18. Sesiones JWT ya emitidas — DECISIÓN V1
 
@@ -621,23 +616,27 @@ appTransactionManager                            (appDataSource)
 Los commands de usuarios usan
 `@Transactional(transactionManager = "appTransactionManager")`. Fase 3B
 configura aislamiento `SERIALIZABLE` para las mutaciones de estado, perfil y
-vigencia, incluido su guardrail global. La escritura de negocio en `UsuarioApp`
-y el evento de `BitacoraEvento` participan en la misma transacción; no usan
-`REQUIRES_NEW`. Runtime remoto sigue pendiente de validación.
+vigencia, incluido su guardrail global; los paths críticos usan `UPDLOCK` y
+`HOLDLOCK`. La escritura de negocio en `UsuarioApp` y el evento de
+`BitacoraEvento` participan en la misma transacción; no usan `REQUIRES_NEW`.
+Runtime: **READY**, con `app24_runtime`, membership correcta, 11 EXECUTE
+específicos, cero grants directos de tablas y ownership chain compatible.
 
 ## 30. Estrategia de persistencia app24 — DECISIÓN V1
 
-Para tablas propias `ANEXO24_DEV.app24`:
+Para operaciones funcionales de `CALE_IMMEX` y `ANEXO24_DEV.app24` aplica
+política **STORED PROCEDURE FIRST**:
 
-- **JdbcTemplate parametrizado directo** (patrón ya usado por
-  `UsuarioJdbcAdapter` / `BitacoraConsultaJdbcAdapter`);
-- **transacciones explícitas** (transaction manager app24, §29);
-- **grants mínimos por objeto** (§31).
+- discovery de objetos existentes;
+- reuse cuando contrato coincide;
+- adapt cuando requiere encapsulación compatible;
+- create de procedimientos propios `APP24_*` cuando no existe objeto reusable.
 
-**NO crear stored procedures solo por seguir SP-FIRST.** SP-FIRST queda
-exclusivamente para `CALE_IMMEX` / Módulo C. Un SP en `app24` solo tendría
-sentido si aparece lógica DB compleja con valor real demostrado. Evitar
-sobreingeniería.
+Los adapters Java sólo ejecutan SP, pasan parámetros y mapean resultsets,
+parámetros OUTPUT y errores. No contienen SQL funcional de negocio. Excepción
+technical explícita: `SystemStatusController` conserva `SELECT 1` para health.
+Las transacciones usan los transaction managers correspondientes (§29) y los
+grants runtime son mínimos por objeto (§31).
 
 ## 31. Runtime permissions — estado versionado
 
@@ -696,9 +695,8 @@ POST   /{id}/password               → { password } (reset) (§15)
 
 Justificación: estado/perfil/vigencia/password son acciones con evento de
 Bitácora específico (§28) y validación propia; separarlas evita PATCH
-multi-propósito ambiguo. Los tres `PATCH` de Fase 3B están implementados en
-repositorio y pendientes de validación runtime remota; el reset permanece
-pendiente en Fase 3C.
+multi-propósito ambiguo. Los tres `PATCH` de Fase 3B están implementados, integrados en DEV y
+runtime ready; el reset permanece pendiente en Fase 3C.
 
 ## 34. Contratos — PERFILES (candidatos)
 
@@ -793,11 +791,12 @@ columnas sensibles (`password_hash`, etc.).
 
 ## 38. Roadmap de implementación recomendado
 
-Secuencial — no comenzar FASE N+1 sin cerrar FASE N:
+Estado posterior a integración SP en `dev`. Fases implementadas quedan marcadas
+como **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**; no comenzar FASE N+1 sin
+cerrar su alcance y gates:
 
 ```text
-FASE 1  Hardening previo: **IMPLEMENTADO EN REPOSITORIO** (PENDIENTE DE
-        VALIDACIÓN RUNTIME REMOTA):
+FASE 1  Hardening previo: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**:
         - PerfilApp.estado efectivo en auth: consulta única `findAccesoByUsuario`
           sin filtrar el estado; login rechaza con 401 genérico si el perfil es
           INACTIVO, no existe o el registro es inconsistente (§17);
@@ -810,8 +809,7 @@ FASE 1  Hardening previo: **IMPLEMENTADO EN REPOSITORIO** (PENDIENTE DE
           acceso inconsistente y rollback del gestor de aplicación;
         - SQL 04 versionado: `GRANT SELECT` sobre `PerfilApp`, sin escrituras.
 
-FASE 2  Usuarios read-only: **IMPLEMENTADO EN REPOSITORIO**
-        (PENDIENTE DE VALIDACIÓN RUNTIME REMOTA):
+FASE 2  Usuarios read-only: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**:
         - contrato: GET /api/v1/administracion/usuarios y /{id};
         - permiso único: USUARIOS_ADMINISTRAR;
         - fuentes: app24.UsuarioApp JOIN app24.PerfilApp, sin password_hash;
@@ -822,30 +820,30 @@ FASE 2  Usuarios read-only: **IMPLEMENTADO EN REPOSITORIO**
           autenticación); appJdbcTemplate únicamente;
         - sin DML, sin @Transactional, sin bitácora por GET.
 
-FASE 3A Usuarios commands: **IMPLEMENTADA EN REPOSITORIO**
-        (PENDIENTE DE VALIDACIÓN RUNTIME REMOTA): create, edit de nombre/correo,
-        bitácora y grants mínimos.
+FASE 3A Usuarios commands: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**:
+        create, edit de nombre/correo, bitácora y errores controlados.
 
-FASE 3B Estado, perfil, vigencia y guardrails: **IMPLEMENTADA EN
-        REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA**. Incluye los tres
-        `PATCH`, auto-inactivación y cambio real de perfil propio prohibidos,
-        guardrail global de al menos un administrador efectivo y transacciones
-        `SERIALIZABLE` con `appTransactionManager`.
+FASE 3B Estado, perfil, vigencia y guardrails: **COMPLETADA / INTEGRADA EN DEV /
+        VALIDADA LIVE**. Incluye los tres `PATCH`, auto-inactivación y cambio
+        real de perfil propio prohibidos, guardrail global de al menos un
+        administrador efectivo, `SERIALIZABLE`, `UPDLOCK`/`HOLDLOCK` y
+        `appTransactionManager`.
 
-FASE 3C Pendiente: reset password.
+Migración SP app24/Módulo C: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
+Runtime permissions: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 4  Frontend Usuarios.
+FASE 3C **PENDIENTE**: reset password.
 
-FASE 5  Perfiles + consulta Actividades:
+FASE 4 **PENDIENTE**: Frontend Usuarios.
+
+FASE 5 **PENDIENTE**: Perfiles + consulta Actividades:
         - query; commands; reemplazo transaccional PerfilActividad;
         - Bitácora; grants PerfilApp/PerfilActividad (§31).
 
-FASE 6  Frontend Perfiles/Permisos.
+FASE 6 **PENDIENTE**: Frontend Perfiles/Permisos.
 
-FASE 7  Runtime permissions / despliegue con TLS confiable
-        (aplicar 04 + matriz §31, verificar runtime).
-
-FASE 8  E2E administrativo controlado.
+E2E administrativo completo: **PENDIENTE** si no se ejecuta una corrida API
+        controlada con cleanup aprobado.
 ```
 
 Ajustar únicamente si la evidencia de implementación justifica otro orden.
@@ -853,13 +851,12 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 ## 39. Riesgos y pendientes
 
 1. **PerfilInactivo-concede-permisos (§6/§17):** corregido en FASE 1
-   (IMPLEMENTADO EN REPOSITORIO); **PENDIENTE DE VALIDACIÓN RUNTIME REMOTA**.
+   (**COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**).
 2. JWT emitidos no revocables (consistencia eventual aceptada, §18) — revisar
    con auditoría si la ventana definida por la expiración JWT configurada no
    es aceptable.
-3. Desplegar `04-app-runtime-permissions.sql`, incluidos los grants
-   `UPDATE (estado, perfil_id, vigencia)`, y verificar runtime con TLS
-   confiable (FASE 7).
+3. Runtime least-privilege de app24: **COMPLETADO / VALIDADO LIVE** en SP-1E;
+   mantener verificación en despliegues posteriores.
 4. Confirmar timezone JVM en producción para semántica de `vigencia` (§19).
 5. Política de complejidad de contraseñas y de reset (generada vs. provista)
    — PENDIENTE, no bloquea contrato.
@@ -872,10 +869,12 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 ## 40. Restricciones cumplidas
 
 - Fase 0 documental: cero código nuevo, cero SQL remoto, cero bypass TLS.
+- Solo se modificó documentación en esta pasada; no se modificó backend,
+  frontend, SQL versionado ni SQL LIVE.
 - Solo se modificó `docs/03-diseno/mapeo-administracion.md` en esta segunda
   pasada; la matriz de integración se dejó **intacta** (las filas existentes
   de Administración siguen siendo correctas; ninguna decisión nueva las
   contradice).
-- No se modificó `backend/**`, `frontend/**`, `infra/sql/**` ni
-  `docs/04-desarrollo/api.md`.
+- No se modificó `backend/**`, `frontend/**` ni `infra/sql/**`; esta pasada
+  modificó únicamente documentación bajo `docs/**`.
 - Sin PR, sin merge, sin code review automático.

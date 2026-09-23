@@ -52,7 +52,7 @@ Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-s
 
 ## Diferencia de conteo
 
-SP-1B tenía 316 tests y SP-1C dejó 284. La reducción provino de eliminar pruebas de SQL inline, preconsultas `exists*`, rowcounts y `PerfilReferencia`, no de eliminar contratos externos. SP-1D agrega cobertura explícita de códigos SQL controlados; no se persigue recuperar artificialmente el número histórico 316.
+SP-1B tenía 316 tests y SP-1C dejó 284. La reducción provino de eliminar pruebas de SQL inline, preconsultas `exists*`, rowcounts y `PerfilReferencia`, no de eliminar contratos externos. SP-1D cerró con 294 tests, 0 fallos, 0 errores y 0 omitidos, agregando cobertura explícita de códigos SQL controlados; no se persigue recuperar artificialmente el número histórico 316. INT-1 integró esta cobertura en `dev`.
 
 ## Límites LIVE
 

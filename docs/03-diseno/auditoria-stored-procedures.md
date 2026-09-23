@@ -204,7 +204,11 @@ GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_OBTENER TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_BITACORA_LISTAR TO app24_runtime;
 ```
 
-Los cinco grants read-only y seis grants command quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. En SP-1C no se aplicaron LIVE porque runtime membership seguía pendiente y ownership chain aún no estaba re-auditada. La auditoría SP-1D confirmó ownership compatible; el script actualiza el objetivo a EXECUTE-only con REVOKE explícito, pero sigue pendiente de despliegue runtime.
+**HISTÓRICO / RESUELTO:** los cinco grants read-only y seis grants command
+quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. En SP-1C
+no se aplicaron LIVE porque runtime membership seguía pendiente y ownership chain
+aún no estaba re-auditada. SP-1D confirmó ownership compatible y SP-1E aplicó el
+script dos veces; estado final `RUNTIME_READY`, EXECUTE-only e idempotencia PASS.
 
 ## SP-1C — Commands app24 implementados
 
@@ -263,7 +267,10 @@ Identity pudo avanzar pese al rollback; no se ejecutó `DBCC CHECKIDENT`. No hab
 
 ### Permisos y ownership
 
-SP-1C dejó seis `GRANT EXECUTE` versionados y conservó temporalmente permisos directos mientras ownership y membership estaban pendientes. SP-1D confirmó ownership compatible; el script ahora contiene REVOKE explícito de permisos directos y EXECUTE-only como estado deseado. No se aplicó LIVE ni se crearon roles/usuarios.
+**HISTÓRICO / RESUELTO:** SP-1C dejó seis `GRANT EXECUTE` versionados y
+conservó temporalmente permisos directos mientras ownership y membership estaban
+pendientes. SP-1D confirmó ownership compatible y SP-1E aplicó el script dos
+veces: rol `app24_runtime`, membership correcta, REVOKE explícito y EXECUTE-only.
 
 ### Estado final SP-1C
 
@@ -301,4 +308,4 @@ Impersonation legítima como `anexo24_app` confirmó: EXECUTE efectivo en querie
 
 `infra/sql/04-app-runtime-permissions.sql` se aplicó dos veces en `ANEXO24_DEV` con la identidad administrativa `opdatos`; ambas ejecuciones pasaron. La primera creó `app24_runtime`, retiró memberships `db_datareader`/`db_datawriter`, revocó EXECUTE global y concedió los 11 EXECUTE específicos. La segunda confirmó idempotencia. Impersonation de `anexo24_app` confirmó EXECUTE efectivo, SELECT directo denegado y ejecución de query read-only mediante ownership chain.
 
-La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D agrega cobertura explícita de códigos SQL sin perseguir un número artificial. SP-1E cerró el gate runtime; no se modificaron datos de negocio.
+La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D cerró con **294 tests**, 0 fallos, 0 errores y 0 omitidos, agregando cobertura explícita de códigos SQL sin perseguir un número artificial. SP-1E cerró el gate runtime; no se modificaron datos de negocio. INT-1 integró la cadena en `dev` mediante fast-forward.

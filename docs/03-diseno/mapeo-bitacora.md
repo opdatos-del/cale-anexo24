@@ -5,18 +5,16 @@
 Esta auditoría define fuente canónica, modelo, seguridad y contratos candidatos
 de la bitácora de la **nueva aplicación**.
 
-**IMPLEMENTADO EN REPOSITORIO:** hardening; writer interno append-only; eventos
-`LOGIN_OK`/`LOGIN_FALLIDO`; `GET /api/v1/bitacora` read-only; frontend
-read-only de Bitácora.
-
-**PENDIENTE DE VALIDACIÓN RUNTIME REMOTA** y además: eventos 401/403; demás
-dominios; despliegue de permisos.
+**IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE:** hardening; writer interno
+append-only; eventos `LOGIN_OK`/`LOGIN_FALLIDO`, eventos administrativos de
+usuarios Fase 3A/3B; `GET /api/v1/bitacora` read-only; frontend read-only de
+Bitácora. Permanecen pendientes sólo eventos 401/403 y demás dominios.
 
 > **DECISIÓN V1 — opción B.** `ANEXO24_DEV.app24.BitacoraEvento` es la fuente
-> canónica candidata para eventos funcionales y de seguridad de la aplicación
-> nueva. Writer interno tipado append-only y consulta HTTP read-only están
-> implementados en repositorio; su permiso mínimo y validación runtime remota
-> siguen pendientes de despliegue. No existe fuente legacy canónica demostrada.
+> canónica para eventos funcionales y de seguridad de la aplicación nueva.
+> Writer interno tipado append-only y consulta HTTP read-only están
+> implementados, integrados en DEV y validados LIVE mediante `app24_runtime`.
+> No existe fuente legacy canónica demostrada.
 
 La bitácora legacy, si se demuestra, será histórica y separada. No se unifica
 con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
@@ -26,15 +24,17 @@ con `app24.BitacoraEvento` por nombre o apariencia de pantalla.
 | Fuente | Aporta | Estado |
 |---|---|---|
 | `infra/sql/02-app-schema.sql` | DDL, FK, default e índices de `app24.BitacoraEvento` | **CONFIRMADO** para esquema versionado |
-| `infra/sql/00-bootstrap.sql` y `04-app-runtime-permissions.sql` | Bootstrap sin permisos globales y política mínima por objeto para `anexo24_app` | **IMPLEMENTADO EN REPOSITORIO**; **PENDIENTE DE DESPLIEGUE** en servidor |
+| `infra/sql/00-bootstrap.sql` y `04-app-runtime-permissions.sql` | Bootstrap sin permisos globales y política mínima por objeto para `anexo24_app` | **APLICADO LIVE**; dos ejecuciones, idempotencia PASS |
 | `infra/sql/03-app-seed-security.sql` | Permiso y asignación inicial de perfiles | **CONFIRMADO** |
 | `CorrelationIdFilter`, filtros JWT, `AuthenticatedUserContext`, login, excepciones y adapter de usuarios | Propagación de identidad y correlación | **IMPLEMENTADO EN REPOSITORIO** por código |
-| Paquete `auditlog` | Modelo tipado, puerto append-only, servicio interno y adapter JDBC con `appJdbcTemplate` | **IMPLEMENTADO EN REPOSITORIO**; `LOGIN_OK`/`LOGIN_FALLIDO` conectados, demás eventos pendientes |
+| Paquete `auditlog` | Modelo tipado, puerto append-only, servicio interno y adapter JDBC con `appJdbcTemplate` | **IMPLEMENTADO E INTEGRADO EN DEV**; login y eventos administrativos de usuarios conectados; 401/403 y demás dominios pendientes |
 | Auditoría Web Forms | Existió reporte Bitácora con fechas, pero falló al generar | **CONFIRMADO** para pantalla; no para fuente física |
 | CALE_IMMEX actual | Objetos `BITACORA`, `HISTORIA`, `LOG`, `AUDIT`, grants, metadata y datos | **PENDIENTE DE REVALIDACIÓN**; TLS bloqueado sin bypass |
 
-No se ejecutó SQL ni se debilitó TLS. No se ejecutó una pantalla legacy de
-Bitácora durante esta fase.
+**HISTÓRICO DE AUDITORÍA LEGACY:** no se ejecutó SQL contra `CALE_IMMEX` ni se
+debilitó TLS durante aquella fase; no se ejecutó una pantalla legacy de
+Bitácora. SP-1E validó posteriormente sólo permisos/ejecución read-only en
+`ANEXO24_DEV`.
 
 ## 3. Fuente legacy
 
@@ -70,10 +70,10 @@ Fuente candidata: `ANEXO24_DEV.app24.BitacoraEvento`.
 DDL de tabla: no hay `CHECK` de catálogos, trigger, SP de escritura ni
 protección intrínseca dentro de la tabla que impida `UPDATE`/`DELETE`.
 
-Permisos runtime versionados en `04-app-runtime-permissions.sql`: `SELECT` +
-`INSERT` sobre `app24.BitacoraEvento` para `app24_runtime`, sin `UPDATE` ni
-`DELETE`; **PENDIENTES DE DESPLIEGUE/VERIFICACIÓN REMOTA**. No están aplicados
-en SQL Server todavía.
+Permisos runtime finales en `04-app-runtime-permissions.sql`: acceso directo
+a tablas = 0 para `app24_runtime`, sin `UPDATE` ni `DELETE`; el writer usa
+`APP24_C_BITACORA_REGISTRAR` y la consulta usa `APP24_Q_BITACORA_LISTAR`.
+Los 11 EXECUTE específicos quedaron aplicados LIVE; ownership chain compatible.
 
 ## 5. Inmutabilidad real
 
@@ -85,11 +85,10 @@ garantía actual:
   un `INSERT` parametrizado contra `app24.BitacoraEvento`. No hay controlador,
   endpoint ni métodos de actualización/borrado.
 - **CONFIRMADO:** no hay `UPDATE`/`DELETE`/trigger de Bitácora versionado.
-- **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE DESPLIEGUE:**
-  `00-bootstrap.sql` ya no asigna `db_datareader`, `db_datawriter` ni
-  `EXECUTE` global. `04-app-runtime-permissions.sql` retira memberships
-  heredados y concede a `app24_runtime` sólo `SELECT` para autenticación y
-  `SELECT` + `INSERT` sobre Bitácora; no concede `UPDATE` ni `DELETE`.
+- **IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE:** `00-bootstrap.sql` ya no
+  asigna `db_datareader`, `db_datawriter` ni `EXECUTE` global. `04-app-runtime-
+  permissions.sql` retira memberships heredados, revoca acceso directo a tablas
+  y concede a `app24_runtime` sólo EXECUTE sobre los 11 SP aprobados.
 - **CONFIRMADO:** `UsuarioJdbcAdapter` ya usa `appJdbcTemplate` contra
   `ANEXO24_DEV`; un futuro adaptador de Bitácora pertenece a este esquema,
   nunca a `CALE_IMMEX` ni a un `APP24_Q_*` legacy.
@@ -99,11 +98,11 @@ Estrategia mínima actual:
 1. **IMPLEMENTADO EN REPOSITORIO:** puerto interno con sólo `registrar`, sin
    método de actualización/borrado; adapter con `INSERT` parametrizado y control
    de exactamente una fila afectada;
-2. API externa: `GET /api/v1/bitacora` **IMPLEMENTADO EN REPOSITORIO**; nunca
-   `POST`, `PUT`, `PATCH` ni `DELETE` (**PENDIENTE DE VALIDACIÓN RUNTIME
-   REMOTA**);
-3. **PENDIENTE DE DESPLIEGUE:** retirar privilegios globales y aplicar
-   `app24_runtime` con `INSERT`/`SELECT` necesarios, sin `UPDATE`/`DELETE`;
+2. API externa: `GET /api/v1/bitacora` **IMPLEMENTADO, INTEGRADO EN DEV Y
+   VALIDADO LIVE**; nunca `POST`, `PUT`, `PATCH` ni `DELETE`;
+3. Runtime least-privilege **COMPLETADO**: retirar privilegios globales,
+   mantener acceso directo a tablas en cero y usar EXECUTE específico vía
+   `app24_runtime`;
 4. evaluar después si una restricción DB adicional es necesaria.
 
 No se aprueba blockchain, hash chain ni sobreingeniería equivalente. El cambio
@@ -121,7 +120,7 @@ de privilegios/DDL queda fuera de esta fase.
 | Solicitud anónima, proceso técnico o evento de infraestructura aprobado | `NULL` o actor técnico identificado por política futura |
 | Evento autenticado | ID obtenido de contexto confiable, nunca de body/query/frontend |
 
-**IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE DESPLIEGUE:** JWT incluye claim
+**IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE:** JWT incluye claim
 `uid` y subject `clave`. `JwtAuthFilter` valida ambos tras verificar el token;
 requiere `uid` numérico, entero y positivo, además de subject no vacío. Luego
 construye `AuthenticatedUserPrincipal(userId, username)`, que implementa
@@ -291,7 +290,7 @@ atributo `correlationId` normalizado por `CorrelationIdFilter`, nunca el header
 crudo. Login no usa `AuthenticatedUserContext`: actor se toma del `UsuarioApp`
 validado. `LOGIN_OK`/`LOGIN_FALLIDO` siempre usan `detalle = null`.
 
-### 14.2 Consulta HTTP — IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA
+### 14.2 Consulta HTTP — IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE
 
 ```http
 GET /api/v1/bitacora
@@ -317,15 +316,14 @@ Authorization: Bearer <token>
 La etiqueta de usuario no es snapshot histórico. GET nunca escribe, no genera
 un evento de Bitácora y no consulta `CALE_IMMEX`.
 
-El endpoint está implementado en repositorio y probado unitariamente. Su
-validación contra `ANEXO24_DEV` sigue pendiente hasta desplegar
-`04-app-runtime-permissions.sql` con TLS confiable.
+El endpoint está implementado, integrado en DEV y probado unitariamente. Su
+validación LIVE contra `ANEXO24_DEV` pasó mediante `app24_runtime`, EXECUTE
+específico y ownership chain compatible.
 
 ## 15. Riesgos y pendientes
 
-1. Desplegar y verificar con acceso SQL confiable hardening y permisos mínimos:
-   retiro de privilegios globales, aplicación de `app24_runtime` y runtime del
-   GET read-only.
+1. Mantener verificación de hardening y permisos mínimos en despliegues
+   posteriores: `app24_runtime`, EXECUTE específico y acceso directo a tablas = 0.
 2. Conectar eventos aprobados restantes a callers futuros usando
    `AuthenticatedUserContext`, sin aceptar identidad del cliente. Login ya usa
    directamente el `UsuarioApp` validado, porque aún no existe SecurityContext.
@@ -351,10 +349,9 @@ validación contra `ANEXO24_DEV` sigue pendiente hasta desplegar
 - GET `/api/v1/bitacora` read-only implementado con filtros exactos,
   paginación y orden estable; cero endpoint de escritura, triggers,
   eventos 401/403 o eventos de otros dominios.
-- Frontend read-only de Bitácora implementado en repositorio
-  (`features/administration/audit-log`, ruta `/bitacora` protegida por
-  `BITACORA_CONSULTAR`); pendiente de validación runtime remota junto con el
-  backend.
-- Cero SQL remoto ejecutado; despliegue de permisos y validación runtime del
-  GET siguen pendientes de acceso TLS confiable.
+- Frontend read-only de Bitácora implementado, integrado en DEV y validado en
+  su contrato (`features/administration/audit-log`, ruta `/bitacora` protegida
+  por `BITACORA_CONSULTAR`).
+- Runtime least-privilege de app24 aplicado y validado LIVE en SP-1E; no se
+  ejecutó SQL LIVE durante DOC-1.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.
