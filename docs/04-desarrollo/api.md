@@ -24,9 +24,10 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 
 ## Administración de usuarios — Fase 3A
 
-Las cuatro rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
-Fase 3A está implementada en repositorio y pendiente de validación runtime
-remota, incluido el despliegue de los grants de base de datos versionados.
+Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
+Fases 3A y 3B están implementadas en repositorio mediante commands SP atómicos.
+El despliegue de grants runtime sigue pendiente por ownership chain incompatible
+y membership de runtime no confirmado.
 
 ### `GET /administracion/usuarios`
 
@@ -56,14 +57,16 @@ Solo admite la actualización de `nombre` y `correo`. La clave, el estado, el
 perfil, la vigencia y la contraseña no se modifican por esta ruta ni forman
 parte de Fase 3A.
 
-Los commands de creación y edición escriben el usuario y el evento de bitácora
-correspondiente en una única transacción mediante `appTransactionManager`.
+Los commands de creación y edición invocan Stored Procedures app24; el usuario
+y evento de bitácora se escriben en una única transacción mediante
+`appTransactionManager`. La contraseña en claro nunca llega a SQL: sólo BCrypt.
 
 ## Administración de usuarios — Fase 3B
 
-Fase 3B está implementada en repositorio y pendiente de validación runtime
-remota. Las mutaciones usan `appTransactionManager` con aislamiento
-`SERIALIZABLE` y preservan al menos un administrador efectivo: usuario `ACTIVO`,
+Fase 3B está implementada en repositorio y sus commands fueron validados con
+pruebas LIVE sintéticas reversibles. Las mutaciones usan `appTransactionManager`
+con aislamiento `SERIALIZABLE`; el command SQL preserva al menos un administrador
+efectivo: usuario `ACTIVO`,
 vigencia `null` o `>= LocalDate.now()` de la JVM, perfil `ACTIVO` y permisos
 `USUARIOS_ADMINISTRAR` y `PERFILES_ADMINISTRAR`. No se permite la
 auto-inactivación ni el cambio real del perfil propio; la vigencia propia se

@@ -2,24 +2,23 @@
 
 ## 1. Objetivo y decisión arquitectónica
 
-Esta auditoría documental define el estado del módulo Administración en el
-repositorio: modelo de datos, dominio, autenticación, permisos runtime y
-contratos candidatos V1. Fase 0: **solo documentación, sin código nuevo**.
+Este documento define el estado del módulo Administración: modelo de datos,
+dominio, autenticación, commands, permisos runtime y contratos V1. SP-1C cerró
+la migración de commands a Stored Procedures app24.
 
-**IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA:** FASE 2
-expone lectura administrativa de usuarios y FASE 3A agrega creación y edición
-limitada de nombre/correo mediante `appJdbcTemplate` y `appTransactionManager`.
-La autenticación conserva sus puertos propios. Estado, perfil, vigencia, reset
-password, perfiles, actividades y frontend permanecen pendientes.
+**IMPLEMENTADO EN REPOSITORIO:** FASE 2, FASE 3A y FASE 3B consumen SPs
+read-only/command mediante `appJdbcTemplate` y `appTransactionManager`.
+Commands sensibles conservan aislamiento `SERIALIZABLE` y guardrail atómico en
+SQL. Reset password, CRUD de perfiles/actividades y frontend permanecen pendientes.
 
 Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
 cualquier command administrativo. No contradice la evidencia confirmada: la
 amplía. Todo lo marcado `DECISIÓN V1` es contrato de diseño, no capacidad
 actual.
 
-> **DECISIÓN V1.** El módulo Administración usa la base de aplicación
-> `ANEXO24_DEV.app24`, no Módulo C. La regla STORED PROCEDURE FIRST no aplica
-> aquí: no se crean `APP24_Q_*` para el esquema propio. La matriz de
+> **DECISIÓN V1.** El módulo Administración usa `ANEXO24_DEV.app24`, no
+> Módulo C. La regla STORED PROCEDURE FIRST aplica a operaciones funcionales:
+> queries y commands se ejecutan mediante SP propios app24. La matriz de
 > integración registra estas fuentes como `APP DATABASE`.
 
 ## 2. Fuentes de evidencia
@@ -36,7 +35,9 @@ actual.
 | `frontend/src/app/features/administration/**` | Solo `audit-log` implementado; `users`, `profiles`, `permissions` vacíos (`.gitkeep`) | **IMPLEMENTADO EN REPOSITORIO** (bitácora); **NO IMPLEMENTADO** (resto) |
 | `docs/03-diseno/modelo-datos.md`, `docs/04-desarrollo/api.md` | Modelo lógico y contrato API documentado | **CONFIRMADO**; usuarios GET/POST/PUT están implementados en repositorio |
 
-No se ejecutó SQL, no se consultó runtime remoto y no se debilitó TLS.
+SP-1C validó metadata y ejecutó pruebas LIVE sintéticas reversibles en
+`ANEXO24_DEV`; no se consultó ni modificó `CALE_IMMEX`. No se debilitó TLS ni se
+aplicó el script de permisos runtime.
 
 ## 3. Modelo de datos `app24` (DDL versionado)
 
@@ -96,17 +97,19 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | `UsuarioApp` | record: `id`, `clave`, `nombre`, `correo`, `passwordHash`, `estado`, `vigencia`, `perfilId`; `estaActiva()` = `ACTIVO` y (`vigencia == null` o no vencida) | **IMPLEMENTADO EN REPOSITORIO**; lógica de vigencia solo en memoria, no en SQL |
 | `UsuarioAcceso` | record: `perfilId`, `perfilEstado`, `permisos`; `perfilActivo()` = `ACTIVO` ignorando mayúsculas; permisos con copia inmutable | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); distingue perfil ACTIVO con/sin permisos e INACTIVO |
 | `UsuarioRepository` | `findByClave(String)`, `findAccesoByUsuario(Long)` → `Optional<UsuarioAcceso>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); proyección de acceso sin filtrar el estado del perfil |
-| `UsuarioJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; consulta de acceso con JOIN `PerfilApp` + LEFT JOIN `PerfilActividad`/`Actividad` | **IMPLEMENTADO EN REPOSITORIO** (FASE 1); sin filtro `p.estado`; vacío si usuario sin perfil |
+| `UsuarioJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; consume `APP24_Q_USUARIO_POR_CLAVE` y `APP24_Q_USUARIO_ACCESO` | **IMPLEMENTADO EN REPOSITORIO** (SP-1B); sin SQL funcional inline |
 | `UsuarioAdministracion` | record: `id`, `clave`, `nombre`, `correo`, `estado`, `vigencia`, `perfilId`, `perfilNombre` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); sin secretos, jamás `passwordHash` |
 | `UsuarioConsultaRepository` | `findPage(...)` y `findById(Long)` → `Optional<UsuarioAdministracion>` | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); puerto separado de autenticación |
-| `UsuarioConsultaJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; SELECT/COUNT con JOIN `PerfilApp`, filtros parametrizados y comodines escapados | **IMPLEMENTADO EN REPOSITORIO** (FASE 2); no selecciona `password_hash`; sin DML |
+| `UsuarioConsultaJdbcAdapter` | `@Qualifier("appJdbcTemplate")`; consume `APP24_Q_USUARIOS_LISTAR` y `APP24_Q_USUARIO_OBTENER` | **IMPLEMENTADO EN REPOSITORIO** (SP-1B); no selecciona `password_hash` |
+| `UsuarioComandoJdbcAdapter` | Invoca cinco `APP24_C_USUARIO_*`; traduce códigos SQL 51101–51108/51150 y 2601/2627 | **IMPLEMENTADO EN REPOSITORIO** (SP-1C); sin SQL funcional inline |
+| `BitacoraJdbcAdapter` | Invoca `APP24_C_BITACORA_REGISTRAR`; valida `EventoId` | **IMPLEMENTADO EN REPOSITORIO** (SP-1C); sin SQL funcional inline |
 | `ListarUsuariosUseCase` / `ObtenerUsuarioUseCase` | normalizan filtros y validan longitudes, estado, perfilId y paginación; 404 si no existe | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
 | `UsuarioAdministracionController` + DTOs | GETs FASE 2 y `POST`/`PUT` FASE 3A con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO EN REPOSITORIO; PENDIENTE DE VALIDACIÓN RUNTIME REMOTA** |
 
 **CONFIRMADO:** el paquete `administration/users` conserva la separación:
 autenticación (`UsuarioRepository`/`UsuarioJdbcAdapter`) vs. consulta
 administrativa read-only (`UsuarioConsultaRepository`/`UsuarioConsultaJdbcAdapter`).
-No hay dominio para PerfilApp ni Actividad: se referencian solo por SQL y seed.
+No hay dominio para PerfilApp ni Actividad; sus invariantes de persistencia son validadas por commands SQL. `PerfilReferenciaRepository` fue eliminado en SP-1C.
 
 ## 5. Autenticación (`security/**`)
 

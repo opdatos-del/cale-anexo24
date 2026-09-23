@@ -1,10 +1,10 @@
-# Auditoría global de Stored Procedures y SQL inline — SP-1B
+# Auditoría global de Stored Procedures y SQL inline — SP-1C
 
 ## Alcance y método
 
-Auditoría ejecutada desde `feature/backend-sp-discovery`, con metadata LIVE de SQL Server. Se usó la configuración local existente de `backend/.env`, sin imprimir credenciales ni modificarla. Las consultas realizadas fueron exclusivamente sobre `sys.procedures`, `sys.schemas`, `sys.parameters`, `sys.types`, `sys.sql_modules`, `sys.sql_expression_dependencies` y `sys.dm_exec_describe_first_result_set_for_object`.
+Auditoría y migración ejecutadas desde `feature/backend-sp-app24-commands`, con metadata LIVE de SQL Server. Se usó la configuración local existente de `backend/.env`, sin imprimir credenciales ni modificarla. Las consultas metadata usaron `sys.procedures`, `sys.schemas`, `sys.parameters`, `sys.types`, `sys.sql_modules`, `sys.sql_expression_dependencies`, ownership y roles.
 
-No se ejecutaron Stored Procedures de negocio. No se ejecutó ningún SP `WRITE`, `MIXED` o `UNKNOWN`. No se modificaron datos, objetos ni permisos.
+SP-1C autorizó únicamente los seis commands propios nuevos en `ANEXO24_DEV`. No se ejecutó ningún SP legacy ni de `CALE_IMMEX`. Las pruebas mutables usaron valores sintéticos y rollback; filas persistidas: 0. Los seis objetos nuevos sí fueron creados/alterados LIVE. No se aplicó `04-app-runtime-permissions.sql`.
 
 El inventario histórico `docs/03-diseno/procedimientos-almacenados.md` fue generado el 15/09/2026 07:13 y declara **88 SP de CALE_IMMEX**. Su tabla contiene 89 nombres, debido a la entrada diferenciada `PROC_HISTORIADESCARGASALIDA;1`; por ello se conserva 88 como cifra declarada, pero las comparaciones por nombre usan el conjunto histórico disponible.
 
@@ -13,7 +13,7 @@ El inventario histórico `docs/03-diseno/procedimientos-almacenados.md` fue gene
 | Base | Conexión | Schemas con SP | Total LIVE | Evidencia |
 |---|---:|---|---:|---|
 | `CALE_IMMEX` | OK | `dbo` | **95** | `sys.procedures` |
-| `ANEXO24_DEV` | OK | `app24` | **5 después de SP-1B** (0 antes) | `sys.procedures` |
+| `ANEXO24_DEV` | OK | `app24` | **11 después de SP-1C** (5 después de SP-1B) | `sys.procedures` |
 
 La conexión usó la configuración local ya existente, que contiene `trustServerCertificate=true`. No se agregó ningún bypass ni se modificó configuración versionada. La decisión de esta fase es de auditoría; la configuración TLS deberá revisarse antes de automatizar el acceso en otros entornos.
 
@@ -41,17 +41,17 @@ Cuatro procedimientos tienen `modify_date` posterior a `create_date`: `APP24_Q_P
 
 ## Inventario de SQL inline funcional
 
-La auditoría del backend identificó SQL funcional inline en los siguientes adapters. Cada operación queda clasificada como `MIGRAR_A_SP`; las decisiones de esta matriz se basan en metadata LIVE. SP-1B migró únicamente Auth read, Usuarios read y Bitácora read.
+La auditoría del backend identificó SQL funcional inline en los siguientes adapters. Cada operación queda clasificada como `MIGRAR_A_SP`; las decisiones de esta matriz se basan en metadata LIVE. SP-1B migró lecturas; SP-1C migró commands y writer de Bitácora.
 
 | Dominio | Adapter | Datasource | Operación inline | Objetos | Clasificación | Decisión LIVE |
 |---|---|---|---|---|---|---|
 | Materiales | `MaterialJdbcAdapter` | CALE_IMMEX | llamada SP para count + listado paginado | `dbo.material` vía `dbo.APP24_Q_MATERIALES_LISTAR` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Auth | `UsuarioJdbcAdapter` | ANEXO24_DEV | usuario por clave; acceso/permisos vía SP | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Usuarios read | `UsuarioConsultaJdbcAdapter` | ANEXO24_DEV | lista, count, detalle vía SP | `UsuarioApp`, `PerfilApp` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
-| Usuarios commands | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | duplicados, insert, datos básicos | `UsuarioApp`, `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
-| Fase 3B | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | estado, perfil, vigencia, guardrail | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `MIGRAR_A_SP` | `CREAR` |
-| Perfil referencia | `PerfilReferenciaJdbcAdapter` | ANEXO24_DEV | estado por ID | `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
-| Bitácora write | `BitacoraJdbcAdapter` | ANEXO24_DEV | insertar evento | `BitacoraEvento` | `MIGRAR_A_SP` | `CREAR` |
+| Usuarios commands | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | commands atómicos vía SP | `UsuarioApp`, `PerfilApp` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
+| Fase 3B | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | estado, perfil, vigencia y guardrail vía SP | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
+| Perfil referencia | eliminado | ANEXO24_DEV | prevalidación absorbida por commands | `PerfilApp` | `NO_FUNCIONAL` | `EXCEPCION_TECNICA` |
+| Bitácora write | `BitacoraJdbcAdapter` | ANEXO24_DEV | registrar evento vía SP | `BitacoraEvento` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Bitácora read | `BitacoraConsultaJdbcAdapter` | ANEXO24_DEV | lista, filtros, count vía SP | `BitacoraEvento`, `UsuarioApp` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Salud | `SystemStatusController` | ambos | `SELECT 1` | — | `EXCEPCION_TECNICA` | `EXCEPCION_TECNICA` |
 
@@ -190,7 +190,7 @@ Los seis SP fueron inspeccionados por metadata, parámetros, definición y resul
 - SP legacy sin contrato suficiente para un endpoint actual: no se reutilizan; cualquier modificación requeriría `REQUIERE_APROBACION`.
 - No se detectaron candidatos LIVE para `ADAPTAR` que cubran las necesidades de Administración o catálogo de materiales.
 - Auth, Usuarios read y Bitácora read: cinco SP propios creados/desplegados LIVE y consumidos por adapters; decisión `REUTILIZAR / IMPLEMENTADO`.
-- Perfil referencia sigue `DEFERIDO_A_SP_1C`; no se creó SP trivial de estado.
+- Perfil referencia fue eliminado en SP-1C; validación absorbida por commands atómicos.
 
 ## Permisos futuros
 
@@ -204,15 +204,72 @@ GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_OBTENER TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_BITACORA_LISTAR TO app24_runtime;
 ```
 
-Los cinco grants quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. No se aplicaron LIVE porque la verificación read-only no confirmó simultáneamente role `app24_runtime`, usuario `anexo24_app` y membership; estado `PENDIENTE_DESPLIEGUE_RUNTIME`. SELECT directos no fueron revocados, porque SP-1C aún necesita adapters command/write inline.
+Los cinco grants read-only y seis grants command quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. No se aplicaron LIVE porque runtime membership sigue pendiente y ownership chain resultó incompatible. SELECT/INSERT/UPDATE directos se conservan hasta resolución de infraestructura.
 
-## Estado final SP-1B
+## SP-1C — Commands app24 implementados
 
 - Conexiones LIVE: exitosas para ambas bases.
 - SPs WRITE/MIXED/UNKNOWN ejecutados: **0**.
-- SPs READ_ONLY ejecutados: sólo los cinco SP nuevos de SP-1B y `dbo.APP24_Q_MATERIALES_LISTAR`; SPs WRITE/MIXED/UNKNOWN ejecutados: **0**.
-- Datos modificados: **0**; SPs legacy modificados: **0**; command SP creados: **0**.
-- Backend migrado sólo en Materiales y adapters read de Auth/Usuarios/Bitácora; command/write adapters permanecen intactos.
-- `PerfilReferenciaJdbcAdapter` permanece diferido a SP-1C.
-- Frontend no modificado; permisos versionados, grants LIVE pendientes por falta de role/membership confirmado.
-- Siguiente fase: SP-1C commands, sólo con aprobación explícita.
+- SPs READ_ONLY ejecutados: cinco SP de SP-1B y `dbo.APP24_Q_MATERIALES_LISTAR`.
+- Commands nuevos ejecutados sólo en pruebas sintéticas reversibles; SPs legacy y `CALE_IMMEX` no ejecutados.
+- Datos persistidos: **0**; SPs legacy modificados: **0**; comandos propios creados LIVE: **6**.
+- Backend migrado en Materiales, Auth/Usuarios/Bitácora read y commands administrativos; PerfilReferencia eliminado.
+- Frontend no modificado; permisos versionados, grants LIVE pendientes por ownership chain incompatible y membership no confirmado.
+### Stored Procedures LIVE
+
+ANEXO24_DEV pasó de 5 a 11 SP. Se crearon exactamente:
+
+- `app24.APP24_C_USUARIO_CREAR`
+- `app24.APP24_C_USUARIO_ACTUALIZAR_DATOS`
+- `app24.APP24_C_USUARIO_CAMBIAR_ESTADO`
+- `app24.APP24_C_USUARIO_CAMBIAR_PERFIL`
+- `app24.APP24_C_USUARIO_CAMBIAR_VIGENCIA`
+- `app24.APP24_C_BITACORA_REGISTRAR`
+
+Todos son `COMMAND / WRITE / CONFIRMADO / APP24_PROPIO`. Los commands sensibles aceptan transacción exterior Spring o inician/cierran una propia; usan `SET XACT_ABORT ON`, `UPDLOCK` y `HOLDLOCK`. Guardrail exige usuario activo, vigencia efectiva, perfil activo y permisos `USUARIOS_ADMINISTRAR` y `PERFILES_ADMINISTRAR`.
+
+### Errores controlados
+
+| Código | Contrato |
+|---:|---|
+| 51101 | `USUARIO_NO_EXISTE` |
+| 51102 | `PERFIL_NO_EXISTE` |
+| 51103 | `PERFIL_INACTIVO` |
+| 51104 | `RECURSO_DUPLICADO` |
+| 51105 | `AUTO_INACTIVACION_NO_PERMITIDA` |
+| 51106 | `AUTO_CAMBIO_PERFIL_NO_PERMITIDO` |
+| 51107 | `SIN_ADMINISTRADOR_EFECTIVO` |
+| 51108 | `PARAMETRO_INVALIDO` |
+| 51150 | `FILAS_AFECTADAS_INCONSISTENTES` |
+
+`UsuarioComandoJdbcAdapter` traduce estos códigos y `2601/2627`; errores desconocidos conservan `DataAccessException`. `PerfilReferenciaRepository`, adapter y test exclusivo fueron eliminados. `UsuarioComandoRepository` ya no expone `exists*` ni rowcounts.
+
+### Validación LIVE reversible
+
+| Caso | Resultado |
+|---|---|
+| Conteo antes/después | PASS; 5 → 11 |
+| Crear sintético y obtener ID | PASS |
+| Actualizar nombre/correo | PASS |
+| Bitácora sintética y `EventoId` | PASS |
+| Vigencia pasada permitida | PASS |
+| Duplicado | PASS; 51104 |
+| Perfil inexistente | PASS; 51102 |
+| Auto-inactivación | PASS; 51105 |
+| Auto-cambio de perfil | PASS; 51106 |
+| Rollback y ausencia posterior | PASS; filas persistidas 0 |
+
+Identity pudo avanzar pese al rollback; no se ejecutó `DBCC CHECKIDENT`. No había dataset seguro para forzar perfil alternativo inactivo ni último administrador; cubierto por tests/unit contract.
+
+### Permisos y ownership
+
+Los seis `GRANT EXECUTE` quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. Permisos directos de tablas se conservan temporalmente: ownership chain LIVE resultó incompatible y membership `app24_runtime`/`anexo24_app` sigue pendiente. No se aplicó el script LIVE ni se crearon roles/usuarios. Revocación EXECUTE-only queda pendiente de resolución de ownership por infraestructura.
+
+### Estado final
+
+- SQL funcional inline de negocio en `UsuarioComandoJdbcAdapter`: **0**.
+- SQL funcional inline de negocio en `BitacoraJdbcAdapter`: **0**.
+- `PerfilReferenciaJdbcAdapter` y `PerfilReferenciaRepository`: eliminados.
+- `SystemStatusController` conserva únicamente `SELECT 1` como `EXCEPCION_TECNICA`.
+- CALE_IMMEX, Materiales, frontend y API externa sin cambios.
+- Siguiente alcance pendiente: ninguno implementado fuera de SP-1C; no integrar a `dev`.
