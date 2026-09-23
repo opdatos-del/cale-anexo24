@@ -146,16 +146,17 @@ Consumidor frontend de `GET /bitacora`: pantalla read-only en
 `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso
 `BITACORA_CONSULTAR`).
 
-## Frontend Usuarios — Fase 4A
+## Frontend Usuarios — Fases 4A y 4B
 
-**IMPLEMENTADA / INTEGRADA EN DEV / VALIDADA FRONTEND** en
+**FRONTEND USUARIOS V1 COMPLETO / VALIDADO FRONTEND** en
 `frontend/src/app/features/administration/users`, ruta `/usuarios`, protegida por
-`USUARIOS_ADMINISTRAR`. La UI consume listado, detalle, edición de
-nombre/correo, cambio de estado, cambio de vigencia y reset de contraseña. Suite
-Angular 22 Vitest/jsdom valida contratos HTTP, UI, RBAC y DI route-scoped en
-MatDialog. No persiste ni muestra contraseñas.
+`USUARIOS_ADMINISTRAR`. La UI consume listado, filtros (incluido perfil),
+paginación, alta, detalle, edición de nombre/correo, cambio de estado, cambio de
+perfil, vigencia y reset de contraseña. Suite Angular 22 Vitest/jsdom valida
+contratos HTTP, UI, RBAC y DI route-scoped en MatDialog. No persiste ni muestra
+contraseñas.
 
-Alta de usuario y cambio de perfil permanecen **PENDIENTES / BLOQUEADOS POR
-CATÁLOGO DE PERFILES**. Dependencia Fase 5A:
-`GET /api/v1/administracion/perfiles`. La UI no solicita `perfilId` manual, no
-hardcodea IDs y no deduce catálogo desde usuarios.
+Fase 4B consume el catálogo real `GET /api/v1/administracion/perfiles`: perfiles
+activos para alta/cambio y todos los estados para filtro. La UI no solicita
+`perfilId` manual, no hardcodea IDs ni deduce catálogo desde usuarios. No expone
+pantalla ni CRUD de perfiles.

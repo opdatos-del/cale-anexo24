@@ -11,7 +11,7 @@ Stored Procedures mediante `appJdbcTemplate` y `appTransactionManager`.
 **IMPLEMENTADO Y VALIDADO LIVE EN FASE 3C:** reset administrativo de contraseña.
 Commands sensibles de Fase 3B conservan aislamiento `SERIALIZABLE`, locking
 `UPDLOCK`/`HOLDLOCK` y guardrail atómico en SQL. CRUD de perfiles/actividades y
-frontend Usuarios/Perfiles/Permisos permanecen pendientes.
+frontend de administración de perfiles/permisos permanecen pendientes.
 
 Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
 cualquier command administrativo. No contradice la evidencia confirmada: la
@@ -230,8 +230,8 @@ Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejec
 | Ruta | Estado |
 |---|---|
 | `features/administration/audit-log` | **IMPLEMENTADO EN REPOSITORIO** — ruta `/bitacora` lazy con `permissionGuard` + `data.permission: 'BITACORA_CONSULTAR'`; sidebar «Administración» → «Bitácora» (`manage_search`) |
-| `features/administration/users` | **IMPLEMENTADO / INTEGRADO EN DEV / VALIDADO FRONTEND (FASE 4A)** — ruta `/usuarios`; listado, filtros, paginación, edición de nombre/correo, estado, vigencia y restablecimiento de contraseña |
-| `features/administration/profiles` | **NO IMPLEMENTADO** — solo `.gitkeep` |
+| `features/administration/users` | **FRONTEND USUARIOS V1 COMPLETO (FASE 4B)** — ruta `/usuarios`; listado, filtros incluidos perfiles, paginación, alta, edición de nombre/correo, estado, cambio de perfil, vigencia y restablecimiento de contraseña |
+| `features/administration/profiles` | **INFRAESTRUCTURA READ-ONLY IMPLEMENTADA** — catálogo reutilizable sin ruta, pantalla ni CRUD de perfiles |
 | `features/administration/permissions` | **NO IMPLEMENTADO** — solo `.gitkeep` |
 
 **CONFIRMADO:** `permissionGuard` redirige a `/forbidden` cuando el usuario no
@@ -857,9 +857,12 @@ FASE 4A **IMPLEMENTADA / INTEGRADA EN DEV / VALIDADA FRONTEND**: Usuarios con
         listado, filtros, paginación, edición de nombre/correo, estado, vigencia y
         restablecimiento de contraseña. Suite Angular 22 con Vitest/jsdom valida
         mapper, HTTP, presentación, RBAC y boundary DI route-scoped → MatDialog.
-        Alta de usuario y cambio de perfil quedan **PENDIENTES**; su dependencia
-        de catálogo de perfiles queda cubierta por Fase 5A, sin IDs manuales ni
-        hardcodeados.
+
+FASE 4B **IMPLEMENTADA / VALIDADA FRONTEND**: completa Usuarios V1 con catálogo
+        real read-only de perfiles, filtro por perfil, alta de usuario y cambio de
+        perfil. Los selectores consumen IDs reales y sólo ofrecen perfiles activos
+        para commands; no hay IDs manuales ni hardcodeados. No implementa pantalla
+        ni CRUD de perfiles.
 
 FASE 5A **IMPLEMENTADA EN BACKEND**: `GET /api/v1/administracion/perfiles`
         read-only con `nombre` parcial escapado, `estado`, página/tamaño e items
