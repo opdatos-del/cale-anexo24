@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, ViewContainerRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ComponentType } from '@angular/cdk/portal';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -152,6 +152,7 @@ export class UserListPage implements OnInit {
   private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
   private readonly dialog = inject(MatDialog);
+  private readonly viewContainerRef = inject(ViewContainerRef);
   private readonly destroyRef = inject(DestroyRef);
   private requestSequence = 0;
 
@@ -260,7 +261,14 @@ export class UserListPage implements OnInit {
   private openDetailDialog<T>(id: number, component: ComponentType<T>, reload = true): void {
     this.getUser.execute(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (detail) => {
-        this.dialog.open(component, { data: detail, width: 'min(94vw, 560px)', maxWidth: 'calc(100vw - 24px)', autoFocus: 'first-tabbable', restoreFocus: true }).afterClosed().subscribe((result: unknown) => {
+        this.dialog.open(component, {
+          data: detail,
+          viewContainerRef: this.viewContainerRef,
+          width: 'min(94vw, 560px)',
+          maxWidth: 'calc(100vw - 24px)',
+          autoFocus: 'first-tabbable',
+          restoreFocus: true,
+        }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((result: unknown) => {
           if (result && reload) this.load();
         });
       },
