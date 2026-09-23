@@ -73,26 +73,31 @@ BEGIN
 END
 GO
 
--- Autenticación actual: sólo lectura de usuario, perfil y permisos asociados.
+-- Permisos directos se conservan temporalmente: ownership chain LIVE incompatible
+-- y runtime role/membership aún no están desplegados. Revocación queda pendiente.
 GRANT SELECT ON OBJECT::app24.UsuarioApp TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.PerfilApp TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.PerfilActividad TO app24_runtime;
 GRANT SELECT ON OBJECT::app24.Actividad TO app24_runtime;
-
--- Administración FASE 3A/3B: comandos mínimos de usuarios por columna.
 GRANT INSERT ON OBJECT::app24.UsuarioApp TO app24_runtime;
 GRANT UPDATE (nombre, correo) ON OBJECT::app24.UsuarioApp TO app24_runtime;
 GRANT UPDATE (estado, perfil_id, vigencia) ON OBJECT::app24.UsuarioApp TO app24_runtime;
-
--- Bitácora futura: lectura e inserción, sin actualización ni borrado.
 GRANT SELECT, INSERT ON OBJECT::app24.BitacoraEvento TO app24_runtime;
 
--- Consultas almacenadas read-only migradas en SP-1B.
+-- Queries read-only de SP-1B.
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_POR_CLAVE TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_ACCESO TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIOS_LISTAR TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_OBTENER TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_BITACORA_LISTAR TO app24_runtime;
+
+-- Commands atómicos de SP-1C.
+GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_ACTUALIZAR_DATOS TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CAMBIAR_ESTADO TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CAMBIAR_PERFIL TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CAMBIAR_VIGENCIA TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_BITACORA_REGISTRAR TO app24_runtime;
 GO
 
 PRINT 'Permisos mínimos app24_runtime aplicados a anexo24_app.';
