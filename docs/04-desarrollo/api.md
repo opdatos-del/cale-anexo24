@@ -128,10 +128,12 @@ Consumidor frontend de `GET /bitacora`: pantalla read-only en
 
 ## Frontend Usuarios — Fase 4A
 
-**IMPLEMENTADA** en `frontend/src/app/features/administration/users`, ruta
-`/usuarios`, protegida por `USUARIOS_ADMINISTRAR`. La UI consume listado,
-detalle, edición de nombre/correo, cambio de estado, cambio de vigencia y reset
-de contraseña. No persiste ni muestra contraseñas.
+**IMPLEMENTADA / VALIDADA FRONTEND** en
+`frontend/src/app/features/administration/users`, ruta `/usuarios`, protegida por
+`USUARIOS_ADMINISTRAR`. La UI consume listado, detalle, edición de
+nombre/correo, cambio de estado, cambio de vigencia y reset de contraseña. Suite
+Angular 22 Vitest/jsdom valida contratos HTTP, UI, RBAC y DI route-scoped en
+MatDialog. No persiste ni muestra contraseñas.
 
 Alta de usuario y cambio de perfil permanecen **PENDIENTES / BLOQUEADOS POR
 CATÁLOGO DE PERFILES**. Dependencia Fase 5A:

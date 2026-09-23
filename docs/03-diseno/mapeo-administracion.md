@@ -838,10 +838,12 @@ Runtime permissions: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
 FASE 3C reset password: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 4A **IMPLEMENTADA**: Frontend Usuarios para listado, filtros, paginación,
-        edición de nombre/correo, estado, vigencia y restablecimiento de contraseña.
-        Alta de usuario y cambio de perfil quedan **PENDIENTES / BLOQUEADOS POR
-        CATÁLOGO DE PERFILES**, sin IDs manuales ni hardcodeados.
+FASE 4A **IMPLEMENTADA / VALIDADA FRONTEND**: Usuarios con listado, filtros,
+        paginación, edición de nombre/correo, estado, vigencia y restablecimiento
+        de contraseña. Suite Angular 22 con Vitest/jsdom valida mapper, HTTP,
+        presentación, RBAC y boundary DI route-scoped → MatDialog. Alta de usuario
+        y cambio de perfil quedan **PENDIENTES / BLOQUEADOS POR CATÁLOGO DE
+        PERFILES**, sin IDs manuales ni hardcodeados.
 
 FASE 5A **PENDIENTE**: `GET /api/v1/administracion/perfiles`, dependencia para
         completar alta de usuario y cambio de perfil en frontend.
