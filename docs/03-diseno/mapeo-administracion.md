@@ -8,8 +8,9 @@ la migración de commands a Stored Procedures app24.
 
 **IMPLEMENTADO E INTEGRADO EN DEV:** FASE 1, FASE 2, FASE 3A y FASE 3B consumen
 Stored Procedures mediante `appJdbcTemplate` y `appTransactionManager`.
-Commands sensibles conservan aislamiento `SERIALIZABLE`, locking `UPDLOCK`/`HOLDLOCK`
-y guardrail atómico en SQL. Reset password, CRUD de perfiles/actividades y
+**IMPLEMENTADO Y VALIDADO LIVE EN FASE 3C:** reset administrativo de contraseña.
+Commands sensibles de Fase 3B conservan aislamiento `SERIALIZABLE`, locking
+`UPDLOCK`/`HOLDLOCK` y guardrail atómico en SQL. CRUD de perfiles/actividades y
 frontend Usuarios/Perfiles/Permisos permanecen pendientes.
 
 Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
@@ -172,10 +173,11 @@ por perfil se registra en bitácora como `LOGIN_FALLIDO` con el actor real.
 **CONFIRMADO:** `BitacoraModulo` incluye `ADMINISTRACION`; `BitacoraAccion`
 define `LOGIN_OK`, `LOGIN_FALLIDO`, `USUARIO_CREADO` y `USUARIO_ACTUALIZADO`.
 
-En Fase 3A/3B, el writer append-only (`RegistrarEventoBitacoraService` +
-`BitacoraJdbcAdapter`) registra creación, edición, estado, perfil y vigencia con
-`AuthenticatedUserContext` como actor. `USUARIO_PASSWORD_RESTABLECIDA` permanece
-pendiente junto con el reset de contraseña; acciones futuras de perfiles también.
+En Fases 3A/3B/3C, el writer append-only (`RegistrarEventoBitacoraService` +
+`BitacoraJdbcAdapter`) registra creación, edición, estado, perfil, vigencia y
+restablecimiento de contraseña con `AuthenticatedUserContext` como actor.
+`USUARIO_PASSWORD_RESTABLECIDA` guarda sólo `usuarioObjetivoId`; acciones futuras
+de perfiles permanecen pendientes.
 
 **CONFIRMADO (hallazgo de diseño):** `AuthenticationEntryPoint` responde 401 sin
 registrar evento; 403 de `@PreAuthorize` tampoco registra evento. Política de
@@ -200,7 +202,7 @@ administración. Usuario `admin` (hash bcrypt de reemplazo obligatorio en
 producción) pertenece a `ADMINISTRADOR`.
 
 **IMPLEMENTADO:** `USUARIOS_ADMINISTRAR` protege `GET` listado, `GET` detalle,
-`POST`, `PUT` y los tres `PATCH` de `/api/v1/administracion/usuarios`.
+`POST`, `PUT`, los tres `PATCH` y `POST /{id}/password` de `/api/v1/administracion/usuarios`.
 `PERFILES_ADMINISTRAR` permanece pendiente para futuros commands de perfiles y
 `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
 
@@ -215,7 +217,7 @@ Estado efectivo:
 | `db_datareader` / `db_datawriter` | membership removida |
 | EXECUTE database/global | revocado |
 | tablas `app24` objetivo | SELECT/INSERT/UPDATE/DELETE directos = 0 |
-| 11 SP app24 | EXECUTE específico concedido |
+| 12 SP app24 | EXECUTE específico concedido |
 | idempotencia | segunda ejecución PASS, sin diferencias |
 
 Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejecutó `APP24_Q_USUARIOS_LISTAR` sin SELECT directo sobre tablas; SELECT directo `TOP (0)` fue denegado.
@@ -274,7 +276,7 @@ de aplicación. **No se modifica DDL en esta fase.**
 | INACTIVAR | Sí | mismo endpoint → `INACTIVO`; con guardrail de auto-bloqueo (§25) |
 | CAMBIAR PERFIL | Sí | `PATCH /api/v1/administracion/usuarios/{id}/perfil` → `perfilId` |
 | CAMBIAR VIGENCIA | Sí | `PATCH /api/v1/administracion/usuarios/{id}/vigencia` → fecha o `null` (§19) |
-| RESTABLECER CONTRASEÑA | Pendiente (Fase 3C) | `POST /api/v1/administracion/usuarios/{id}/password` (§15) |
+| RESTABLECER CONTRASEÑA | Sí (Fase 3C) | `POST /api/v1/administracion/usuarios/{id}/password`; BCrypt en Java, sólo hash a SQL (§15) |
 | **DELETE físico** | **NO** | FK `BitacoraEvento.usuario_id`, FK `CargaFacturacion.usuario_id`, trazabilidad histórica; `estado` cubre la necesidad |
 
 **DECISIÓN V1 — NO DELETE físico de UsuarioApp.** Justificación: (a) FK de
@@ -314,9 +316,11 @@ explícita.
 - **CREAR USUARIO:** recibe la contraseña inicial solo en el request de
   creación (`POST`); se codifica con `PasswordEncoder.encode()`; **solo
   `password_hash` llega a DB**.
-- **RESTABLECER CONTRASEÑA:** endpoint/command separado
-  (`POST /{id}/password`), no la edición general (`PUT`), porque es acción
-  sensible con evento de Bitácora propio.
+- **RESTABLECER CONTRASEÑA (IMPLEMENTADO / VALIDADO LIVE):** endpoint/command
+  separado (`POST /{id}/password`), no la edición general (`PUT`). Reutiliza
+  `PasswordPolicy`, codifica BCrypt en Java, ejecuta
+  `APP24_C_USUARIO_RESTABLECER_PASSWORD` y registra evento propio en la misma
+  transacción `appTransactionManager`. No revoca JWT existentes.
 
 **PROHIBIDO (por diseño):** devolver o registrar —en response, logs, Bitácora o
 frontend— `password`, `password_hash`, la contraseña inicial, el hash anterior
@@ -619,7 +623,7 @@ configura aislamiento `SERIALIZABLE` para las mutaciones de estado, perfil y
 vigencia, incluido su guardrail global; los paths críticos usan `UPDLOCK` y
 `HOLDLOCK`. La escritura de negocio en `UsuarioApp` y el evento de
 `BitacoraEvento` participan en la misma transacción; no usan `REQUIRES_NEW`.
-Runtime: **READY**, con `app24_runtime`, membership correcta, 11 EXECUTE
+Runtime: **READY**, con `app24_runtime`, membership correcta, 12 EXECUTE
 específicos, cero grants directos de tablas y ownership chain compatible.
 
 ## 30. Estrategia de persistencia app24 — DECISIÓN V1
@@ -640,7 +644,7 @@ grants runtime son mínimos por objeto (§31).
 
 ## 31. Runtime permissions — estado versionado
 
-`04-app-runtime-permissions.sql` versiona el estado final least-privilege, ya desplegado en `ANEXO24_DEV`: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 11 SP app24 aprobados. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
+`04-app-runtime-permissions.sql` versiona el estado final least-privilege, ya desplegado en `ANEXO24_DEV`: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 12 SP app24 aprobados. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
 
 ## 32. Rutas API V1 — DECISIÓN
 
@@ -681,7 +685,7 @@ implementar**. No se modifica `api.md` en esta fase.
   `perfilId`. `estado` inicial: **`ACTIVO`** (implícito; no se acepta estado
   distinto en creación).
 - **Validación:** clave/correo únicos (409, §16), perfilId existente y ACTIVO,
-  password no blank (política de complejidad PENDIENTE).
+  password de 10..50 caracteres con mayúscula, número y carácter especial.
 
 ### Acciones sensibles — commands explícitos (preferidos a PATCH genérico)
 
@@ -696,7 +700,7 @@ POST   /{id}/password               → { password } (reset) (§15)
 Justificación: estado/perfil/vigencia/password son acciones con evento de
 Bitácora específico (§28) y validación propia; separarlas evita PATCH
 multi-propósito ambiguo. Los tres `PATCH` de Fase 3B están implementados, integrados en DEV y
-runtime ready; el reset permanece pendiente en Fase 3C.
+runtime ready; reset de Fase 3C está implementado y validado LIVE en su rama.
 
 ## 34. Contratos — PERFILES (candidatos)
 
@@ -832,7 +836,7 @@ FASE 3B Estado, perfil, vigencia y guardrails: **COMPLETADA / INTEGRADA EN DEV /
 Migración SP app24/Módulo C: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 Runtime permissions: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 3C **PENDIENTE**: reset password.
+FASE 3C reset password: **COMPLETADA / VALIDADA LIVE**; pendiente integración a DEV.
 
 FASE 4 **PENDIENTE**: Frontend Usuarios.
 
@@ -858,8 +862,8 @@ Ajustar únicamente si la evidencia de implementación justifica otro orden.
 3. Runtime least-privilege de app24: **COMPLETADO / VALIDADO LIVE** en SP-1E;
    mantener verificación en despliegues posteriores.
 4. Confirmar timezone JVM en producción para semántica de `vigencia` (§19).
-5. Política de complejidad de contraseñas y de reset (generada vs. provista)
-   — PENDIENTE, no bloquea contrato.
+5. Política V1 de contraseñas implementada: provista por administrador, 10..50,
+   mayúscula, número y especial; `PasswordPolicy` compartida por creación/reset.
 6. Aprobar preventivamente `must_change_password`/historial/MFA si negocio los
    exige — FUERA DE V1 (§15).
 7. Posible limpieza futura de `ACTIVIDADES_ADMINISTRAR` del seed (§23).

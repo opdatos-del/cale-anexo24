@@ -21,14 +21,15 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 | PATCH | `/administracion/usuarios/{id}/estado` | Cambia el estado del usuario. | `USUARIOS_ADMINISTRAR` |
 | PATCH | `/administracion/usuarios/{id}/perfil` | Cambia el perfil asignado. | `USUARIOS_ADMINISTRAR` |
 | PATCH | `/administracion/usuarios/{id}/vigencia` | Cambia la vigencia o la elimina. | `USUARIOS_ADMINISTRAR` |
+| POST | `/administracion/usuarios/{id}/password` | Restablece la contraseña y responde `204 No Content`. | `USUARIOS_ADMINISTRAR` |
 
 ## Administración de usuarios — Fase 3A
 
 Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
 Fases 3A y 3B están implementadas e integradas en DEV mediante commands SP
-atómicos. Runtime está READY: `app24_runtime` provisionado, membership correcta,
-11 EXECUTE específicos, cero grants directos de tablas y ownership chain
-compatible.
+atómicos. Fase 3C está implementada y validada LIVE en su rama. Runtime está
+READY: `app24_runtime` provisionado, membership correcta, 12 EXECUTE específicos,
+cero grants directos de tablas y ownership chain compatible.
 
 ### `GET /administracion/usuarios`
 
@@ -93,13 +94,28 @@ elimina el vencimiento; una fecha es válida si es igual o posterior a
 `LocalDate.now()` de la JVM. La modificación de la vigencia propia se permite,
 pero debe conservar el guardrail administrativo global.
 
+## Administración de usuarios — Fase 3C
+
+### `POST /administracion/usuarios/{id}/password`
+
+Recibe `{ "password": "..." }` y responde `204 No Content`. Requiere
+`USUARIOS_ADMINISTRAR`; permite reset propio, de usuario inactivo o vencido. La
+política compartida exige 10..50 caracteres, una mayúscula, un número y un
+carácter especial. BCrypt se ejecuta en Java y sólo `password_hash` llega a
+`APP24_C_USUARIO_RESTABLECER_PASSWORD`.
+
+El update y `USUARIO_PASSWORD_RESTABLECIDA` comparten `appTransactionManager`;
+si falla Bitácora, todo revierte. El detalle contiene únicamente
+`usuarioObjetivoId`. No cambia estado, vigencia, perfil, clave o permisos; no
+revoca JWT existentes ni agrega `must_change_password` o historial.
+
 ## Bitácora de Administración
 
 Las acciones disponibles incluyen `LOGIN_OK`, `LOGIN_FALLIDO`,
 `USUARIO_CREADO`, `USUARIO_ACTUALIZADO`, `USUARIO_ESTADO_CAMBIADO`,
-`USUARIO_PERFIL_CAMBIADO` y `USUARIO_VIGENCIA_CAMBIADA`. El detalle de los
-eventos no contiene contraseñas, hashes, JWT ni cabeceras de autorización.
-`USUARIO_PASSWORD_RESTABLECIDA` permanece pendiente junto con Fase 3C.
+`USUARIO_PERFIL_CAMBIADO`, `USUARIO_VIGENCIA_CAMBIADA` y
+`USUARIO_PASSWORD_RESTABLECIDA`. El detalle de los eventos no contiene
+contraseñas, hashes, JWT ni cabeceras de autorización.
 
 ## Recursos no expuestos
 

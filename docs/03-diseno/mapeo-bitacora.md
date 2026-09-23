@@ -73,7 +73,7 @@ protección intrínseca dentro de la tabla que impida `UPDATE`/`DELETE`.
 Permisos runtime finales en `04-app-runtime-permissions.sql`: acceso directo
 a tablas = 0 para `app24_runtime`, sin `UPDATE` ni `DELETE`; el writer usa
 `APP24_C_BITACORA_REGISTRAR` y la consulta usa `APP24_Q_BITACORA_LISTAR`.
-Los 11 EXECUTE específicos quedaron aplicados LIVE; ownership chain compatible.
+Los 12 EXECUTE específicos quedaron aplicados LIVE; ownership chain compatible.
 
 ## 5. Inmutabilidad real
 
@@ -88,7 +88,7 @@ garantía actual:
 - **IMPLEMENTADO, INTEGRADO EN DEV Y VALIDADO LIVE:** `00-bootstrap.sql` ya no
   asigna `db_datareader`, `db_datawriter` ni `EXECUTE` global. `04-app-runtime-
   permissions.sql` retira memberships heredados, revoca acceso directo a tablas
-  y concede a `app24_runtime` sólo EXECUTE sobre los 11 SP aprobados.
+  y concede a `app24_runtime` sólo EXECUTE sobre los 12 SP aprobados.
 - **CONFIRMADO:** `UsuarioJdbcAdapter` ya usa `appJdbcTemplate` contra
   `ANEXO24_DEV`; un futuro adaptador de Bitácora pertenece a este esquema,
   nunca a `CALE_IMMEX` ni a un `APP24_Q_*` legacy.

@@ -34,6 +34,11 @@ Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-s
 | Vigencia | fecha, `NULL`, fecha pasada y no-op | UNIT/LIVE | `CambiarVigenciaUsuarioUseCaseTest`; LIVE fecha pasada |
 | Vigencia | usuario inexistente, sin administrador, actor ausente | UNIT | tests/contrato; `51107` LIVE no ejecutable por dataset |
 | Vigencia | bitácora y rollback | UNIT | tests de use case |
+| Password | válido; encoder recibe plaintext y repository sólo hash | UNIT/LIVE | `RestablecerPasswordUsuarioUseCaseTest`; reset sintético reversible |
+| Password | id null/no positivo; password null/blank/corto/largo/sin mayúscula/número/especial | UNIT | `PasswordPolicyTest`, `RestablecerPasswordUsuarioUseCaseTest` |
+| Password | usuario inexistente y errores 51101/51108/51150 | UNIT/LIVE | adapter; LIVE `51101` |
+| Password | actor ausente, fallo command, bitácora segura y rollback | UNIT | tests de use case; transacción `appTransactionManager` |
+| Password | HTTP 204/400/401/403/404 sin secretos en response | UNIT | `RestablecerPasswordUsuarioControllerWebTest` |
 
 ## Bitácora
 
@@ -65,8 +70,8 @@ No se fabricaron perfiles alternativos, perfil inactivo ni segundo administrador
 | `app24_runtime` provisionado | PASS | LIVE metadata |
 | `anexo24_app` miembro del rol | PASS | LIVE role membership |
 | `db_datareader` / `db_datawriter` | PASS removidos | LIVE role membership |
-| EXECUTE específico | PASS, 11/11 | LIVE permissions |
+| EXECUTE específico | PASS, 12/12 | LIVE permissions; Fase 3C agregó reset password |
 | grants directos de tablas | PASS, 0 | LIVE permissions + `HAS_PERMS_BY_NAME` |
 | query read-only como runtime | PASS | impersonation `anexo24_app` |
 | SELECT directo de tabla | DENIED | `TOP (0)` bajo impersonation |
-| segunda ejecución 04 | PASS | idempotencia confirmada |
+| segunda ejecución 04 | PASS | idempotencia confirmada en SP-1E; reaplicación Fase 3C concedió 12/12 |

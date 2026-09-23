@@ -306,6 +306,24 @@ Impersonation legítima como `anexo24_app` confirmó: EXECUTE efectivo en querie
 
 `BitacoraEvento.fecha` se verificó directamente con `sys.columns`: `datetime2`, `scale=3`, no existe drift respecto a `02-app-schema.sql`. El reporte anterior que indicaba 7 correspondía a la escala del tipo base, no a la escala efectiva de la columna.
 
-`infra/sql/04-app-runtime-permissions.sql` se aplicó dos veces en `ANEXO24_DEV` con la identidad administrativa `opdatos`; ambas ejecuciones pasaron. La primera creó `app24_runtime`, retiró memberships `db_datareader`/`db_datawriter`, revocó EXECUTE global y concedió los 11 EXECUTE específicos. La segunda confirmó idempotencia. Impersonation de `anexo24_app` confirmó EXECUTE efectivo, SELECT directo denegado y ejecución de query read-only mediante ownership chain.
+`infra/sql/04-app-runtime-permissions.sql` se aplicó dos veces en `ANEXO24_DEV` con la identidad administrativa `opdatos`; ambas ejecuciones pasaron. La primera creó `app24_runtime`, retiró memberships `db_datareader`/`db_datawriter`, revocó EXECUTE global y concedió los 11 EXECUTE específicos existentes en SP-1E. La segunda confirmó idempotencia. Impersonation de `anexo24_app` confirmó EXECUTE efectivo, SELECT directo denegado y ejecución de query read-only mediante ownership chain.
 
 La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D cerró con **294 tests**, 0 fallos, 0 errores y 0 omitidos, agregando cobertura explícita de códigos SQL sin perseguir un número artificial. SP-1E cerró el gate runtime; no se modificaron datos de negocio. INT-1 integró la cadena en `dev` mediante fast-forward.
+
+## Fase 3C — restablecimiento administrativo de contraseña
+
+`app24.APP24_C_USUARIO_RESTABLECER_PASSWORD(@UsuarioId BIGINT,
+@PasswordHash VARCHAR(100))` quedó versionado y desplegado LIVE. Actualiza sólo
+`app24.UsuarioApp.password_hash`; valida parámetros con `51108`, inexistencia con
+`51101` y rowcount con `51150`. Java valida política compartida, genera BCrypt y
+nunca envía plaintext a SQL.
+
+ANEXO24_DEV pasó de 11 a 12 SP app24. Prueba LIVE creó usuario sintético dentro
+de transacción, confirmó booleanamente cambio de hash y ejecutó rollback; filas
+sintéticas finales: 0. Prueba de usuario inexistente devolvió `51101`. Identity
+pudo avanzar por el rollback; no se ejecutó `DBCC CHECKIDENT`.
+
+`04-app-runtime-permissions.sql` se reaplicó y dejó 12 grants EXECUTE específicos,
+cero grants directos de tablas y sin memberships `db_datareader`/`db_datawriter`.
+Impersonation de `anexo24_app` confirmó `HAS_PERMS_BY_NAME` EXECUTE = 1 para el
+nuevo SP y UPDATE directo sobre `UsuarioApp` = 0. CALE_IMMEX no fue modificado.
