@@ -60,6 +60,43 @@ class UsuarioComandoJdbcAdapterTest {
     }
 
     @Test
+    void restablecerPasswordInvocaSpConIdYHash() throws Exception {
+        when(jdbcTemplate.call(any(), anyList())).thenReturn(Map.of());
+        adapter.restablecerPassword(42L, "hash-bcrypt");
+        ArgumentCaptor<CallableStatementCreator> creator = ArgumentCaptor.forClass(CallableStatementCreator.class);
+        verify(jdbcTemplate).call(creator.capture(), anyList());
+        when(connection.prepareCall("{call app24.APP24_C_USUARIO_RESTABLECER_PASSWORD(?, ?)}"))
+                .thenReturn(statement);
+        creator.getValue().createCallableStatement(connection);
+        verify(statement).setLong(1, 42L);
+        verify(statement).setString(2, "hash-bcrypt");
+    }
+
+    @ParameterizedTest
+    @MethodSource("codigosReset")
+    void restablecerPasswordMapeaErroresControlados(int codigo, Class<? extends Throwable> tipoEsperado) {
+        SQLException sql = new SQLException("error controlado", "", codigo);
+        when(jdbcTemplate.call(any(), anyList()))
+                .thenThrow(new org.springframework.jdbc.UncategorizedSQLException("command", "call", sql));
+        assertThatThrownBy(() -> adapter.restablecerPassword(42L, "hash"))
+                .isInstanceOf(tipoEsperado);
+    }
+
+    static Stream<Arguments> codigosReset() {
+        return Stream.of(
+                Arguments.of(51101, RecursoNoEncontradoException.class),
+                Arguments.of(51108, SolicitudInvalidaException.class),
+                Arguments.of(51150, IllegalStateException.class));
+    }
+
+    @Test
+    void restablecerPasswordPropagaErrorDesconocidoOriginal() {
+        DataAccessResourceFailureException error = new DataAccessResourceFailureException("BD");
+        when(jdbcTemplate.call(any(), anyList())).thenThrow(error);
+        assertThatThrownBy(() -> adapter.restablecerPassword(42L, "hash")).isSameAs(error);
+    }
+
+    @Test
     void erroresSql51104SeMapeanADuplicado() {
         SQLException sql = new SQLException("RECURSO_DUPLICADO", "", 51104);
         when(jdbcTemplate.call(any(), anyList()))

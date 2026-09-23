@@ -27,6 +27,7 @@ public class UsuarioComandoJdbcAdapter implements UsuarioComandoRepository {
     static final String CAMBIAR_ESTADO = "app24.APP24_C_USUARIO_CAMBIAR_ESTADO";
     static final String CAMBIAR_PERFIL = "app24.APP24_C_USUARIO_CAMBIAR_PERFIL";
     static final String CAMBIAR_VIGENCIA = "app24.APP24_C_USUARIO_CAMBIAR_VIGENCIA";
+    static final String RESTABLECER_PASSWORD = "app24.APP24_C_USUARIO_RESTABLECER_PASSWORD";
     private static final String NUEVO_USUARIO_ID = "NuevoUsuarioId";
 
     private final JdbcTemplate appJdbcTemplate;
@@ -138,6 +139,20 @@ public class UsuarioComandoJdbcAdapter implements UsuarioComandoRepository {
                         new SqlParameter("Vigencia", Types.DATE),
                         new SqlParameter("ActorId", Types.BIGINT),
                         new SqlParameter("FechaActual", Types.DATE)));
+    }
+
+    @Override
+    public void restablecerPassword(Long usuarioId, String passwordHash) {
+        ejecutar(RESTABLECER_PASSWORD,
+                connection -> {
+                    CallableStatement statement = connection.prepareCall(
+                            "{call " + RESTABLECER_PASSWORD + "(?, ?)}");
+                    statement.setLong(1, usuarioId);
+                    statement.setString(2, passwordHash);
+                    return statement;
+                }, List.of(
+                        new SqlParameter("UsuarioId", Types.BIGINT),
+                        new SqlParameter("PasswordHash", Types.VARCHAR)));
     }
 
     private void ejecutar(String procedure, org.springframework.jdbc.core.CallableStatementCreator creator,

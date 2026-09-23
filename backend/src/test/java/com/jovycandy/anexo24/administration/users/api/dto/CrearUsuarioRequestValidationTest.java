@@ -26,15 +26,13 @@ class CrearUsuarioRequestValidationTest {
     }
 
     @Test
-    void aceptaPasswordConBaselineLegacy() {
+    void aceptaPasswordNoVacioParaDelegarPoliticaAApplication() {
         assertThat(violaciones("Abcdefgh1!")).isEmpty();
     }
 
     @Test
-    void rechazaPasswordFueraDePolitica() {
-        for (String password : new String[]{"Abcdef1!", "abcdefgh1!", "Abcdefgh!!", "Abcdefgh11", "Abcdefghij1!Abcdefghij1!Abcdefghij1!Abcdefghij1!Abc"}) {
-            assertThat(violaciones(password)).isNotEmpty();
-        }
+    void rechazaPasswordVacio() {
+        assertThat(violaciones("   ")).isNotEmpty();
     }
 
     private Set<?> violaciones(String password) {

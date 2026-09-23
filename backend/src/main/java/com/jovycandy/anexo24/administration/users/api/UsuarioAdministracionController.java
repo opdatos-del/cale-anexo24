@@ -6,16 +6,19 @@ import com.jovycandy.anexo24.administration.users.api.dto.CambiarEstadoUsuarioRe
 import com.jovycandy.anexo24.administration.users.api.dto.CambiarPerfilUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.CambiarVigenciaUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
+import com.jovycandy.anexo24.administration.users.api.dto.RestablecerPasswordUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarEstadoUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarPerfilUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarVigenciaUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.RestablecerPasswordUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CrearUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarEstadoUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarPerfilUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarVigenciaUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.RestablecerPasswordUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
@@ -57,6 +60,7 @@ public class UsuarioAdministracionController {
     private final CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase;
     private final CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase;
     private final CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase;
+    private final RestablecerPasswordUsuarioUseCase restablecerPasswordUsuarioUseCase;
 
     /**
      * Construye el controlador con los casos de uso de usuarios.
@@ -72,7 +76,8 @@ public class UsuarioAdministracionController {
                                            ActualizarUsuarioUseCase actualizarUsuarioUseCase,
                                            CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase,
                                            CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase,
-                                           CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase) {
+                                           CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase,
+                                           RestablecerPasswordUsuarioUseCase restablecerPasswordUsuarioUseCase) {
         this.listarUsuariosUseCase = listarUsuariosUseCase;
         this.obtenerUsuarioUseCase = obtenerUsuarioUseCase;
         this.crearUsuarioUseCase = crearUsuarioUseCase;
@@ -80,6 +85,7 @@ public class UsuarioAdministracionController {
         this.cambiarEstadoUsuarioUseCase = cambiarEstadoUsuarioUseCase;
         this.cambiarPerfilUsuarioUseCase = cambiarPerfilUsuarioUseCase;
         this.cambiarVigenciaUsuarioUseCase = cambiarVigenciaUsuarioUseCase;
+        this.restablecerPasswordUsuarioUseCase = restablecerPasswordUsuarioUseCase;
     }
 
     @Operation(
@@ -232,6 +238,27 @@ public class UsuarioAdministracionController {
         UsuarioAdministracion usuario = cambiarVigenciaUsuarioUseCase.ejecutar(id,
                 new CambiarVigenciaUsuarioCommand(request.vigencia()), correlationId(servletRequest));
         return ResponseEntity.ok(UsuarioAdministracionDto.from(usuario));
+    }
+
+    @Operation(
+            summary = "Restablecer contraseña de usuario",
+            description = "Reemplaza la contraseña de un usuario mediante hash BCrypt.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Contraseña restablecida"),
+            @ApiResponse(responseCode = "400", description = "Solicitud o contraseña inválida", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "401", description = "Autenticación requerida", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "403", description = "Permiso insuficiente", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado", content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "503", description = "Dependencia no disponible", content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    @PostMapping("/{id}/password")
+    @PreAuthorize("hasAuthority('USUARIOS_ADMINISTRAR')")
+    public ResponseEntity<Void> restablecerPassword(@PathVariable Long id,
+                                                     @Valid @RequestBody RestablecerPasswordUsuarioRequest request,
+                                                     HttpServletRequest servletRequest) {
+        restablecerPasswordUsuarioUseCase.ejecutar(id,
+                new RestablecerPasswordUsuarioCommand(request.password()), correlationId(servletRequest));
+        return ResponseEntity.noContent().build();
     }
 
     private String correlationId(HttpServletRequest servletRequest) {

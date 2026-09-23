@@ -31,6 +31,7 @@ import static org.mockito.Mockito.*;
 class CrearUsuarioUseCaseTest {
     @Mock private UsuarioComandoRepository comandos;
     @Mock private UsuarioConsultaRepository consultas;
+    @Mock private PasswordPolicy passwordPolicy;
     @Mock private PasswordEncoder encoder;
     @Mock private RegistrarEventoBitacoraService bitacora;
     @Mock private AuthenticatedUserContext actor;
@@ -71,6 +72,8 @@ class CrearUsuarioUseCaseTest {
 
     @Test
     void passwordInvalidoNoLlegaAlCommand() {
+        org.mockito.Mockito.doThrow(new com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException("inválida"))
+                .when(passwordPolicy).validar("corta");
         assertThatThrownBy(() -> useCase().ejecutar(command("corta"), "req"))
                 .isInstanceOf(com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException.class);
         verifyNoInteractions(comandos, encoder, bitacora, actor, consultas);
@@ -93,7 +96,7 @@ class CrearUsuarioUseCaseTest {
         assertThat(method.getAnnotation(Transactional.class).transactionManager()).isEqualTo("appTransactionManager");
     }
 
-    private CrearUsuarioUseCase useCase() { return new CrearUsuarioUseCase(comandos, consultas, encoder, bitacora, actor); }
+    private CrearUsuarioUseCase useCase() { return new CrearUsuarioUseCase(comandos, consultas, passwordPolicy, encoder, bitacora, actor); }
     private CrearUsuarioCommand command() { return command("Abcdefgh1!"); }
     private CrearUsuarioCommand command(String password) { return new CrearUsuarioCommand("op01", "Nombre", "correo@test", password, null, 7L); }
     private UsuarioAdministracion usuario() { return new UsuarioAdministracion(8L, "op01", "Nombre", "correo@test", "ACTIVO", LocalDate.now(), 7L, "Admin"); }

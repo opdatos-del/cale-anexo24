@@ -6,16 +6,19 @@ import com.jovycandy.anexo24.administration.users.api.dto.CambiarEstadoUsuarioRe
 import com.jovycandy.anexo24.administration.users.api.dto.CambiarPerfilUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.CambiarVigenciaUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.api.dto.UsuarioAdministracionDto;
+import com.jovycandy.anexo24.administration.users.api.dto.RestablecerPasswordUsuarioRequest;
 import com.jovycandy.anexo24.administration.users.application.command.ActualizarUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CrearUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarEstadoUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarPerfilUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.CambiarVigenciaUsuarioUseCase;
+import com.jovycandy.anexo24.administration.users.application.command.RestablecerPasswordUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.application.command.model.ActualizarUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CrearUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarEstadoUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarPerfilUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.command.model.CambiarVigenciaUsuarioCommand;
+import com.jovycandy.anexo24.administration.users.application.command.model.RestablecerPasswordUsuarioCommand;
 import com.jovycandy.anexo24.administration.users.application.query.ListarUsuariosUseCase;
 import com.jovycandy.anexo24.administration.users.application.query.ObtenerUsuarioUseCase;
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAdministracion;
@@ -52,6 +55,7 @@ class UsuarioAdministracionControllerTest {
     @Mock private CambiarEstadoUsuarioUseCase cambiarEstadoUsuarioUseCase;
     @Mock private CambiarPerfilUsuarioUseCase cambiarPerfilUsuarioUseCase;
     @Mock private CambiarVigenciaUsuarioUseCase cambiarVigenciaUsuarioUseCase;
+    @Mock private RestablecerPasswordUsuarioUseCase restablecerPasswordUsuarioUseCase;
     @Mock private HttpServletRequest servletRequest;
 
     @Test
@@ -131,6 +135,17 @@ class UsuarioAdministracionControllerTest {
     }
 
     @Test
+    void restablecerPasswordMapeaCommandResponde204YSinBody() {
+        when(servletRequest.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR)).thenReturn("corr-4");
+        ResponseEntity<Void> resultado = controller().restablecerPassword(42L,
+                new RestablecerPasswordUsuarioRequest("Abcdefgh1!"), servletRequest);
+        verify(restablecerPasswordUsuarioUseCase).ejecutar(42L,
+                new RestablecerPasswordUsuarioCommand("Abcdefgh1!"), "corr-4");
+        assertThat(resultado.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(resultado.getBody()).isNull();
+    }
+
+    @Test
     void endpointsExigenPermisoUsuariosAdministrarYDocumentanOperacionCorrecta() throws NoSuchMethodException {
         assertPermisoYOperacion("listar", new Class[]{String.class, String.class, String.class, String.class, Long.class, int.class, int.class},
                 "Listar usuarios de administración");
@@ -144,6 +159,8 @@ class UsuarioAdministracionControllerTest {
                 "Cambiar perfil de usuario");
         assertPermisoYOperacion("cambiarVigencia", new Class[]{Long.class, CambiarVigenciaUsuarioRequest.class, HttpServletRequest.class},
                 "Cambiar vigencia de usuario");
+        assertPermisoYOperacion("restablecerPassword", new Class[]{Long.class, RestablecerPasswordUsuarioRequest.class, HttpServletRequest.class},
+                "Restablecer contraseña de usuario");
     }
 
     private void assertPermisoYOperacion(String nombre, Class<?>[] parametros, String resumen) throws NoSuchMethodException {
@@ -161,7 +178,7 @@ class UsuarioAdministracionControllerTest {
     private UsuarioAdministracionController controller() {
         return new UsuarioAdministracionController(listarUsuariosUseCase, obtenerUsuarioUseCase,
                 crearUsuarioUseCase, actualizarUsuarioUseCase, cambiarEstadoUsuarioUseCase,
-                cambiarPerfilUsuarioUseCase, cambiarVigenciaUsuarioUseCase);
+                cambiarPerfilUsuarioUseCase, cambiarVigenciaUsuarioUseCase, restablecerPasswordUsuarioUseCase);
     }
 
     private UsuarioAdministracion usuario() {

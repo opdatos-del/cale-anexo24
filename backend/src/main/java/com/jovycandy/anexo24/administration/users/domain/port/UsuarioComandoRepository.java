@@ -9,4 +9,5 @@ public interface UsuarioComandoRepository {
     void actualizarEstado(Long usuarioId, String estado, Long actorId, LocalDate fechaActual);
     void actualizarPerfil(Long usuarioId, Long perfilId, Long actorId, LocalDate fechaActual);
     void actualizarVigencia(Long usuarioId, LocalDate vigencia, Long actorId, LocalDate fechaActual);
+    void restablecerPassword(Long usuarioId, String passwordHash);
 }
