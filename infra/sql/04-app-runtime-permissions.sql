@@ -73,16 +73,15 @@ BEGIN
 END
 GO
 
--- Permisos directos se conservan temporalmente: ownership chain LIVE incompatible
--- y runtime role/membership aún no están desplegados. Revocación queda pendiente.
-GRANT SELECT ON OBJECT::app24.UsuarioApp TO app24_runtime;
-GRANT SELECT ON OBJECT::app24.PerfilApp TO app24_runtime;
-GRANT SELECT ON OBJECT::app24.PerfilActividad TO app24_runtime;
-GRANT SELECT ON OBJECT::app24.Actividad TO app24_runtime;
-GRANT INSERT ON OBJECT::app24.UsuarioApp TO app24_runtime;
-GRANT UPDATE (nombre, correo) ON OBJECT::app24.UsuarioApp TO app24_runtime;
-GRANT UPDATE (estado, perfil_id, vigencia) ON OBJECT::app24.UsuarioApp TO app24_runtime;
-GRANT SELECT, INSERT ON OBJECT::app24.BitacoraEvento TO app24_runtime;
+-- Ownership chain LIVE verificada: schema app24 y objetos usan owner efectivo dbo.
+-- Retira grants directos heredados para dejar runtime en EXECUTE-only.
+REVOKE SELECT, INSERT ON OBJECT::app24.UsuarioApp FROM app24_runtime;
+REVOKE UPDATE (nombre, correo) ON OBJECT::app24.UsuarioApp FROM app24_runtime;
+REVOKE UPDATE (estado, perfil_id, vigencia) ON OBJECT::app24.UsuarioApp FROM app24_runtime;
+REVOKE SELECT ON OBJECT::app24.PerfilApp FROM app24_runtime;
+REVOKE SELECT ON OBJECT::app24.PerfilActividad FROM app24_runtime;
+REVOKE SELECT ON OBJECT::app24.Actividad FROM app24_runtime;
+REVOKE SELECT, INSERT ON OBJECT::app24.BitacoraEvento FROM app24_runtime;
 
 -- Queries read-only de SP-1B.
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_POR_CLAVE TO app24_runtime;

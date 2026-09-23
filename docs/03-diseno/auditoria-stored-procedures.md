@@ -204,7 +204,7 @@ GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_OBTENER TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_BITACORA_LISTAR TO app24_runtime;
 ```
 
-Los cinco grants read-only y seis grants command quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. No se aplicaron LIVE porque runtime membership sigue pendiente y ownership chain resultó incompatible. SELECT/INSERT/UPDATE directos se conservan hasta resolución de infraestructura.
+Los cinco grants read-only y seis grants command quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. En SP-1C no se aplicaron LIVE porque runtime membership seguía pendiente y ownership chain aún no estaba re-auditada. La auditoría SP-1D confirmó ownership compatible; el script actualiza el objetivo a EXECUTE-only con REVOKE explícito, pero sigue pendiente de despliegue runtime.
 
 ## SP-1C — Commands app24 implementados
 
@@ -263,13 +263,35 @@ Identity pudo avanzar pese al rollback; no se ejecutó `DBCC CHECKIDENT`. No hab
 
 ### Permisos y ownership
 
-Los seis `GRANT EXECUTE` quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. Permisos directos de tablas se conservan temporalmente: ownership chain LIVE resultó incompatible y membership `app24_runtime`/`anexo24_app` sigue pendiente. No se aplicó el script LIVE ni se crearon roles/usuarios. Revocación EXECUTE-only queda pendiente de resolución de ownership por infraestructura.
+SP-1C dejó seis `GRANT EXECUTE` versionados y conservó temporalmente permisos directos mientras ownership y membership estaban pendientes. SP-1D confirmó ownership compatible; el script ahora contiene REVOKE explícito de permisos directos y EXECUTE-only como estado deseado. No se aplicó LIVE ni se crearon roles/usuarios.
 
-### Estado final
+### Estado final SP-1C
 
 - SQL funcional inline de negocio en `UsuarioComandoJdbcAdapter`: **0**.
 - SQL funcional inline de negocio en `BitacoraJdbcAdapter`: **0**.
 - `PerfilReferenciaJdbcAdapter` y `PerfilReferenciaRepository`: eliminados.
 - `SystemStatusController` conserva únicamente `SELECT 1` como `EXCEPCION_TECNICA`.
 - CALE_IMMEX, Materiales, frontend y API externa sin cambios.
-- Siguiente alcance pendiente: ninguno implementado fuera de SP-1C; no integrar a `dev`.
+
+## SP-1D — cierre de auditoría y release gate
+
+Auditoría LIVE read-only ejecutada el 2026-09-23 desde `feature/backend-sp-closure`, sin `CREATE`, `ALTER`, DML ni ejecución de comandos mutables.
+
+| Control | Resultado |
+|---|---|
+| `CALE_IMMEX` SP total | 96 |
+| APP24 query propios en `dbo` | 7 presentes |
+| `ANEXO24_DEV` SP total | 11 |
+| APP24 queries/commands esperados | 11 presentes |
+| Drift scripts app24 vs `sys.sql_modules` | 0; MATCH tras normalizar `USE`, `GO`, whitespace, `CREATE OR ALTER` y comentarios |
+| SQL funcional inline de negocio | 0 |
+| Excepción técnica | `SystemStatusController` → `SELECT 1` |
+| Error code JDBC LIVE | `SQLServerException.getErrorCode() = 51102` confirmado |
+| Ownership efectivo | `dbo` en schema `app24`, tablas y SPs; chain compatible |
+| Runtime | `RUNTIME_PARTIAL`: `anexo24_app` existe, sigue en roles amplios; `app24_runtime` aún no existe |
+
+`BitacoraEvento.fecha` se verificó directamente con `sys.columns`: `datetime2`, `scale=3`, no existe drift respecto a `02-app-schema.sql`. El reporte anterior que indicaba 7 correspondía a la escala del tipo base, no a la escala efectiva de la columna.
+
+`infra/sql/04-app-runtime-permissions.sql` queda versionado con `GRANT EXECUTE` sobre los 11 SP y `REVOKE` explícito de grants directos de tablas. No fue aplicado LIVE: falta provisión/autorización de `app24_runtime` y `anexo24_app`; la cuenta actual conserva membership `db_datareader`/`db_datawriter`.
+
+La matriz de escenarios está en `docs/04-desarrollo/matriz-regresion-sp.md`. SP-1B tenía 316 tests; SP-1C terminó con 284; SP-1D agrega cobertura explícita de códigos SQL sin perseguir un número artificial. No integrar a `dev` hasta revisar el gate de permisos runtime.

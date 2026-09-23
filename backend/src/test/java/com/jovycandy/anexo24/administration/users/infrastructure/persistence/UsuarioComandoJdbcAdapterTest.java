@@ -2,6 +2,9 @@ package com.jovycandy.anexo24.administration.users.infrastructure.persistence;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -11,7 +14,10 @@ import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.SqlOutParameter;
+import com.jovycandy.anexo24.shared.exception.EstadoIncompatibleException;
 import com.jovycandy.anexo24.shared.exception.RecursoDuplicadoException;
+import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
+import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -19,6 +25,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,6 +66,30 @@ class UsuarioComandoJdbcAdapterTest {
                 .thenThrow(new org.springframework.jdbc.UncategorizedSQLException("command", "call", sql));
         assertThatThrownBy(() -> adapter.crear("op", "n", "c", "h", null, 1L))
                 .isInstanceOf(RecursoDuplicadoException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("codigosSqlControlados")
+    void erroresSqlSeMapeanSegunContrato(int codigo, Class<? extends Throwable> tipoEsperado) {
+        SQLException sql = new SQLException("error controlado", "", codigo);
+        when(jdbcTemplate.call(any(), anyList()))
+                .thenThrow(new org.springframework.jdbc.UncategorizedSQLException("command", "call", sql));
+        assertThatThrownBy(() -> adapter.actualizarDatos(1L, "n", "c"))
+                .isInstanceOf(tipoEsperado);
+    }
+
+    static Stream<Arguments> codigosSqlControlados() {
+        return Stream.of(
+                Arguments.of(51101, RecursoNoEncontradoException.class),
+                Arguments.of(51102, RecursoNoEncontradoException.class),
+                Arguments.of(51103, EstadoIncompatibleException.class),
+                Arguments.of(51105, EstadoIncompatibleException.class),
+                Arguments.of(51106, EstadoIncompatibleException.class),
+                Arguments.of(51107, EstadoIncompatibleException.class),
+                Arguments.of(51108, SolicitudInvalidaException.class),
+                Arguments.of(51150, IllegalStateException.class),
+                Arguments.of(2601, RecursoDuplicadoException.class),
+                Arguments.of(2627, RecursoDuplicadoException.class));
     }
 
     @Test
