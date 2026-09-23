@@ -1,5 +1,6 @@
 package com.jovycandy.anexo24.auditlog.infrastructure.persistence;
 
+import com.jovycandy.anexo24.auditlog.domain.model.BitacoraAccion;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraModulo;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraRegistro;
 import com.jovycandy.anexo24.auditlog.domain.model.BitacoraResultado;
@@ -10,35 +11,31 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 
-import java.sql.ResultSet;
+import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Pruebas unitarias del adaptador JDBC read-only de Bitácora. */
+/** Pruebas unitarias del adaptador JDBC read-only de Bitácora mediante SP. */
 @ExtendWith(MockitoExtension.class)
 class BitacoraConsultaJdbcAdapterTest {
 
     private static final Instant DESDE = Instant.parse("2026-09-22T00:00:00Z");
     private static final Instant HASTA = Instant.parse("2026-09-22T23:59:59Z");
 
-    @Mock
-    private JdbcTemplate appJdbcTemplate;
-
-    @Mock
-    private ResultSet resultSet;
-
+    @Mock private JdbcTemplate appJdbcTemplate;
+    @Mock private Connection connection;
+    @Mock private CallableStatement statement;
     private BitacoraConsultaJdbcAdapter adapter;
 
     @BeforeEach
@@ -47,141 +44,39 @@ class BitacoraConsultaJdbcAdapterTest {
     }
 
     @Test
-    void consultaReadOnlyConFiltrosParametrizadosOrdenYUTC() throws Exception {
-        prepararConsulta(3L, true);
+    void consultaPasaTodosLosParametrosLeeTotalYConservaUTC() throws Exception {
+        BitacoraRegistro registro = new BitacoraRegistro(7L,
+                Instant.parse("2026-09-22T13:30:00Z"), 42L, "operador",
+                BitacoraModulo.SEGURIDAD, BitacoraAccion.LOGIN_OK, null,
+                BitacoraResultado.EXITO, "req-123");
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(
+                Map.of("items", List.of(registro), "Total", 3L));
 
         Pagina<BitacoraRegistro> resultado = adapter.findPage(
-                DESDE,
-                HASTA,
-                42L,
-                BitacoraModulo.SEGURIDAD,
-                BitacoraResultado.EXITO,
-                "req-123",
-                2,
-                20);
+                DESDE, HASTA, 42L, BitacoraModulo.SEGURIDAD,
+                BitacoraResultado.EXITO, "req-123", 2, 20);
 
-        ArgumentCaptor<String> sqlTotal = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object[]> parametrosTotal = ArgumentCaptor.forClass(Object[].class);
-        verify(appJdbcTemplate).queryForObject(
-                sqlTotal.capture(), eq(Long.class), parametrosTotal.capture());
-        assertThat(sqlTotal.getValue()).isEqualTo(
-                "SELECT COUNT(*) FROM app24.BitacoraEvento b"
-                        + " WHERE b.fecha >= ? AND b.fecha <= ?"
-                        + " AND b.usuario_id = ?"
-                        + " AND b.modulo = ?"
-                        + " AND b.resultado = ?"
-                        + " AND b.correlacion_id = ?");
-        assertThat(parametrosTotal.getValue()).containsExactly(
-                LocalDateTime.of(2026, 9, 22, 0, 0),
-                LocalDateTime.of(2026, 9, 22, 23, 59, 59),
-                42L,
-                "SEGURIDAD",
-                "EXITO",
-                "req-123");
-
-        ArgumentCaptor<String> sqlConsulta = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object[]> parametrosConsulta = ArgumentCaptor.forClass(Object[].class);
-        verify(appJdbcTemplate).query(
-                sqlConsulta.capture(), org.mockito.ArgumentMatchers.<RowMapper<BitacoraRegistro>>any(),
-                parametrosConsulta.capture());
-        assertThat(sqlConsulta.getValue()).contains("FROM app24.BitacoraEvento b");
-        assertThat(sqlConsulta.getValue()).contains("LEFT JOIN app24.UsuarioApp u ON u.id = b.usuario_id");
-        assertThat(sqlConsulta.getValue()).contains("ORDER BY b.fecha DESC, b.id DESC");
-        assertThat(sqlConsulta.getValue()).contains("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
-        assertThat(parametrosConsulta.getValue()).containsExactly(
-                LocalDateTime.of(2026, 9, 22, 0, 0),
-                LocalDateTime.of(2026, 9, 22, 23, 59, 59),
-                42L,
-                "SEGURIDAD",
-                "EXITO",
-                "req-123",
-                20L,
-                20);
         assertThat(resultado.total()).isEqualTo(3L);
-        assertThat(resultado.items()).singleElement().satisfies(registro -> {
-            assertThat(registro.id()).isEqualTo(7L);
-            assertThat(registro.fecha()).isEqualTo(Instant.parse("2026-09-22T13:30:00Z"));
-            assertThat(registro.usuarioId()).isEqualTo(42L);
-            assertThat(registro.usuario()).isEqualTo("operador");
-            assertThat(registro.modulo()).isEqualTo(BitacoraModulo.SEGURIDAD);
-            assertThat(registro.accion().name()).isEqualTo("LOGIN_OK");
-            assertThat(registro.resultado()).isEqualTo(BitacoraResultado.EXITO);
-        });
+        assertThat(resultado.items()).containsExactly(registro);
+        ArgumentCaptor<CallableStatementCreator> creator = ArgumentCaptor.forClass(CallableStatementCreator.class);
+        verify(appJdbcTemplate).call(creator.capture(), anyList());
+        when(connection.prepareCall("{call app24.APP24_Q_BITACORA_LISTAR(?, ?, ?, ?, ?, ?, ?, ?, ?)}"))
+                .thenReturn(statement);
+        creator.getValue().createCallableStatement(connection);
+        verify(statement).setObject(1, java.time.LocalDateTime.of(2026, 9, 22, 0, 0));
+        verify(statement).setObject(2, java.time.LocalDateTime.of(2026, 9, 22, 23, 59, 59));
+        verify(statement).setLong(3, 42L);
+        verify(statement).setString(4, "SEGURIDAD");
+        verify(statement).setString(5, "EXITO");
+        verify(statement).setString(6, "req-123");
+        verify(statement).setInt(7, 2);
+        verify(statement).setInt(8, 20);
+        verify(statement).registerOutParameter(9, java.sql.Types.BIGINT);
     }
 
     @Test
-    void aceptaPaginaVaciaYCalculaOffsetComoLong() {
-        when(appJdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
-                .thenReturn(0L);
-        when(appJdbcTemplate.<BitacoraRegistro>query(
-                anyString(), org.mockito.ArgumentMatchers.<RowMapper<BitacoraRegistro>>any(),
-                any(Object[].class))).thenReturn(List.of());
-
-        Pagina<BitacoraRegistro> resultado = adapter.findPage(
-                DESDE, HASTA, null, null, null, null, Integer.MAX_VALUE, 100);
-
-        ArgumentCaptor<Object[]> parametrosConsulta = ArgumentCaptor.forClass(Object[].class);
-        verify(appJdbcTemplate).query(
-                anyString(), org.mockito.ArgumentMatchers.<RowMapper<BitacoraRegistro>>any(),
-                parametrosConsulta.capture());
-        assertThat(parametrosConsulta.getValue()).containsExactly(
-                LocalDateTime.of(2026, 9, 22, 0, 0),
-                LocalDateTime.of(2026, 9, 22, 23, 59, 59),
-                214748364600L,
-                100);
-        assertThat(resultado.items()).isEmpty();
-        assertThat(resultado.total()).isZero();
-    }
-
-    @Test
-    void mapeaRegistroConUsuarioIdNulo() throws Exception {
-        lenient().when(appJdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
-                .thenReturn(1L);
-        lenient().when(resultSet.getLong("id")).thenReturn(8L);
-        lenient().when(resultSet.getObject("fecha", LocalDateTime.class))
-                .thenReturn(LocalDateTime.of(2026, 9, 22, 14, 0));
-        lenient().when(resultSet.getObject("usuario_id", Long.class)).thenReturn(null);
-        lenient().when(resultSet.getString("modulo")).thenReturn("SISTEMA");
-        lenient().when(resultSet.getString("accion")).thenReturn("LOGIN_FALLIDO");
-        lenient().when(resultSet.getString("resultado")).thenReturn("FALLO");
-        lenient().when(appJdbcTemplate.<BitacoraRegistro>query(
-                anyString(), org.mockito.ArgumentMatchers.<RowMapper<BitacoraRegistro>>any(),
-                any(Object[].class))).thenAnswer(invocation -> {
-            RowMapper<BitacoraRegistro> mapper = invocation.getArgument(1);
-            return List.of(mapper.mapRow(resultSet, 0));
-        });
-
-        Pagina<BitacoraRegistro> resultado = adapter.findPage(
-                DESDE, HASTA, null, null, null, null, 1, 20);
-
-        assertThat(resultado.items()).singleElement().satisfies(registro -> {
-            assertThat(registro.usuarioId()).isNull();
-            assertThat(registro.usuario()).isNull();
-            assertThat(registro.modulo()).isEqualTo(BitacoraModulo.SISTEMA);
-            assertThat(registro.resultado()).isEqualTo(BitacoraResultado.FALLO);
-        });
-    }
-
-    private void prepararConsulta(long total, boolean mapearFila) throws Exception {
-        when(appJdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
-                .thenReturn(total);
-        if (mapearFila) {
-            when(resultSet.getLong("id")).thenReturn(7L);
-            when(resultSet.getObject("fecha", LocalDateTime.class))
-                    .thenReturn(LocalDateTime.of(2026, 9, 22, 13, 30));
-            when(resultSet.getObject("usuario_id", Long.class)).thenReturn(42L);
-            when(resultSet.getString("usuario")).thenReturn("operador");
-            when(resultSet.getString("modulo")).thenReturn("SEGURIDAD");
-            when(resultSet.getString("accion")).thenReturn("LOGIN_OK");
-            when(resultSet.getString("detalle")).thenReturn(null);
-            when(resultSet.getString("resultado")).thenReturn("EXITO");
-            when(resultSet.getString("correlacion_id")).thenReturn("req-123");
-            when(appJdbcTemplate.<BitacoraRegistro>query(
-                    anyString(), org.mockito.ArgumentMatchers.<RowMapper<BitacoraRegistro>>any(),
-                    any(Object[].class))).thenAnswer(invocation -> {
-                RowMapper<BitacoraRegistro> mapper = invocation.getArgument(1);
-                return List.of(mapper.mapRow(resultSet, 0));
-            });
-        }
+    void consultaSinResultadosDevuelvePaginaVacia() {
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(Map.of("items", List.of(), "Total", 0L));
+        assertThat(adapter.findPage(DESDE, HASTA, null, null, null, null, 1, 20).items()).isEmpty();
     }
 }

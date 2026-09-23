@@ -6,27 +6,28 @@ import com.jovycandy.anexo24.administration.users.domain.port.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SqlParameter;
+
+import org.springframework.jdbc.core.SqlReturnResultSet;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.CallableStatement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-/**
- * Implementación del puerto de usuarios contra el esquema {@code app24}.
- *
- * <p>Consulta parametrizada; nunca concatena SQL (contrato Módulo C,
- * principio 2 de {@code docs/03-diseno/contrato-integracion-modulo-c.md}).</p>
- */
+/** Implementación del puerto de usuarios mediante consultas almacenadas app24. */
 @Repository
 public class UsuarioJdbcAdapter implements UsuarioRepository {
 
-    private final JdbcTemplate appJdbcTemplate;
+    static final String USUARIO_POR_CLAVE = "app24.APP24_Q_USUARIO_POR_CLAVE";
+    static final String USUARIO_ACCESO = "app24.APP24_Q_USUARIO_ACCESO";
+    private static final String USUARIO_RESULTADO = "usuario";
+    private static final String ACCESO_RESULTADO = "acceso";
 
-    /** Mapea una fila de UsuarioApp a un objeto de dominio. */
-    private static final RowMapper<UsuarioApp> MAPPER = (rs, rowNum) -> new UsuarioApp(
+    private static final RowMapper<UsuarioApp> USUARIO_MAPPER = (rs, rowNum) -> new UsuarioApp(
             rs.getLong("id"),
             rs.getString("clave"),
             rs.getString("nombre"),
@@ -36,60 +37,53 @@ public class UsuarioJdbcAdapter implements UsuarioRepository {
             rs.getDate("vigencia") == null ? null : rs.getDate("vigencia").toLocalDate(),
             rs.getLong("perfil_id"));
 
-    /**
-     * Constructor con la plantilla del esquema complementario.
-     *
-     * @param appJdbcTemplate plantilla JDBC de ANEXO24_DEV
-     */
+    private final JdbcTemplate appJdbcTemplate;
+
     public UsuarioJdbcAdapter(@Qualifier("appJdbcTemplate") JdbcTemplate appJdbcTemplate) {
         this.appJdbcTemplate = appJdbcTemplate;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
+    @SuppressWarnings("unchecked")
     public Optional<UsuarioApp> findByClave(String clave) {
-        List<UsuarioApp> resultados = appJdbcTemplate.query(
-                "SELECT id, clave, nombre, correo, password_hash, estado, vigencia, perfil_id "
-                        + "FROM app24.UsuarioApp WHERE clave = ?",
-                MAPPER, clave);
-        return resultados.stream().findFirst();
+        Map<String, Object> resultado = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + USUARIO_POR_CLAVE + "(?)}");
+            statement.setString(1, clave);
+            return statement;
+        }, List.of(new SqlParameter("Clave", Types.VARCHAR),
+                new SqlReturnResultSet(USUARIO_RESULTADO, USUARIO_MAPPER)));
+        List<UsuarioApp> usuarios = (List<UsuarioApp>) resultado.getOrDefault(USUARIO_RESULTADO, List.of());
+        return usuarios.stream().findFirst();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
+    @SuppressWarnings("unchecked")
     public Optional<UsuarioAcceso> findAccesoByUsuario(Long usuarioId) {
-        List<Object[]> filas = appJdbcTemplate.query(
-                "SELECT p.id AS perfil_id, p.estado AS perfil_estado, a.clave AS permiso "
-                        + "FROM app24.UsuarioApp u "
-                        + "JOIN app24.PerfilApp p ON p.id = u.perfil_id "
-                        + "LEFT JOIN app24.PerfilActividad pa ON pa.perfil_id = p.id "
-                        + "LEFT JOIN app24.Actividad a ON a.id = pa.actividad_id "
-                        + "WHERE u.id = ? "
-                        + "ORDER BY a.clave ASC",
-                (rs, rowNum) -> new Object[]{
-                        rs.getLong("perfil_id"),
-                        rs.getString("perfil_estado"),
-                        rs.getString("permiso"),
-                },
-                usuarioId);
+        RowMapper<Object[]> mapper = (rs, rowNum) -> new Object[]{
+                rs.getObject("perfil_id", Long.class),
+                rs.getString("perfil_estado"),
+                rs.getString("permiso")};
+        Map<String, Object> resultado = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + USUARIO_ACCESO + "(?)}");
+            statement.setLong(1, usuarioId);
+            return statement;
+        }, List.of(new SqlParameter("UsuarioId", Types.BIGINT),
+                new SqlReturnResultSet(ACCESO_RESULTADO, mapper)));
+
+        List<Object[]> filas = (List<Object[]>) resultado.getOrDefault(ACCESO_RESULTADO, List.of());
         if (filas.isEmpty()) {
             return Optional.empty();
         }
-        Long perfilId = null;
-        String perfilEstado = null;
+        Long perfilId = (Long) filas.get(0)[0];
+        String perfilEstado = (String) filas.get(0)[1];
         List<String> permisos = new ArrayList<>();
         for (Object[] fila : filas) {
-            perfilId = (Long) fila[0];
-            perfilEstado = (String) fila[1];
-            String permiso = (String) fila[2];
-            if (permiso != null) {
-                permisos.add(permiso);
+            if (fila[2] != null) {
+                permisos.add((String) fila[2]);
             }
         }
-        return Optional.of(new UsuarioAcceso(perfilId, perfilEstado, List.copyOf(permisos)));
+        return Optional.of(new UsuarioAcceso(perfilId, perfilEstado, permisos));
     }
 }

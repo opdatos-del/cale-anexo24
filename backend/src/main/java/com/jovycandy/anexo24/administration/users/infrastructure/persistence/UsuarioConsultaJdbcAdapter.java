@@ -6,33 +6,26 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.SqlReturnResultSet;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
+import java.sql.CallableStatement;
+import java.sql.Types;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-/**
- * Implementación read-only de la consulta administrativa de usuarios.
- *
- * <p>Usa exclusivamente {@code appJdbcTemplate} contra el esquema
- * {@code app24} de ANEXO24_DEV; nunca consulta CALE_IMMEX ni selecciona
- * {@code password_hash} (FASE 2).</p>
- */
+/** Implementación read-only de usuarios mediante consultas almacenadas app24. */
 @Repository
 public class UsuarioConsultaJdbcAdapter implements UsuarioConsultaRepository {
 
-    private static final String SELECT_BASE =
-            "SELECT u.id, u.clave, u.nombre, u.correo, u.estado, u.vigencia, "
-                    + "u.perfil_id, p.nombre AS perfil_nombre "
-                    + "FROM app24.UsuarioApp u "
-                    + "JOIN app24.PerfilApp p ON p.id = u.perfil_id";
+    static final String USUARIOS_LISTAR = "app24.APP24_Q_USUARIOS_LISTAR";
+    static final String USUARIO_OBTENER = "app24.APP24_Q_USUARIO_OBTENER";
+    private static final String RESULTADO = "items";
+    private static final String TOTAL = "Total";
 
-    private static final String SELECT_COUNT =
-            "SELECT COUNT(*) FROM app24.UsuarioApp u "
-                    + "JOIN app24.PerfilApp p ON p.id = u.perfil_id";
-
-    /** Mapea una fila de UsuarioApp JOIN PerfilApp a la proyección administrativa. */
     private static final RowMapper<UsuarioAdministracion> MAPPER = (rs, rowNum) ->
             new UsuarioAdministracion(
                     rs.getLong("id"),
@@ -46,117 +39,57 @@ public class UsuarioConsultaJdbcAdapter implements UsuarioConsultaRepository {
 
     private final JdbcTemplate appJdbcTemplate;
 
-    /**
-     * Constructor con la plantilla del esquema complementario.
-     *
-     * @param appJdbcTemplate plantilla JDBC de ANEXO24_DEV
-     */
     public UsuarioConsultaJdbcAdapter(@Qualifier("appJdbcTemplate") JdbcTemplate appJdbcTemplate) {
         this.appJdbcTemplate = appJdbcTemplate;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
+    @SuppressWarnings("unchecked")
     public Pagina<UsuarioAdministracion> findPage(
-            String clave,
-            String nombre,
-            String correo,
-            String estado,
-            Long perfilId,
-            int pagina,
-            int tamano) {
-        Filtros filtros = construirFiltros(clave, nombre, correo, estado, perfilId);
-
-        long total = appJdbcTemplate.queryForObject(
-                SELECT_COUNT + filtros.where(), Long.class, filtros.params());
-
-        long offset = (long) (pagina - 1) * tamano;
-        List<UsuarioAdministracion> items = appJdbcTemplate.query(
-                SELECT_BASE + filtros.where()
-                        + " ORDER BY u.clave ASC, u.id ASC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
-                MAPPER, appendParams(filtros.params(), offset, tamano));
-        return new Pagina<>(items, total, pagina, tamano);
+            String clave, String nombre, String correo, String estado, Long perfilId,
+            int pagina, int tamano) {
+        Map<String, Object> resultado = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + USUARIOS_LISTAR + "(?, ?, ?, ?, ?, ?, ?, ?)}");
+            statement.setString(1, clave);
+            statement.setString(2, nombre);
+            statement.setString(3, correo);
+            statement.setString(4, estado);
+            if (perfilId == null) {
+                statement.setNull(5, Types.BIGINT);
+            } else {
+                statement.setLong(5, perfilId);
+            }
+            statement.setInt(6, pagina);
+            statement.setInt(7, tamano);
+            statement.registerOutParameter(8, Types.BIGINT);
+            return statement;
+        }, List.of(
+                new SqlParameter("Clave", Types.VARCHAR),
+                new SqlParameter("Nombre", Types.VARCHAR),
+                new SqlParameter("Correo", Types.VARCHAR),
+                new SqlParameter("Estado", Types.VARCHAR),
+                new SqlParameter("PerfilId", Types.BIGINT),
+                new SqlParameter("Pagina", Types.INTEGER),
+                new SqlParameter("Tamano", Types.INTEGER),
+                new SqlOutParameter(TOTAL, Types.BIGINT),
+                new SqlReturnResultSet(RESULTADO, MAPPER)));
+        List<UsuarioAdministracion> items = (List<UsuarioAdministracion>) resultado.getOrDefault(RESULTADO, List.of());
+        Number total = (Number) resultado.get(TOTAL);
+        return new Pagina<>(items, total == null ? 0L : total.longValue(), pagina, tamano);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
+    @SuppressWarnings("unchecked")
     public Optional<UsuarioAdministracion> findById(Long id) {
-        List<UsuarioAdministracion> resultados = appJdbcTemplate.query(
-                SELECT_BASE + " WHERE u.id = ?", MAPPER, id);
-        return resultados.stream().findFirst();
-    }
-
-    /**
-     * Construye la cláusula WHERE y sus parámetros a partir de los filtros.
-     *
-     * @param clave    filtro exacto opcional
-     * @param nombre   filtro parcial opcional con comodines escapados
-     * @param correo   filtro exacto opcional
-     * @param estado   filtro exacto opcional
-     * @param perfilId filtro exacto opcional
-     * @return cláusula WHERE (vacía si no hay filtros) y parámetros ordenados
-     */
-    private Filtros construirFiltros(String clave, String nombre, String correo,
-                                     String estado, Long perfilId) {
-        List<String> condiciones = new ArrayList<>();
-        List<Object> parametros = new ArrayList<>();
-        if (clave != null) {
-            condiciones.add("u.clave = ?");
-            parametros.add(clave);
-        }
-        if (correo != null) {
-            condiciones.add("u.correo = ?");
-            parametros.add(correo);
-        }
-        if (perfilId != null) {
-            condiciones.add("u.perfil_id = ?");
-            parametros.add(perfilId);
-        }
-        if (estado != null) {
-            condiciones.add("u.estado = ?");
-            parametros.add(estado);
-        }
-        if (nombre != null) {
-            condiciones.add("LOWER(u.nombre) LIKE LOWER(?) ESCAPE '\\'");
-            parametros.add("%" + escaparComodines(nombre) + "%");
-        }
-        String where = condiciones.isEmpty() ? "" : " WHERE " + String.join(" AND ", condiciones);
-        return new Filtros(where, parametros.toArray());
-    }
-
-    /**
-     * Escapa comodines SQL del patrón parcial para busquedas literales.
-     *
-     * @param valor texto del filtro
-     * @return texto con {@code \}, {@code %} y {@code _} escapados
-     */
-    private String escaparComodines(String valor) {
-        return valor.replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-    }
-
-    /**
-     * Une los parámetros de filtro con los de paginación.
-     *
-     * @param base   parámetros de filtro
-     * @param offset desplazamiento de página (aritmética long)
-     * @param tamano tamaño de página
-     * @return arreglo combinado de parámetros
-     */
-    private Object[] appendParams(Object[] base, long offset, int tamano) {
-        Object[] resultado = new Object[base.length + 2];
-        System.arraycopy(base, 0, resultado, 0, base.length);
-        resultado[base.length] = offset;
-        resultado[base.length + 1] = tamano;
-        return resultado;
-    }
-
-    /** Cláusula WHERE y parámetros asociados de una consulta. */
-    private record Filtros(String where, Object[] params) {
+        Map<String, Object> resultado = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + USUARIO_OBTENER + "(?)}");
+            statement.setLong(1, id);
+            return statement;
+        }, List.of(new SqlParameter("UsuarioId", Types.BIGINT),
+                new SqlReturnResultSet(RESULTADO, MAPPER)));
+        List<UsuarioAdministracion> usuarios = (List<UsuarioAdministracion>) resultado.getOrDefault(RESULTADO, List.of());
+        return usuarios.stream().findFirst();
     }
 }

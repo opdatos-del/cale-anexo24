@@ -1,4 +1,4 @@
-# Auditoría global de Stored Procedures y SQL inline — SP-0D
+# Auditoría global de Stored Procedures y SQL inline — SP-1B
 
 ## Alcance y método
 
@@ -13,7 +13,7 @@ El inventario histórico `docs/03-diseno/procedimientos-almacenados.md` fue gene
 | Base | Conexión | Schemas con SP | Total LIVE | Evidencia |
 |---|---:|---|---:|---|
 | `CALE_IMMEX` | OK | `dbo` | **95** | `sys.procedures` |
-| `ANEXO24_DEV` | OK | ninguno | **0** | `sys.procedures` |
+| `ANEXO24_DEV` | OK | `app24` | **5 después de SP-1B** (0 antes) | `sys.procedures` |
 
 La conexión usó la configuración local ya existente, que contiene `trustServerCertificate=true`. No se agregó ningún bypass ni se modificó configuración versionada. La decisión de esta fase es de auditoría; la configuración TLS deberá revisarse antes de automatizar el acceso en otros entornos.
 
@@ -41,18 +41,18 @@ Cuatro procedimientos tienen `modify_date` posterior a `create_date`: `APP24_Q_P
 
 ## Inventario de SQL inline funcional
 
-La auditoría del backend identificó SQL funcional inline en los siguientes adapters. Cada operación queda clasificada como `MIGRAR_A_SP`; las decisiones de esta matriz se basan en metadata LIVE.
+La auditoría del backend identificó SQL funcional inline en los siguientes adapters. Cada operación queda clasificada como `MIGRAR_A_SP`; las decisiones de esta matriz se basan en metadata LIVE. SP-1B migró únicamente Auth read, Usuarios read y Bitácora read.
 
 | Dominio | Adapter | Datasource | Operación inline | Objetos | Clasificación | Decisión LIVE |
 |---|---|---|---|---|---|---|
 | Materiales | `MaterialJdbcAdapter` | CALE_IMMEX | llamada SP para count + listado paginado | `dbo.material` vía `dbo.APP24_Q_MATERIALES_LISTAR` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
-| Auth | `UsuarioJdbcAdapter` | ANEXO24_DEV | usuario por clave; acceso/permisos | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `MIGRAR_A_SP` | `CREAR` |
-| Usuarios read | `UsuarioConsultaJdbcAdapter` | ANEXO24_DEV | lista, count, detalle | `UsuarioApp`, `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
+| Auth | `UsuarioJdbcAdapter` | ANEXO24_DEV | usuario por clave; acceso/permisos vía SP | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
+| Usuarios read | `UsuarioConsultaJdbcAdapter` | ANEXO24_DEV | lista, count, detalle vía SP | `UsuarioApp`, `PerfilApp` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Usuarios commands | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | duplicados, insert, datos básicos | `UsuarioApp`, `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
 | Fase 3B | `UsuarioComandoJdbcAdapter` | ANEXO24_DEV | estado, perfil, vigencia, guardrail | `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` | `MIGRAR_A_SP` | `CREAR` |
 | Perfil referencia | `PerfilReferenciaJdbcAdapter` | ANEXO24_DEV | estado por ID | `PerfilApp` | `MIGRAR_A_SP` | `CREAR` |
 | Bitácora write | `BitacoraJdbcAdapter` | ANEXO24_DEV | insertar evento | `BitacoraEvento` | `MIGRAR_A_SP` | `CREAR` |
-| Bitácora read | `BitacoraConsultaJdbcAdapter` | ANEXO24_DEV | lista, filtros, count | `BitacoraEvento`, `UsuarioApp` | `MIGRAR_A_SP` | `CREAR` |
+| Bitácora read | `BitacoraConsultaJdbcAdapter` | ANEXO24_DEV | lista, filtros, count vía SP | `BitacoraEvento`, `UsuarioApp` | `YA_USA_SP` | `REUTILIZAR / IMPLEMENTADO` |
 | Salud | `SystemStatusController` | ambos | `SELECT 1` | — | `EXCEPCION_TECNICA` | `EXCEPCION_TECNICA` |
 
 `SELECT 1` del health check es excepción técnica explícita, no deuda funcional.
@@ -65,19 +65,19 @@ La auditoría del backend identificó SQL funcional inline en los siguientes ada
 |---|---|---|---|---|---|---|---|---|
 | Materiales: listar, filtrar, total, paginar, ordenar `clave, materialkey` | CALE_IMMEX | `dbo.APP24_Q_MATERIALES_LISTAR` | `@Filtro varchar(250)`, `@Pagina int`, `@Tamano int`, `@Total bigint OUTPUT`; 10 columnas | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | SP creado, versionado y desplegado LIVE en SP-1A; adapter migrado |
 | `CARGA_MATERIALES` | CALE_IMMEX | `dbo.CARGA_MATERIALES` | Sin parámetros; sin result set contractual | `MIXED` / proceso | `LEGACY_COMPARTIDO` | No | `PENDIENTE` | No reutilizar para REST; no modificar legacy |
-| Auth: usuario por clave | ANEXO24_DEV | Ninguno; total APP24_DEV = 0 | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIO_POR_CLAVE` |
-| Auth: perfil, estado y permisos | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIO_ACCESO` con permisos efectivos |
-| Usuarios read: lista + total | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIOS_LISTAR` |
-| Usuarios read: detalle por ID | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_USUARIO_OBTENER` |
+| Auth: usuario por clave | ANEXO24_DEV | `app24.APP24_Q_USUARIO_POR_CLAVE` | `@Clave varchar(30)`; 8 columnas, incluye `password_hash` sólo infraestructura | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | Adapter migrado; hash nunca se expone en API/logs |
+| Auth: perfil, estado y permisos | ANEXO24_DEV | `app24.APP24_Q_USUARIO_ACCESO` | `@UsuarioId bigint`; `perfil_id`, `perfil_estado`, `permiso` | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | Adapter migrado; perfil inactivo no se filtra; cero permisos conserva fila |
+| Usuarios read: lista + total | ANEXO24_DEV | `app24.APP24_Q_USUARIOS_LISTAR` | 8 parámetros, `@Total bigint OUTPUT`; 8 columnas | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | Adapter migrado; filtros literales y paginación en SP |
+| Usuarios read: detalle por ID | ANEXO24_DEV | `app24.APP24_Q_USUARIO_OBTENER` | `@UsuarioId bigint`; 8 columnas | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | Adapter migrado; no devuelve `password_hash` |
 | Fase 3A: duplicados + creación | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_C_USUARIO_CREAR` atómico, con validaciones y resultado controlado |
 | Fase 3A: nombre/correo | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_C_USUARIO_ACTUALIZAR_DATOS` |
 | Fase 3B: cambiar estado | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Command atómico con guardrail interno |
 | Fase 3B: cambiar perfil | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Command atómico con validación de perfil y guardrail interno |
 | Fase 3B: cambiar vigencia | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Command atómico con guardrail interno |
 | Fase 3B: administrador efectivo | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Incluir consulta en cada command atómico o rutina interna común |
-| Perfil referencia: estado por ID | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_PERFIL_ESTADO` sólo si no forma parte de un SP de usuarios |
+| Perfil referencia: estado por ID | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `PENDIENTE` | `DEFERIDO_A_SP_1C`: sólo prevalidación de commands; validación futura dentro de commands atómicos |
 | Bitácora: insertar evento | ANEXO24_DEV | Ninguno; no hay SP en ningún schema | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_C_BITACORA_REGISTRAR` |
-| Bitácora: lista, filtros y total | ANEXO24_DEV | Ninguno | No aplica | No aplica | — | No | `CREAR` | Proponer `app24.APP24_Q_BITACORA_LISTAR` |
+| Bitácora: lista, filtros y total | ANEXO24_DEV | `app24.APP24_Q_BITACORA_LISTAR` | 9 parámetros, `@Total bigint OUTPUT`; 9 columnas | `READ_ONLY` | `APP24_PROPIO` | Sí | `REUTILIZAR / IMPLEMENTADO` | Adapter read migrado; rango inclusivo y orden fecha/id descendente |
 
 ## Procedimientos relacionados con materiales
 
@@ -129,16 +129,28 @@ El filtro conserva semántica actual de `LIKE '%filtro%'`; no se introdujo escap
 
 No se agregó grant: no existe archivo de permisos runtime para CALE_IMMEX en este repositorio y el despliegue usó la identidad local existente. La futura cuenta runtime deberá recibir únicamente `GRANT EXECUTE ON OBJECT::dbo.APP24_Q_MATERIALES_LISTAR` cuando corresponda, sin ampliar permisos sobre `dbo.material`.
 
-## Auth, usuarios, Fase 3A, Fase 3B, perfil y bitácora
+## SP-1B — Auth, usuarios read y bitácora read implementados
 
-`ANEXO24_DEV` no contiene procedimientos en `dbo`, `app24` ni otros schemas. Tampoco hay SP LIVE que referencien `UsuarioApp`, `PerfilApp`, `PerfilActividad`, `Actividad` o `BitacoraEvento`. Por tanto:
+Antes de SP-1B, `ANEXO24_DEV` tenía 0 procedimientos. Después del despliegue LIVE tiene exactamente 5 procedimientos, todos en schema `app24`, todos `QUERY / READ_ONLY / CONFIRMADO / APP24_PROPIO`:
 
-- Auth: `CREAR` `APP24_Q_USUARIO_POR_CLAVE` y `APP24_Q_USUARIO_ACCESO`.
-- Usuarios read: `CREAR` list/detail; no hay alternativa que reutilizar o adaptar.
-- Fase 3A: `CREAR` commands atómicos para creación y actualización básica; las validaciones de duplicidad y perfil deben encapsularse en el command de creación.
+| Procedimiento | Parámetros | Result set | Estado LIVE |
+|---|---|---|---|
+| `app24.APP24_Q_USUARIO_POR_CLAVE` | `@Clave varchar(30)` | 8 columnas, incluye `password_hash` | PASS |
+| `app24.APP24_Q_USUARIO_ACCESO` | `@UsuarioId bigint` | 3 columnas | PASS |
+| `app24.APP24_Q_USUARIOS_LISTAR` | 7 entradas + `@Total bigint OUTPUT` | 8 columnas | PASS |
+| `app24.APP24_Q_USUARIO_OBTENER` | `@UsuarioId bigint` | 8 columnas | PASS |
+| `app24.APP24_Q_BITACORA_LISTAR` | 8 entradas + `@Total bigint OUTPUT` | 9 columnas | PASS |
+
+Scripts versionados en `infra/sql/procedures/queries/`. Las definiciones sólo contienen lectura, validación y paginación; no contienen DML, DDL ni `EXEC` mutable. `password_hash` no se imprime ni se devuelve mediante DTO/API.
+
+Pruebas LIVE controladas PASS: usuario existente/inexistente, acceso existente/inexistente, perfil sin permisos conservando fila, perfil inactivo sin filtro SQL, listado sin filtro, clave exacta, filtros acumulados, detalle existente/inexistente, bitácora con rango válido e identificador inexistente, errores de página/tamaño/rango. Base LIVE tenía 1 usuario y 0 eventos de bitácora; sólo se reportaron métricas, nunca filas sensibles.
+
+Decisiones restantes:
+
+- Fase 3A: `CREAR` commands atómicos para creación y actualización básica.
 - Fase 3B: `CREAR`; no hay commands existentes ni query de guardrail.
-- Perfil: `CREAR` o incluir referencia en contracts de usuario; no existe SP de detalle reutilizable.
-- Bitácora: `CREAR` write y read; no existe alternativa LIVE.
+- Perfil referencia: `PENDIENTE`, `DEFERIDO_A_SP_1C`; adapter sólo se usa como prevalidación de commands.
+- Bitácora write: `CREAR` `app24.APP24_C_BITACORA_REGISTRAR` en SP-1C.
 
 ## Decisión de arquitectura Fase 3B
 
@@ -175,7 +187,8 @@ Los seis SP fueron inspeccionados por metadata, parámetros, definición y resul
 - `CARGA_MATERIALES` y demás procesos legacy con `INSERT`, `UPDATE` o `DELETE`: `PROCESS`, `MIXED`, `CONFIRMADO`, `LEGACY_COMPARTIDO`.
 - SP legacy sin contrato suficiente para un endpoint actual: no se reutilizan; cualquier modificación requeriría `REQUIERE_APROBACION`.
 - No se detectaron candidatos LIVE para `ADAPTAR` que cubran las necesidades de Administración o catálogo de materiales.
-- No se marca ningún SP como `REUTILIZAR` para Auth, usuarios, Fase 3A, Fase 3B, perfil o bitácora.
+- Auth, Usuarios read y Bitácora read: cinco SP propios creados/desplegados LIVE y consumidos por adapters; decisión `REUTILIZAR / IMPLEMENTADO`.
+- Perfil referencia sigue `DEFERIDO_A_SP_1C`; no se creó SP trivial de estado.
 
 ## Permisos futuros
 
@@ -183,19 +196,21 @@ La migración posterior deberá reemplazar grants directos de tablas por permiso
 
 ```sql
 GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_POR_CLAVE TO app24_runtime;
-GRANT EXECUTE ON OBJECT::app24.APP24_C_USUARIO_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_ACCESO TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIOS_LISTAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_USUARIO_OBTENER TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_BITACORA_LISTAR TO app24_runtime;
 ```
 
-La lista final deberá incluir sólo SPs aprobados y creados para cada operación. No se modifica `infra/sql/04-app-runtime-permissions.sql` en SP-0D. No se conceden permisos nuevos en esta auditoría.
+Los cinco grants quedaron versionados en `infra/sql/04-app-runtime-permissions.sql`. No se aplicaron LIVE porque la verificación read-only no confirmó simultáneamente role `app24_runtime`, usuario `anexo24_app` y membership; estado `PENDIENTE_DESPLIEGUE_RUNTIME`. SELECT directos no fueron revocados, porque SP-1C aún necesita adapters command/write inline.
 
-## Estado final SP-0D / SP-1A
+## Estado final SP-1B
 
 - Conexiones LIVE: exitosas para ambas bases.
 - SPs WRITE/MIXED/UNKNOWN ejecutados: **0**.
-- SPs READ_ONLY ejecutados: sólo `dbo.APP24_Q_MATERIALES_LISTAR`, en pruebas controladas SP-1A.
-- Datos modificados: **0**.
-- SPs legacy modificados: **0**.
-- SPs nuevos creados: sólo `dbo.APP24_Q_MATERIALES_LISTAR`.
-- Backend funcional migrado únicamente en Materiales; Auth, Usuarios, Fase 3A/3B, Perfil y Bitácora siguen pendientes.
-- Frontend e `infra/sql/04-app-runtime-permissions.sql`: sin cambios.
-- Siguiente fase: migrar otro dominio sólo con aprobación explícita.
+- SPs READ_ONLY ejecutados: sólo los cinco SP nuevos de SP-1B y `dbo.APP24_Q_MATERIALES_LISTAR`; SPs WRITE/MIXED/UNKNOWN ejecutados: **0**.
+- Datos modificados: **0**; SPs legacy modificados: **0**; command SP creados: **0**.
+- Backend migrado sólo en Materiales y adapters read de Auth/Usuarios/Bitácora; command/write adapters permanecen intactos.
+- `PerfilReferenciaJdbcAdapter` permanece diferido a SP-1C.
+- Frontend no modificado; permisos versionados, grants LIVE pendientes por falta de role/membership confirmado.
+- Siguiente fase: SP-1C commands, sólo con aprobación explícita.

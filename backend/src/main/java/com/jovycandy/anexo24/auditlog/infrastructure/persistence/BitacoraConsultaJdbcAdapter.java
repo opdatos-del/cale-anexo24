@@ -9,35 +9,26 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.SqlReturnResultSet;
 import org.springframework.stereotype.Repository;
 
+import java.sql.CallableStatement;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-/** Adaptador read-only de Bitácora contra {@code ANEXO24_DEV.app24}. */
+/** Adaptador read-only de Bitácora mediante consulta almacenada app24. */
 @Repository
 public class BitacoraConsultaJdbcAdapter implements BitacoraConsultaRepository {
 
-    private static final String SELECT_REGISTROS = """
-            SELECT
-                b.id,
-                b.fecha,
-                b.usuario_id,
-                u.clave AS usuario,
-                b.modulo,
-                b.accion,
-                b.detalle,
-                b.resultado,
-                b.correlacion_id
-            FROM app24.BitacoraEvento b
-            LEFT JOIN app24.UsuarioApp u ON u.id = b.usuario_id
-            """;
-    private static final String SELECT_TOTAL = "SELECT COUNT(*) FROM app24.BitacoraEvento b";
-    private static final String ORDEN_ESTABLE = " ORDER BY b.fecha DESC, b.id DESC";
-    private static final String PAGINACION = " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+    static final String PROCEDURE_NAME = "app24.APP24_Q_BITACORA_LISTAR";
+    private static final String RESULTADO = "items";
+    private static final String TOTAL = "Total";
 
     private static final RowMapper<BitacoraRegistro> MAPPER = (rs, rowNum) -> {
         LocalDateTime fecha = rs.getObject("fecha", LocalDateTime.class);
@@ -55,74 +46,45 @@ public class BitacoraConsultaJdbcAdapter implements BitacoraConsultaRepository {
 
     private final JdbcTemplate appJdbcTemplate;
 
-    /**
-     * Construye el adaptador con la conexión exclusiva del esquema de aplicación.
-     *
-     * @param appJdbcTemplate plantilla JDBC de ANEXO24_DEV
-     */
     public BitacoraConsultaJdbcAdapter(@Qualifier("appJdbcTemplate") JdbcTemplate appJdbcTemplate) {
         this.appJdbcTemplate = appJdbcTemplate;
     }
 
-    /** {@inheritDoc} */
     @Override
+    @SuppressWarnings("unchecked")
     public Pagina<BitacoraRegistro> findPage(
-            Instant desde,
-            Instant hasta,
-            Long usuarioId,
-            BitacoraModulo modulo,
-            BitacoraResultado resultado,
-            String correlationId,
-            int pagina,
-            int tamano) {
-        List<Object> filtros = new ArrayList<>();
-        String where = construirWhere(desde, hasta, usuarioId, modulo, resultado, correlationId, filtros);
-        Object[] parametrosFiltro = filtros.toArray();
-
-        Long total = appJdbcTemplate.queryForObject(
-                SELECT_TOTAL + where,
-                Long.class,
-                parametrosFiltro);
-
-        long offset = ((long) pagina - 1L) * tamano;
-        List<Object> parametrosConsulta = new ArrayList<>(filtros);
-        parametrosConsulta.add(offset);
-        parametrosConsulta.add(tamano);
-        List<BitacoraRegistro> items = appJdbcTemplate.query(
-                SELECT_REGISTROS + where + ORDEN_ESTABLE + PAGINACION,
-                MAPPER,
-                parametrosConsulta.toArray());
-
-        return new Pagina<>(items, total, pagina, tamano);
-    }
-
-    private String construirWhere(
-            Instant desde,
-            Instant hasta,
-            Long usuarioId,
-            BitacoraModulo modulo,
-            BitacoraResultado resultado,
-            String correlationId,
-            List<Object> filtros) {
-        StringBuilder where = new StringBuilder(" WHERE b.fecha >= ? AND b.fecha <= ?");
-        filtros.add(LocalDateTime.ofInstant(desde, ZoneOffset.UTC));
-        filtros.add(LocalDateTime.ofInstant(hasta, ZoneOffset.UTC));
-        if (usuarioId != null) {
-            where.append(" AND b.usuario_id = ?");
-            filtros.add(usuarioId);
-        }
-        if (modulo != null) {
-            where.append(" AND b.modulo = ?");
-            filtros.add(modulo.name());
-        }
-        if (resultado != null) {
-            where.append(" AND b.resultado = ?");
-            filtros.add(resultado.name());
-        }
-        if (correlationId != null) {
-            where.append(" AND b.correlacion_id = ?");
-            filtros.add(correlationId);
-        }
-        return where.toString();
+            Instant desde, Instant hasta, Long usuarioId, BitacoraModulo modulo,
+            BitacoraResultado resultado, String correlationId, int pagina, int tamano) {
+        Map<String, Object> salida = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall(
+                    "{call " + PROCEDURE_NAME + "(?, ?, ?, ?, ?, ?, ?, ?, ?)}");
+            statement.setObject(1, LocalDateTime.ofInstant(desde, ZoneOffset.UTC));
+            statement.setObject(2, LocalDateTime.ofInstant(hasta, ZoneOffset.UTC));
+            if (usuarioId == null) {
+                statement.setNull(3, Types.BIGINT);
+            } else {
+                statement.setLong(3, usuarioId);
+            }
+            statement.setString(4, modulo == null ? null : modulo.name());
+            statement.setString(5, resultado == null ? null : resultado.name());
+            statement.setString(6, correlationId);
+            statement.setInt(7, pagina);
+            statement.setInt(8, tamano);
+            statement.registerOutParameter(9, Types.BIGINT);
+            return statement;
+        }, List.of(
+                new SqlParameter("Desde", Types.TIMESTAMP),
+                new SqlParameter("Hasta", Types.TIMESTAMP),
+                new SqlParameter("UsuarioId", Types.BIGINT),
+                new SqlParameter("Modulo", Types.VARCHAR),
+                new SqlParameter("Resultado", Types.VARCHAR),
+                new SqlParameter("CorrelacionId", Types.VARCHAR),
+                new SqlParameter("Pagina", Types.INTEGER),
+                new SqlParameter("Tamano", Types.INTEGER),
+                new SqlOutParameter(TOTAL, Types.BIGINT),
+                new SqlReturnResultSet(RESULTADO, MAPPER)));
+        List<BitacoraRegistro> items = (List<BitacoraRegistro>) salida.getOrDefault(RESULTADO, List.of());
+        Number total = (Number) salida.get(TOTAL);
+        return new Pagina<>(items, total == null ? 0L : total.longValue(), pagina, tamano);
     }
 }

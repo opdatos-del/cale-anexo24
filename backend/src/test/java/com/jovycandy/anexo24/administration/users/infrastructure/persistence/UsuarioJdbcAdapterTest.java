@@ -1,32 +1,37 @@
 package com.jovycandy.anexo24.administration.users.infrastructure.persistence;
 
 import com.jovycandy.anexo24.administration.users.domain.model.UsuarioAcceso;
+import com.jovycandy.anexo24.administration.users.domain.model.UsuarioApp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.SqlReturnResultSet;
 
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.Date;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Pruebas unitarias del adaptador JDBC de usuarios. */
+/** Pruebas unitarias del adaptador JDBC de usuarios mediante SP. */
 @ExtendWith(MockitoExtension.class)
 class UsuarioJdbcAdapterTest {
 
-    @Mock
-    private JdbcTemplate appJdbcTemplate;
-
+    @Mock private JdbcTemplate appJdbcTemplate;
+    @Mock private Connection connection;
+    @Mock private CallableStatement statement;
     private UsuarioJdbcAdapter adapter;
 
     @BeforeEach
@@ -35,98 +40,54 @@ class UsuarioJdbcAdapterTest {
     }
 
     @Test
-    void encuentraAccesoConPerfilActivoYPermisosSinFiltrarEstado() {
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenReturn(List.of(
-                        fila(7L, "ACTIVO", "OPERACIONES_CONSULTAR"),
-                        fila(7L, "ACTIVO", "BITACORA_CONSULTAR")));
+    void findByClaveConsumeSpYMapeaPasswordInternamente() throws Exception {
+        UsuarioApp usuario = new UsuarioApp(7L, "op01", "Operador", "op@test", "hash-interno",
+                "ACTIVO", null, 3L);
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(Map.of("usuario", List.of(usuario)));
 
-        Optional<UsuarioAcceso> acceso = adapter.findAccesoByUsuario(42L);
+        assertThat(adapter.findByClave("op01")).contains(usuario);
 
-        assertThat(acceso).isPresent();
-        assertThat(acceso.get().perfilId()).isEqualTo(7L);
-        assertThat(acceso.get().perfilEstado()).isEqualTo("ACTIVO");
-        assertThat(acceso.get().perfilActivo()).isTrue();
-        assertThat(acceso.get().permisos())
-                .containsExactly("OPERACIONES_CONSULTAR", "BITACORA_CONSULTAR");
-
-        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(appJdbcTemplate).query(sql.capture(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L));
-        assertThat(sql.getValue()).contains("JOIN app24.PerfilApp p ON p.id = u.perfil_id");
-        assertThat(sql.getValue()).contains("LEFT JOIN app24.PerfilActividad pa ON pa.perfil_id = p.id");
-        assertThat(sql.getValue()).contains("LEFT JOIN app24.Actividad a ON a.id = pa.actividad_id");
-        assertThat(sql.getValue()).contains("WHERE u.id = ?");
-        assertThat(sql.getValue()).contains("ORDER BY a.clave ASC");
-        assertThat(sql.getValue()).doesNotContain("p.estado =");
-        assertThat(sql.getValue()).doesNotContain("u.estado");
+        ArgumentCaptor<CallableStatementCreator> creator = ArgumentCaptor.forClass(CallableStatementCreator.class);
+        verify(appJdbcTemplate).call(creator.capture(), anyList());
+        when(connection.prepareCall("{call app24.APP24_Q_USUARIO_POR_CLAVE(?)}")).thenReturn(statement);
+        creator.getValue().createCallableStatement(connection);
+        verify(statement).setString(1, "op01");
     }
 
     @Test
-    void perfilActivoSinPermisosConservaAccesoConListaVacia() {
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenReturn(List.<Object[]>of(fila(7L, "ACTIVO", null)));
-
-        Optional<UsuarioAcceso> acceso = adapter.findAccesoByUsuario(42L);
-
-        assertThat(acceso).isPresent();
-        assertThat(acceso.get().perfilActivo()).isTrue();
-        assertThat(acceso.get().permisos()).isEmpty();
+    void findByClaveSinFilasDevuelveVacio() {
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(Map.of("usuario", List.of()));
+        assertThat(adapter.findByClave("inexistente")).isEmpty();
     }
 
     @Test
-    void perfilInactivoSePropagaSinRechazoEnElAdaptador() {
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenReturn(List.<Object[]>of(fila(7L, "INACTIVO", "OPERACIONES_CONSULTAR")));
+    void findAccesoMapeaVariosPermisosYConservaPerfilInactivo() {
+        List<Object[]> filas = List.of(
+                new Object[]{7L, "INACTIVO", "A_PERMISO"},
+                new Object[]{7L, "INACTIVO", null},
+                new Object[]{7L, "INACTIVO", "B_PERMISO"});
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(Map.of("acceso", filas));
 
-        Optional<UsuarioAcceso> acceso = adapter.findAccesoByUsuario(42L);
+        UsuarioAcceso acceso = adapter.findAccesoByUsuario(42L).orElseThrow();
 
-        assertThat(acceso).isPresent();
-        assertThat(acceso.get().perfilEstado()).isEqualTo("INACTIVO");
-        assertThat(acceso.get().perfilActivo()).isFalse();
-        assertThat(acceso.get().permisos()).containsExactly("OPERACIONES_CONSULTAR");
+        assertThat(acceso.perfilId()).isEqualTo(7L);
+        assertThat(acceso.perfilEstado()).isEqualTo("INACTIVO");
+        assertThat(acceso.permisos()).containsExactly("A_PERMISO", "B_PERMISO");
     }
 
     @Test
-    void sinFilasDevuelveVacio() {
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenReturn(List.of());
-
-        Optional<UsuarioAcceso> acceso = adapter.findAccesoByUsuario(42L);
-
-        assertThat(acceso).isEmpty();
+    void findAccesoSinFilasDevuelveVacio() {
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(Map.of("acceso", List.of()));
+        assertThat(adapter.findAccesoByUsuario(42L)).isEmpty();
     }
 
     @Test
-    void omitePermisosNulosEnFilasMixtas() {
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenReturn(List.of(
-                        fila(7L, "ACTIVO", null),
-                        fila(7L, "ACTIVO", "BITACORA_CONSULTAR"),
-                        fila(7L, "ACTIVO", null)));
-
-        Optional<UsuarioAcceso> acceso = adapter.findAccesoByUsuario(42L);
-
-        assertThat(acceso).isPresent();
-        assertThat(acceso.get().permisos()).containsExactly("BITACORA_CONSULTAR");
-    }
-
-    @Test
-    void propagaErroresDeAccesoADatos() {
-        RuntimeException error = new RuntimeException("BD no disponible");
-        when(appJdbcTemplate.<Object[]>query(anyString(),
-                org.mockito.ArgumentMatchers.<RowMapper<Object[]>>any(), eq(42L)))
-                .thenThrow(error);
-
-        assertThatThrownBy(() -> adapter.findAccesoByUsuario(42L)).isSameAs(error);
-    }
-
-    private Object[] fila(Long perfilId, String perfilEstado, String permiso) {
-        return new Object[]{perfilId, perfilEstado, permiso};
+    void findAccesoConPerfilSinPermisosConservaFila() {
+        when(appJdbcTemplate.call(any(), anyList())).thenReturn(
+                Map.of("acceso", List.<Object[]>of(new Object[]{7L, "ACTIVO", null})));
+        assertThat(adapter.findAccesoByUsuario(42L)).get().satisfies(acceso -> {
+            assertThat(acceso.perfilId()).isEqualTo(7L);
+            assertThat(acceso.permisos()).isEmpty();
+        });
     }
 }
