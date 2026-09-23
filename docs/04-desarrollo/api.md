@@ -22,13 +22,14 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 | PATCH | `/administracion/usuarios/{id}/perfil` | Cambia el perfil asignado. | `USUARIOS_ADMINISTRAR` |
 | PATCH | `/administracion/usuarios/{id}/vigencia` | Cambia la vigencia o la elimina. | `USUARIOS_ADMINISTRAR` |
 | POST | `/administracion/usuarios/{id}/password` | Restablece la contraseña y responde `204 No Content`. | `USUARIOS_ADMINISTRAR` |
+| GET | `/administracion/perfiles` | Lista perfiles paginados para el catálogo administrativo. | `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` |
 
 ## Administración de usuarios — Fase 3A
 
 Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
 Fases 3A, 3B y 3C están implementadas e integradas en DEV mediante commands SP
 atómicos. Fase 3C también está validada LIVE. Runtime está
-READY: `app24_runtime` provisionado, membership correcta, 12 EXECUTE específicos,
+READY: `app24_runtime` provisionado, membership correcta, 13 EXECUTE específicos,
 cero grants directos de tablas y ownership chain compatible.
 
 ### `GET /administracion/usuarios`
@@ -109,6 +110,24 @@ si falla Bitácora, todo revierte. El detalle contiene únicamente
 `usuarioObjetivoId`. No cambia estado, vigencia, perfil, clave o permisos; no
 revoca JWT existentes ni agrega `must_change_password` o historial.
 
+## Administración de perfiles — Fase 5A
+
+### `GET /administracion/perfiles`
+
+Endpoint read-only para el catálogo de perfiles. Requiere
+`hasAnyAuthority('USUARIOS_ADMINISTRAR', 'PERFILES_ADMINISTRAR')`: ambos permisos
+pueden consultar el catálogo, pues es dependencia de las operaciones de usuarios.
+Los futuros endpoints de escritura de perfiles requieren exclusivamente
+`PERFILES_ADMINISTRAR`.
+
+Acepta `nombre` como filtro parcial con comodines escapados, `estado`
+(`ACTIVO` o `INACTIVO`), `pagina` (default `1`) y `tamano` (default `20`, máximo
+`100`). El orden estable es `nombre ASC, id ASC`. Cada elemento de la página expone
+`id`, `nombre`, `estado` y `cantidadPermisos`.
+
+La consulta se resuelve mediante `APP24_Q_PERFILES_LISTAR`, clasificado como
+`READ_ONLY`; no genera bitácora ni realiza DML.
+
 ## Bitácora de Administración
 
 Las acciones disponibles incluyen `LOGIN_OK`, `LOGIN_FALLIDO`,
@@ -119,8 +138,9 @@ contraseñas, hashes, JWT ni cabeceras de autorización.
 
 ## Recursos no expuestos
 
-No se documentan endpoints de perfiles, actividades ni PerfilActividad porque
-no forman parte del contrato implementado de administración de usuarios.
+Fase 5A expone únicamente el listado read-only de perfiles. Los endpoints de
+escritura de perfiles, actividades y PerfilActividad no forman parte todavía del
+contrato implementado.
 
 Consumidor frontend de `GET /bitacora`: pantalla read-only en
 `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso
@@ -128,7 +148,7 @@ Consumidor frontend de `GET /bitacora`: pantalla read-only en
 
 ## Frontend Usuarios — Fase 4A
 
-**IMPLEMENTADA / VALIDADA FRONTEND** en
+**IMPLEMENTADA / INTEGRADA EN DEV / VALIDADA FRONTEND** en
 `frontend/src/app/features/administration/users`, ruta `/usuarios`, protegida por
 `USUARIOS_ADMINISTRAR`. La UI consume listado, detalle, edición de
 nombre/correo, cambio de estado, cambio de vigencia y reset de contraseña. Suite

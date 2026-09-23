@@ -180,6 +180,7 @@ Todos existen LIVE en `dbo`, no en `app24`. Son `APP24_PROPIO` por nomenclatura,
 | `dbo.APP24_Q_SALIDAS_LISTAR` | EXISTE | 2026-09-21 08:27:27 | 2026-09-21 08:41:03 | rango fecha, filtros pedimento/fracción/parte, paginación, total | 9 |
 | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | EXISTE | 2026-09-21 12:05:23 | 2026-09-21 12:05:23 | rango fecha, material/producto/salida, paginación, total | 17 |
 | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | EXISTE | 2026-09-21 13:36:40 | 2026-09-21 13:36:40 | rango fecha, pedimento/parte/serie/marca/modelo, paginación, total | 13 |
+| `app24.APP24_Q_PERFILES_LISTAR` | EXISTE LIVE | Fase 5A | Fase 5A | `@Nombre` parcial escapado, `@Estado`, `@Pagina`, `@Tamano`, `@Total OUTPUT` | 4 |
 
 Los seis SP fueron inspeccionados por metadata, parámetros, definición y result set. No se ejecutaron en esta fase. Las seis decisiones son `REUTILIZAR` para sus respectivos adapters ya versionados; no aplican a Materiales catálogo ni Administración.
 
@@ -190,6 +191,7 @@ Los seis SP fueron inspeccionados por metadata, parámetros, definición y resul
 - SP legacy sin contrato suficiente para un endpoint actual: no se reutilizan; cualquier modificación requeriría `REQUIERE_APROBACION`.
 - No se detectaron candidatos LIVE para `ADAPTAR` que cubran las necesidades de Administración o catálogo de materiales.
 - Auth, Usuarios read y Bitácora read: cinco SP propios creados/desplegados LIVE y consumidos por adapters; decisión `REUTILIZAR / IMPLEMENTADO`.
+- Fase 5A incorpora `app24.APP24_Q_PERFILES_LISTAR`: `QUERY / READ_ONLY / APP24_PROPIO`; soporta filtros de nombre parcial con comodines escapados y estado, paginación y total de perfiles.
 - Perfil referencia fue eliminado en SP-1C; validación absorbida por commands atómicos.
 
 ## Permisos futuros
@@ -323,7 +325,24 @@ de transacción, confirmó booleanamente cambio de hash y ejecutó rollback; fil
 sintéticas finales: 0. Prueba de usuario inexistente devolvió `51101`. Identity
 pudo avanzar por el rollback; no se ejecutó `DBCC CHECKIDENT`.
 
-`04-app-runtime-permissions.sql` se reaplicó y dejó 12 grants EXECUTE específicos,
+**HISTÓRICO — Fase 3C:** `infra/sql/04-app-runtime-permissions.sql` se reaplicó y dejó 12 grants EXECUTE específicos,
 cero grants directos de tablas y sin memberships `db_datareader`/`db_datawriter`.
 Impersonation de `anexo24_app` confirmó `HAS_PERMS_BY_NAME` EXECUTE = 1 para el
 nuevo SP y UPDATE directo sobre `UsuarioApp` = 0. CALE_IMMEX no fue modificado.
+
+## Fase 5A — perfiles read-only
+
+`app24.APP24_Q_PERFILES_LISTAR` implementa el catálogo paginado de perfiles:
+recibe filtro `nombre` parcial con comodines escapados, `estado`, `pagina` y
+`tamano`; devuelve `id`, `nombre`, `estado`, `cantidadPermisos` y el total por
+parámetro OUTPUT. Se clasifica `QUERY / READ_ONLY`: no realiza DML ni genera
+bitácora.
+
+El endpoint asociado es `GET /api/v1/administracion/perfiles`. Su lectura admite
+`USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`; los futuros commands de perfiles
+seguirán siendo exclusivos de `PERFILES_ADMINISTRAR`.
+
+LIVE Fase 5A: SP desplegado y ejecutado como `anexo24_app`; filtros sin nombre,
+por estado y comodines literales `%`/`_` PASS. Runtime concede 13 `EXECUTE`
+específicos, incluido `APP24_Q_PERFILES_LISTAR`, y conserva cero grants directos
+sobre tablas; `HAS_PERMS` EXECUTE = 1 y SELECT directo a PerfilApp/PerfilActividad = 0.

@@ -40,6 +40,14 @@ Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-s
 | Password | actor ausente, fallo command, bitácora segura y rollback | UNIT | tests de use case; transacción `appTransactionManager` |
 | Password | HTTP 204/400/401/403/404 sin secretos en response | UNIT | `RestablecerPasswordUsuarioControllerWebTest` |
 
+## Perfiles read-only — Fase 5A
+
+| Área | Escenario | Estado | Evidencia |
+|---|---|---|---|
+| Listar perfiles | filtros `nombre` parcial con comodines escapados, `estado`, paginación y orden estable | PASS | LIVE read-only: sin filtros, ACTIVO/INACTIVO, `%` y `_`; unit tests backend |
+| Listar perfiles | item `id`, `nombre`, `estado`, `cantidadPermisos`; sin DML ni bitácora | PASS | `APP24_Q_PERFILES_LISTAR` LIVE y tests de adapter/controller |
+| Listar perfiles | autorización con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`; escritura futura exclusiva de `PERFILES_ADMINISTRAR` | PASS | Tests controller/RBAC Fase 5A |
+
 ## Bitácora
 
 | Escenario | Estado | Evidencia |
@@ -70,8 +78,8 @@ No se fabricaron perfiles alternativos, perfil inactivo ni segundo administrador
 | `app24_runtime` provisionado | PASS | LIVE metadata |
 | `anexo24_app` miembro del rol | PASS | LIVE role membership |
 | `db_datareader` / `db_datawriter` | PASS removidos | LIVE role membership |
-| EXECUTE específico | PASS, 12/12 | LIVE permissions; Fase 3C agregó reset password |
-| grants directos de tablas | PASS, 0 | LIVE permissions + `HAS_PERMS_BY_NAME` |
+| EXECUTE específico | 13 específicos | Runtime vigente; Fase 5A agregó `APP24_Q_PERFILES_LISTAR` |
+| grants directos de tablas | 0 | Runtime vigente; sin grants directos de tablas |
 | query read-only como runtime | PASS | impersonation `anexo24_app` |
 | SELECT directo de tabla | DENIED | `TOP (0)` bajo impersonation |
-| segunda ejecución 04 | PASS | idempotencia confirmada en SP-1E; reaplicación Fase 3C concedió 12/12 |
+| segunda ejecución 04 | Histórico: PASS | idempotencia confirmada en SP-1E; el runtime vigente concede 13 EXECUTE específicos |

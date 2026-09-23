@@ -107,6 +107,7 @@ escritura. **PENDIENTE:** su administración/consulta es de otros dominios.
 | `BitacoraJdbcAdapter` | Invoca `APP24_C_BITACORA_REGISTRAR`; valida `EventoId` | **IMPLEMENTADO EN REPOSITORIO** (SP-1C); sin SQL funcional inline |
 | `ListarUsuariosUseCase` / `ObtenerUsuarioUseCase` | normalizan filtros y validan longitudes, estado, perfilId y paginación; 404 si no existe | **IMPLEMENTADO EN REPOSITORIO** (FASE 2) |
 | `UsuarioAdministracionController` + DTOs | GETs FASE 2, `POST`/`PUT` FASE 3A y PATCH FASE 3B con `USUARIOS_ADMINISTRAR` | **IMPLEMENTADO, INTEGRADO EN DEV, RUNTIME READY** |
+| Perfiles read-only Fase 5A | `GET /administracion/perfiles`; filtros `nombre` parcial escapado/`estado`/paginación; item `id`, `nombre`, `estado`, `cantidadPermisos` | **IMPLEMENTADO EN BACKEND**; lectura con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` |
 
 **CONFIRMADO:** el paquete `administration/users` conserva la separación:
 autenticación (`UsuarioRepository`/`UsuarioJdbcAdapter`) vs. consulta
@@ -203,8 +204,10 @@ producción) pertenece a `ADMINISTRADOR`.
 
 **IMPLEMENTADO:** `USUARIOS_ADMINISTRAR` protege `GET` listado, `GET` detalle,
 `POST`, `PUT`, los tres `PATCH` y `POST /{id}/password` de `/api/v1/administracion/usuarios`.
-`PERFILES_ADMINISTRAR` permanece pendiente para futuros commands de perfiles y
-`ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
+`GET /api/v1/administracion/perfiles` (Fase 5A) admite
+`USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` exclusivamente como lectura de
+catálogo. Los futuros commands de perfiles serán exclusivos de
+`PERFILES_ADMINISTRAR`; `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
 
 ## 9. Permisos runtime de base de datos — estado actual
 
@@ -217,7 +220,7 @@ Estado efectivo:
 | `db_datareader` / `db_datawriter` | membership removida |
 | EXECUTE database/global | revocado |
 | tablas `app24` objetivo | SELECT/INSERT/UPDATE/DELETE directos = 0 |
-| 12 SP app24 | EXECUTE específico concedido |
+| 13 SP app24 | EXECUTE específico concedido |
 | idempotencia | segunda ejecución PASS, sin diferencias |
 
 Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejecutó `APP24_Q_USUARIOS_LISTAR` sin SELECT directo sobre tablas; SELECT directo `TOP (0)` fue denegado.
@@ -227,27 +230,26 @@ Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejec
 | Ruta | Estado |
 |---|---|
 | `features/administration/audit-log` | **IMPLEMENTADO EN REPOSITORIO** — ruta `/bitacora` lazy con `permissionGuard` + `data.permission: 'BITACORA_CONSULTAR'`; sidebar «Administración» → «Bitácora» (`manage_search`) |
-| `features/administration/users` | **NO IMPLEMENTADO** — solo `.gitkeep` |
+| `features/administration/users` | **IMPLEMENTADO / INTEGRADO EN DEV / VALIDADO FRONTEND (FASE 4A)** — ruta `/usuarios`; listado, filtros, paginación, edición de nombre/correo, estado, vigencia y restablecimiento de contraseña |
 | `features/administration/profiles` | **NO IMPLEMENTADO** — solo `.gitkeep` |
 | `features/administration/permissions` | **NO IMPLEMENTADO** — solo `.gitkeep` |
 
 **CONFIRMADO:** `permissionGuard` redirige a `/forbidden` cuando el usuario no
 tiene el permiso; `app.routes.ts` usa el patrón `canActivate + data.permission`
-para todas las rutas protegidas. Los placeholders `users`/`profiles`/
-`permissions` no tienen rutas ni menú: la estructura hexagonal de `audit-log`
-es el patrón a replicar cuando se implementen.
+para las rutas protegidas. `users` está implementado e integrado en DEV. Los
+placeholders `profiles`/`permissions` aún no tienen rutas ni menú; la estructura
+hexagonal de `audit-log` es el patrón a replicar cuando se implementen.
 
 ## 11. Documentación declarada vs. realidad
 
 `docs/04-desarrollo/api.md` (§ endpoints) declara: «Los endpoints de
 administración siguen `/usuarios`, `/perfiles` y `/actividades»...».
 
-**CONFIRMADO (divergencia):** esos endpoints **no existen** en el repositorio:
-no hay controllers `/api/v1/usuarios|perfiles|actividades`. La línea es
-documentación prospectiva. **DECISIÓN V1:** rutas reales bajo
-`/api/v1/administracion/*` (§32); cuando se implementen, `api.md` deberá
-corregirse para reflejar las rutas y permisos reales. **NO se modifica
-`api.md` en esta fase.**
+**HISTÓRICO / PARCIALMENTE RESUELTO:** esa declaración era prospectiva. Las rutas
+reales implementadas son bajo `/api/v1/administracion/*` (§32), incluidos
+usuarios y el listado read-only de perfiles de Fase 5A. Actividades y los
+commands de perfiles siguen pendientes. `api.md` refleja las rutas y permisos
+implementados.
 
 ## 12. Estados — catálogo V1 cerrado
 
@@ -644,7 +646,7 @@ grants runtime son mínimos por objeto (§31).
 
 ## 31. Runtime permissions — estado versionado
 
-`04-app-runtime-permissions.sql` versiona el estado final least-privilege, ya desplegado en `ANEXO24_DEV`: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 12 SP app24 aprobados. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
+`04-app-runtime-permissions.sql` versiona el estado final least-privilege: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 13 SP app24 aprobados, incluido `APP24_Q_PERFILES_LISTAR` de Fase 5A. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
 
 ## 32. Rutas API V1 — DECISIÓN
 
@@ -660,9 +662,8 @@ Motivo: dominio explícito, consistente con la agrupación funcional, evita
 contaminar la raíz `/api/v1` general, y el frontend ya agrupa
 `features/administration`.
 
-**Documentado:** `docs/04-desarrollo/api.md` todavía usa rutas prospectivas de
-raíz (`/usuarios`, `/perfiles`, `/actividades`) y **deberá corregirse al
-implementar**. No se modifica `api.md` en esta fase.
+**ACTUALIZADO:** `docs/04-desarrollo/api.md` documenta las rutas reales bajo
+`/api/v1/administracion/*`, incluidos usuarios y `GET /perfiles` de Fase 5A.
 
 ## 33. Contratos — USUARIOS (candidatos)
 
@@ -702,9 +703,23 @@ Bitácora específico (§28) y validación propia; separarlas evita PATCH
 multi-propósito ambiguo. Los tres `PATCH` de Fase 3B están implementados, integrados en DEV y
 runtime ready; reset de Fase 3C está implementado y validado LIVE en su rama.
 
-## 34. Contratos — PERFILES (candidatos)
+## 34. Contratos — PERFILES
 
-- **Permiso común:** `PERFILES_ADMINISTRAR`.
+### Fase 5A implementada — lectura de catálogo
+
+- **Ruta:** `GET /api/v1/administracion/perfiles`.
+- **Autorización:** `hasAnyAuthority('USUARIOS_ADMINISTRAR',
+  'PERFILES_ADMINISTRAR')`. Esta excepción de lectura permite a Usuarios cargar
+  el catálogo requerido; no extiende permisos de escritura.
+- **Filtros:** `nombre` parcial, contiene, case-insensitive y con comodines
+  escapados; `estado` exacto (`ACTIVO`/`INACTIVO`); `pagina` y `tamano`.
+- **Paginación y orden:** defaults y límites de §37; `nombre ASC, id ASC`.
+- **Item:** `id`, `nombre`, `estado`, `cantidadPermisos`.
+- **Persistencia:** `APP24_Q_PERFILES_LISTAR`, `READ_ONLY`; sin DML ni bitácora.
+
+### Futuros commands de perfiles
+
+- **Permiso exclusivo:** `PERFILES_ADMINISTRAR`.
 
 ```text
 GET    /api/v1/administracion/perfiles
@@ -838,15 +853,19 @@ Runtime permissions: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
 FASE 3C reset password: **COMPLETADA / INTEGRADA EN DEV / VALIDADA LIVE**.
 
-FASE 4A **IMPLEMENTADA / VALIDADA FRONTEND**: Usuarios con listado, filtros,
-        paginación, edición de nombre/correo, estado, vigencia y restablecimiento
-        de contraseña. Suite Angular 22 con Vitest/jsdom valida mapper, HTTP,
-        presentación, RBAC y boundary DI route-scoped → MatDialog. Alta de usuario
-        y cambio de perfil quedan **PENDIENTES / BLOQUEADOS POR CATÁLOGO DE
-        PERFILES**, sin IDs manuales ni hardcodeados.
+FASE 4A **IMPLEMENTADA / INTEGRADA EN DEV / VALIDADA FRONTEND**: Usuarios con
+        listado, filtros, paginación, edición de nombre/correo, estado, vigencia y
+        restablecimiento de contraseña. Suite Angular 22 con Vitest/jsdom valida
+        mapper, HTTP, presentación, RBAC y boundary DI route-scoped → MatDialog.
+        Alta de usuario y cambio de perfil quedan **PENDIENTES**; su dependencia
+        de catálogo de perfiles queda cubierta por Fase 5A, sin IDs manuales ni
+        hardcodeados.
 
-FASE 5A **PENDIENTE**: `GET /api/v1/administracion/perfiles`, dependencia para
-        completar alta de usuario y cambio de perfil en frontend.
+FASE 5A **IMPLEMENTADA EN BACKEND**: `GET /api/v1/administracion/perfiles`
+        read-only con `nombre` parcial escapado, `estado`, página/tamaño e items
+        `id`, `nombre`, `estado`, `cantidadPermisos`; lectura RBAC con
+        `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`. Usa
+        `APP24_Q_PERFILES_LISTAR`; **VALIDADA LIVE** y por suite backend.
 
 FASE 5 **PENDIENTE**: Perfiles + consulta Actividades:
         - query; commands; reemplazo transaccional PerfilActividad;
