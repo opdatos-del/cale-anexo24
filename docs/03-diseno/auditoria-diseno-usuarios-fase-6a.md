@@ -470,3 +470,42 @@ Suites ejecutadas sin conectar a LIVE:
 No declarar `USERS_ADMINISTRATION_V1_RUNTIME_READY` hasta validar identidad
 least-privilege, auth real, endpoints y Angular Network. Las suites PASS no
 sustituyen ese gate runtime.
+
+## 19. Seguimiento F6C — identidad runtime no coincide
+
+**Resultado:** `F6C_RUNTIME_IDENTITY_MISMATCH`; detener gate antes de permisos,
+SP READ y validación funcional.
+
+Con `.env` local sin leer/imprimir valores secretos, se ejecutó `bootRun` con el
+profile normal y puerto diagnóstico alternativo `18081` porque `8080` ya estaba
+ocupado. Instrumentación temporal obtuvo una conexión de `appDataSource` y
+registró únicamente metadata JDBC/SQL:
+
+- `DatabaseMetaData.getUserName()`: `opdatos`.
+- `USER_NAME()`: `dbo`.
+- `SUSER_SNAME()`: `opdatos`.
+- `Connection.getCatalog()`: `ANEXO24_DEV`.
+
+La identidad no coincide con `anexo24_app`. Runner abortó inmediatamente tras
+esta comparación; `bootRun` terminó con código 1 por el mismatch. No evaluó
+memberships/permisos, no ejecutó SP READ ni WRITE, no consultó endpoints/health y
+no se intentó auth. El proceso que ya ocupaba `8080` se dejó intacto. La lectura
+de metadata desde el pool confirma conexión a `ANEXO24_DEV`, pero no least
+privilege.
+
+No se modificó `.env`, credenciales, roles, grants, SQL ni código permanente.
+Se eliminaron runner y helper Python temporales. LIVE writes = 0; SP commands =
+0. Git permanece sin secretos.
+
+La evidencia versionada define el principal previsto como SQL login y database
+user `anexo24_app`, miembro de `app24_runtime`; grants son EXECUTE por objeto.
+La configuración efectiva reportada por la conexión Spring sigue resolviendo a
+`opdatos`/`dbo`; no inferir causa (valor local, override o endpoint SQL) sin
+inspección autorizada adicional. Operador debe verificar localmente qué valor
+usa `APP_DB_USERNAME` y que URL apunte al servidor/database esperados; no
+compartir password. Reanudar en la obtención metadata del pool después de
+corregir la configuración local autorizada.
+
+`RUNTIME_DATASOURCE_LEAST_PRIVILEGE_READY` no alcanzado. Los tests de regresión
+F6B se ejecutaron antes de esta reanudación; esta ejecución no repitió suites,
+pues no dejó cambios productivos ni pudo superar identidad.
