@@ -509,3 +509,47 @@ corregir la configuración local autorizada.
 `RUNTIME_DATASOURCE_LEAST_PRIVILEGE_READY` no alcanzado. Los tests de regresión
 F6B se ejecutaron antes de esta reanudación; esta ejecución no repitió suites,
 pues no dejó cambios productivos ni pudo superar identidad.
+
+## 20. Seguimiento F6C.1 — username local corregido; password requerido
+
+**Resultado:** `F6C_RUNTIME_PASSWORD_REQUIRED`; detener antes de permisos y SP.
+
+Gate Git inicial PASS: branch `feature/administration-users-v1`, HEAD
+`a916122468b5631d66a551cc4f93c926467798f0`, `dev`/`origin/dev` en
+`de4fe8b44bdafe81aa74711e4588b7da2307e0fd`, árbol limpio y stashes intactos.
+
+Inspección segura de `backend/.env` encontró una sola ocurrencia de
+`APP_DB_USERNAME`, con valor `opdatos`; una sola `APP_DB_URL`, host/instancia
+`10.110.110.2\\SERVERSAPBO_DEV`, `databaseName=ANEXO24_DEV`. URL no contenía
+usuario, password, `integratedSecurity` ni `authentication`. El parser
+`loadDotEnv()` gana por última ocurrencia, por lo que valor efectivo era
+`opdatos`. `DB_USERNAME=opdatos` corresponde a datasource primario y se dejó
+intacto. `APP_DATASOURCE_USERNAME`, `SPRING_APPLICATION_JSON`, `JAVA_TOOL_OPTIONS`,
+`_JAVA_OPTIONS` y `GRADLE_OPTS` no definían overrides relevantes en el entorno
+inspeccionado; no se proporcionaron argumentos Spring de username. No se
+inspeccionaron valores de passwords ni opciones completas.
+
+Se corrigió sólo `APP_DB_USERNAME=anexo24_app` en `.env` local, preservando el
+password configurado sin leerlo/modificarlo. Reparseo confirmó una única
+ocurrencia y valor efectivo `anexo24_app`; Git sigue ignorando `.env`.
+
+Con instrumentación temporal y `bootRun` normal en puerto diagnóstico `18081`,
+SQL Server rechazó autenticación: `Login failed for user 'anexo24_app'`. El
+runner no obtuvo conexión JDBC; por tanto identidad JDBC, database user/login,
+role, privilegios y grants no se pudieron verificar desde el pool en este
+intento. No hubo fallback a `opdatos`, prueba de password, auth HTTP, health,
+SP READ/WRITE ni commands. Runner y helper temporal se eliminaron. LIVE writes
+= 0.
+
+No se determinó si rechazo se debe a password local que no corresponde a la
+cuenta, login SQL deshabilitado u otra condición del servidor; no especular ni
+intentar otras credenciales. Operador debe configurar localmente password
+autorizado vigente para login `anexo24_app`, sin compartirlo. Luego reanudar
+F6C en la conexión metadata desde `appDataSource`. No cambiar grants/roles ni
+usar cuenta administrativa.
+
+`.env.example` conserva `DB_USERNAME=anexo24_app` y
+`APP_DB_USERNAME=anexo24_app`. No se cambió el principal primario: la evidencia
+de F6C sólo establece el runtime least-privilege para `ANEXO24_DEV`, no el
+principal autorizado de CALE_IMMEX; `DB_USERNAME` queda como gap documental a
+confirmar aparte.
