@@ -182,6 +182,11 @@ total. El catálogo y permisos son de sólo lectura; se evita el PUT si el conju
 final no cambió. Los errores usan el traductor seguro existente. F5D no agrega
 contratos backend, SP ni permisos.
 
+**Validación runtime F5D:** el operador validó manualmente que Administración →
+Perfiles abre y carga listado, actividades y permisos; los HTTP 500 observados
+antes no se reprodujeron en esa sesión. Esta evidencia es del operador; no se
+realizó reproducción autenticada independiente por el agente.
+
 ## Bitácora de Administración
 
 Las acciones disponibles incluyen `LOGIN_OK`, `LOGIN_FALLIDO`,
