@@ -870,9 +870,14 @@ FASE 5A **IMPLEMENTADA EN BACKEND**: `GET /api/v1/administracion/perfiles`
         `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`. Usa
         `APP24_Q_PERFILES_LISTAR`; **VALIDADA LIVE** y por suite backend.
 
-FASE 5 **PENDIENTE**: Perfiles + consulta Actividades:
-        - query; commands; reemplazo transaccional PerfilActividad;
-        - Bitácora; grants PerfilApp/PerfilActividad (§31).
+FASE 5B **AUDITORÍA Y DISEÑO CERRADOS; IMPLEMENTACIÓN PENDIENTE**:
+        - evidencia LIVE, contratos, guardrail y plan de SP/grants en
+          `auditoria-diseno-perfiles-permisos-fase-5b.md`;
+        - aún no existen commands, consultas de Actividades/permisos, Bitácora
+          de perfiles ni grants adicionales.
+
+FASE 5C **PENDIENTE**: backend Perfiles + consulta Actividades, commands,
+        reemplazo transaccional PerfilActividad, Bitácora y grants mínimos.
 
 FASE 6 **PENDIENTE**: Frontend Perfiles/Permisos.
 
