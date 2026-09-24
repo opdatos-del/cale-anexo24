@@ -553,3 +553,55 @@ usar cuenta administrativa.
 de F6C sólo establece el runtime least-privilege para `ANEXO24_DEV`, no el
 principal autorizado de CALE_IMMEX; `DB_USERNAME` queda como gap documental a
 confirmar aparte.
+
+## 21. Seguimiento F6C.2 — auditoría metadata de login runtime
+
+**Clasificación:** `RUNTIME_PASSWORD_CREDENTIAL_REQUIRED`.
+
+Gate Git PASS: branch `feature/administration-users-v1`, HEAD
+`94df3da6deb52fc3e007386e65d6ab6b2e6ff929`, `dev`/`origin/dev` en
+`de4fe8b44bdafe81aa74711e4588b7da2307e0fd`, árbol limpio y ambos stashes
+requeridos intactos.
+
+Con conexión administrativa autenticada separadamente, sólo para consultas de
+metadata/seguridad, login `anexo24_app` existe como `SQL_LOGIN`, está habilitado,
+y tiene default database `master`. `LOGINPROPERTY` indica `IsLocked=0`,
+`IsExpired=0`, `IsMustChange=0`; `BadPasswordCount=2`. No se consultó ni expuso
+hash de password. La metadata no apunta a cuenta bloqueada, disabled, expirada
+o con cambio obligatorio; SQL Server rechazó el intento de autenticación
+anterior del pool Spring.
+
+En `ANEXO24_DEV`, database user `anexo24_app` existe y su SID coincide con el
+server login. Membership: `app24_runtime=1`, `db_owner=0`, `db_datareader=0`,
+`db_datawriter=0`; `sysadmin=0`. No se observaron memberships en otros server
+roles aparte de `public`, ni permisos explícitos `CONTROL SERVER`/`ALTER ANY
+LOGIN`/`IMPERSONATE ANY LOGIN` para el login. No se observaron permisos amplios
+`CONTROL`/`EXECUTE` en database ni `EXECUTE` en schema `app24` para el user/role.
+
+`HAS_PERMS_BY_NAME` bajo `EXECUTE AS USER='anexo24_app'` confirmó ausencia de
+acceso directo en tablas funcionales comprobadas: SELECT/INSERT/UPDATE/DELETE
+sobre `app24.UsuarioApp`; SELECT sobre `PerfilApp`, `PerfilActividad` y
+`Actividad`; SELECT/INSERT sobre `BitacoraEvento`. Los EXECUTE específicos
+requeridos por el gate están presentes para los 12 SP de Auth, Usuarios,
+Perfiles y bitácora (`APP24_Q_USUARIO_POR_CLAVE`,
+`APP24_Q_USUARIO_ACCESO`, `APP24_Q_USUARIOS_LISTAR`,
+`APP24_Q_USUARIO_OBTENER`, `APP24_C_USUARIO_CREAR`,
+`APP24_C_USUARIO_ACTUALIZAR_DATOS`, `APP24_C_USUARIO_CAMBIAR_ESTADO`,
+`APP24_C_USUARIO_CAMBIAR_PERFIL`, `APP24_C_USUARIO_CAMBIAR_VIGENCIA`,
+`APP24_C_USUARIO_RESTABLECER_PASSWORD`, `APP24_Q_PERFILES_LISTAR`,
+`APP24_C_BITACORA_REGISTRAR`). Sesiones activas actuales para login
+`anexo24_app`: 0; esto no determina consumidores históricos.
+
+La conexión administrativa integrada de Windows falló como
+`GRUPOCALE\\opdatos`; la metadata se obtuvo después mediante login SQL
+administrativo local, sólo en consultas de lectura. No se ejecutaron SP ni
+consultas de negocio bajo `anexo24_app`; no hubo writes, DDL, cambios de grants,
+roles o password.
+
+La metadata confirma login, mapping, membership y permisos esperados, pero no
+prueba que el password local configurado autentique. La autenticación previa
+falló. Clasificar como `RUNTIME_PASSWORD_CREDENTIAL_REQUIRED`: operador debe
+obtener la credencial vigente autorizada del responsable SQL Server y
+configurarla localmente en `APP_DB_PASSWORD`; no compartirla en chat/reporte.
+No rotar password ni probar alternativas en esta fase. Al disponer de
+credencial autorizada, reanudar desde `appDataSource` identity check.
