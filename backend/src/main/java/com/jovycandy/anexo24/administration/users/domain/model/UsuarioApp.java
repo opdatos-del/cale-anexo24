@@ -27,6 +27,13 @@ public record UsuarioApp(
         LocalDate vigencia,
         Long perfilId) {
 
+    @Override
+    public String toString() {
+        return "UsuarioApp[id=" + id + ", clave=" + clave + ", nombre=" + nombre + ", correo=" + correo
+                + ", passwordHash=REDACTED, estado=" + estado + ", vigencia=" + vigencia
+                + ", perfilId=" + perfilId + "]";
+    }
+
     /**
      * Indica si la cuenta está activa y vigente.
      *

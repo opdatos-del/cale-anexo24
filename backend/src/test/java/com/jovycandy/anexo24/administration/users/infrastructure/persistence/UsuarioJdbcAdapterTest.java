@@ -40,6 +40,16 @@ class UsuarioJdbcAdapterTest {
     }
 
     @Test
+    void toStringDelModeloAuthNoExponeHash() {
+        UsuarioApp usuario = new UsuarioApp(7L, "op01", "Operador", "op@test", "hash-ficticio",
+                "ACTIVO", null, 3L);
+
+        assertThat(usuario.toString())
+                .contains("passwordHash=REDACTED")
+                .doesNotContain("hash-ficticio");
+    }
+
+    @Test
     void findByClaveConsumeSpYMapeaPasswordInternamente() throws Exception {
         UsuarioApp usuario = new UsuarioApp(7L, "op01", "Operador", "op@test", "hash-interno",
                 "ACTIVO", null, 3L);

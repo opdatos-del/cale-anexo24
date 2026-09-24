@@ -420,3 +420,53 @@ antes de commit:
 - LIVE writes/DDL/grants: 0.
 - Secretos/passwords/hashes/JWT en documentación: 0.
 - Deploy/merge/PR/review automático: 0.
+
+## 18. Seguimiento F6B — resultado parcial
+
+**Estado:** `F6B_RUNTIME_IDENTITY_BLOCKED`; no declarar runtime-ready.
+
+Git al inicio: feature `feature/administration-users-v1`, HEAD
+`039c61412f540ac118cdc3d89e23bc087052c207`, árbol limpio; `dev` y
+`origin/dev` en `de4fe8b44bdafe81aa74711e4588b7da2307e0fd`. Stashes requeridos
+siguen presentes.
+
+Configuración verificada sin leer valores secretos:
+
+- `application-local.yml`: `app.datasource.*` usa `APP_DB_URL`,
+  `APP_DB_USERNAME`, `APP_DB_PASSWORD`, sin defaults.
+- `DataSourceConfig.appDataSource()` construye ese pool; adapters de app24
+  reciben `appJdbcTemplate` enlazado a ese datasource.
+- `build.gradle.kts`: `bootRun` inyecta claves de `backend/.env`; el archivo
+  existe y está ignorado por Git. Sólo se inspeccionaron nombres de variables.
+- F6A había comprobado con las credenciales locales de diagnóstico una
+  identidad privilegiada (`db_owner` y `sysadmin`). No se inició Spring ni se
+  atribuye a esta fase una observación independiente desde su pool.
+
+Por riesgo de usar esa identidad privilegiada, no se arrancó backend, no se
+obtuvo sesión/token, no se ejecutaron consultas HTTP autenticadas ni commands, y
+no se alteró ninguna fila. Identidad Spring efectiva aún no queda comprobada
+mediante conexión del pool; no se demostró principal runtime least-privilege.
+No cambiar credenciales, grants ni roles en esta fase. Reanudar sólo cuando
+estén disponibles credenciales autorizadas de runtime y pueda verificarse el
+principal desde el pool Spring.
+
+Hardening puntual: `CrearUsuarioRequest.toString()` redacta password y
+`UsuarioApp.toString()` redacta hash. Se agregaron pruebas para asegurar que
+valores ficticios no aparezcan en ambas representaciones. No se encontraron
+llamadas actuales que registren esos objetos; el cambio evita exposición
+accidental futura. No modifica contrato HTTP ni persistencia.
+
+Validación runtime queda pendiente. No se inició backend ni se probaron auth,
+HTTP o Angular Network por el bloqueo de identidad.
+
+Suites ejecutadas sin conectar a LIVE:
+
+- Backend `./gradlew clean test` y `./gradlew build`: PASS; 370 tests,
+  0 failures, 0 errors, 0 skipped.
+- Frontend `pnpm lint`, `pnpm test --watch=false`, `pnpm build`: PASS;
+  60 tests, 0 failures. Build conserva warnings de budgets.
+- Los dos tests de redacción se incluyeron en backend clean test.
+
+No declarar `USERS_ADMINISTRATION_V1_RUNTIME_READY` hasta validar identidad
+least-privilege, auth real, endpoints y Angular Network. Las suites PASS no
+sustituyen ese gate runtime.

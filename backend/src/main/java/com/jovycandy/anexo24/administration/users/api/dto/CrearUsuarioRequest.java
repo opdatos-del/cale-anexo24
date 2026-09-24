@@ -17,4 +17,10 @@ public record CrearUsuarioRequest(
         @NotBlank String password,
         LocalDate vigencia,
         @NotNull @Positive Long perfilId) {
+
+    @Override
+    public String toString() {
+        return "CrearUsuarioRequest[clave=" + clave + ", nombre=" + nombre + ", correo=" + correo
+                + ", password=REDACTED, vigencia=" + vigencia + ", perfilId=" + perfilId + "]";
+    }
 }

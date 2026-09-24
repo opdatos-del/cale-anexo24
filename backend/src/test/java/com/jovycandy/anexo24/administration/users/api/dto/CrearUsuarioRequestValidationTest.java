@@ -35,6 +35,16 @@ class CrearUsuarioRequestValidationTest {
         assertThat(violaciones("   ")).isNotEmpty();
     }
 
+    @Test
+    void toStringNoExponePassword() {
+        CrearUsuarioRequest request = new CrearUsuarioRequest(
+                "op01", "Nombre", "correo@test", "secreto-ficticio", null, 1L);
+
+        assertThat(request.toString())
+                .contains("password=REDACTED")
+                .doesNotContain("secreto-ficticio");
+    }
+
     private Set<?> violaciones(String password) {
         return validator.validate(new CrearUsuarioRequest("op01", "Nombre", "correo@test", password, null, 1L));
     }
