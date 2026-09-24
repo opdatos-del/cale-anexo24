@@ -14,7 +14,10 @@ Commands sensibles de Fase 3B conservan aislamiento `SERIALIZABLE`, locking
 administración backend de perfiles/permisos y catálogo read-only de actividades.
 F5D implementa frontend V1 de Administración → Perfiles sobre los endpoints
 cerrados de F5C, con autorización UX `PERFILES_ADMINISTRAR` y reemplazo total de
-permisos. No modifica backend, SQL ni permisos runtime.
+permisos. Vertical integrado en `dev` por fast-forward en `1c0ce3ed83b86975f47d4486d658dc279d61ba40`.
+La validación runtime fue realizada manualmente por el operador: perfiles,
+actividades y permisos cargaron; el agente no reprodujo independientemente las
+llamadas autenticadas. F5D no modifica backend, SQL ni permisos runtime.
 
 Las decisiones V1 de perfiles/permisos se implementaron en F5C. Este documento
 conserva decisiones como contrato y distingue backend F5C de interfaz frontend

@@ -185,7 +185,9 @@ contratos backend, SP ni permisos.
 **Validación runtime F5D:** el operador validó manualmente que Administración →
 Perfiles abre y carga listado, actividades y permisos; los HTTP 500 observados
 antes no se reprodujeron en esa sesión. Esta evidencia es del operador; no se
-realizó reproducción autenticada independiente por el agente.
+realizó reproducción autenticada independiente por el agente. El vertical
+F5C/F5D quedó integrado en `dev` mediante fast-forward al SHA
+`1c0ce3ed83b86975f47d4486d658dc279d61ba40`.
 
 ## Bitácora de Administración
 
