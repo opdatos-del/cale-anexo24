@@ -659,3 +659,38 @@ no forma parte del producto ni debe versionarse.
   `InMemoryUserDetailsManager` y una credencial generada de desarrollo, pese al
   esquema JWT/stateless existente. La credencial observada no se registra ni se
   reutiliza. No se modificó `SecurityConfig` en F6C.
+
+## 23. F6D.2 — smoke HTTP autenticado read-only de Usuarios
+
+**Resultado:** `USERS_ADMINISTRATION_V1_AUTH_RUNTIME_VALIDATED`.
+
+Con una cuenta de prueba autorizada, manejada exclusivamente en memoria y sin
+registrar credencial, JWT, cabecera Authorization ni datos personales, el flujo
+HTTP local confirmó:
+
+- Login `200`, JWT recibido y usuario autenticado; la sesión incluyó
+  `USUARIOS_ADMINISTRAR`, `BITACORA_CONSULTAR` y `OPERACIONES_CONSULTAR`.
+- `GET /api/v1/administracion/usuarios` `200`: total 1, página 1, tamaño 20.
+- Detalle del único usuario listado `200`, con los campos administrativos
+  esperados; el ID inexistente devolvió `404`, código
+  `RECURSO_NO_ENCONTRADO` y correlation ID.
+- `GET /api/v1/administracion/perfiles` `200`: total 2.
+- Filtros `clave`, `nombre`, `correo`, `estado`, `perfilId`, `pagina` y
+  `tamano` devolvieron `200`; un filtro imposible devolvió `200` con 0 items.
+- Listado y detalle no contienen propiedades `password`, `passwordHash` ni
+  `password_hash`.
+- Listado sin token y con token inválido devolvieron `401`.
+
+No se ejecutaron commands: POST/PUT/PATCH/reset = 0 y LIVE writes = 0
+(`LIVE_COMMAND_E2E_SKIPPED_NO_SAFE_CLEANUP`). La cobertura de commands se
+mantiene en las suites ya aprobadas. No se realizaron DDL, DML, cambios de SP,
+roles, grants ni logins.
+
+Como verificación complementaria, Bitácora autenticada con rango UTC obligatorio
+respondió `200` y sus filtros `modulo`/`resultado` funcionaron; su listado no
+presentó nombres de propiedades sensibles. Bitácora sin token y con token
+inválido devolvieron `401`.
+
+La validación visual de Angular sigue siendo QA manual complementario; no fue
+necesaria para el gate HTTP/API. Los pendientes de seguridad y Unicode se
+mantienen sin cambios.
