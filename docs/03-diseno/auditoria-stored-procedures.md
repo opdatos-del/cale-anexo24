@@ -265,7 +265,7 @@ Todos son `COMMAND / WRITE / CONFIRMADO / APP24_PROPIO`. Los commands sensibles 
 | Auto-cambio de perfil | PASS; 51106 |
 | Rollback y ausencia posterior | PASS; filas persistidas 0 |
 
-Identity pudo avanzar pese al rollback; no se ejecutó `DBCC CHECKIDENT`. No había dataset seguro para forzar perfil alternativo inactivo ni último administrador; cubierto por tests/unit contract.
+Identity pudo avanzar pese al rollback; no se ejecutó `DBCC CHECKIDENT`. No había dataset seguro para forzar perfil alternativo inactivo ni último administrador; esas mutaciones no se ejecutaron LIVE.
 
 ### Permisos y ownership
 
@@ -330,19 +330,39 @@ cero grants directos de tablas y sin memberships `db_datareader`/`db_datawriter`
 Impersonation de `anexo24_app` confirmó `HAS_PERMS_BY_NAME` EXECUTE = 1 para el
 nuevo SP y UPDATE directo sobre `UsuarioApp` = 0. CALE_IMMEX no fue modificado.
 
-## Fase 5A — perfiles read-only
+## Fases 5A, 5B y 5C — perfiles y permisos
 
-`app24.APP24_Q_PERFILES_LISTAR` implementa el catálogo paginado de perfiles:
+F5A implementó `app24.APP24_Q_PERFILES_LISTAR`, el catálogo paginado de perfiles:
 recibe filtro `nombre` parcial con comodines escapados, `estado`, `pagina` y
 `tamano`; devuelve `id`, `nombre`, `estado`, `cantidadPermisos` y el total por
 parámetro OUTPUT. Se clasifica `QUERY / READ_ONLY`: no realiza DML ni genera
 bitácora.
 
-El endpoint asociado es `GET /api/v1/administracion/perfiles`. Su lectura admite
-`USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`; los futuros commands de perfiles
-seguirán siendo exclusivos de `PERFILES_ADMINISTRAR`.
+F5B cerró el diseño. F5C implementó y validó LIVE seis SP adicionales:
 
-LIVE Fase 5A: SP desplegado y ejecutado como `anexo24_app`; filtros sin nombre,
-por estado y comodines literales `%`/`_` PASS. Runtime concede 13 `EXECUTE`
-específicos, incluido `APP24_Q_PERFILES_LISTAR`, y conserva cero grants directos
-sobre tablas; `HAS_PERMS` EXECUTE = 1 y SELECT directo a PerfilApp/PerfilActividad = 0.
+```text
+APP24_Q_ACTIVIDADES_LISTAR
+APP24_Q_PERFIL_PERMISOS_LISTAR
+APP24_C_PERFIL_CREAR
+APP24_C_PERFIL_ACTUALIZAR_NOMBRE
+APP24_C_PERFIL_CAMBIAR_ESTADO
+APP24_C_PERFIL_REEMPLAZAR_PERMISOS
+```
+
+Los dos queries proveen el catálogo de actividades y los permisos de un perfil.
+Los cuatro commands aplican `SET XACT_ABORT ON`; las mutaciones críticas usan
+bloqueos `UPDLOCK`/`HOLDLOCK` y preservan el guardrail de al menos un administrador
+efectivo. Cada command y su evento seguro de Bitácora comparten la transacción
+`appTransactionManager` con aislamiento `SERIALIZABLE`.
+
+Los endpoints implementados son `POST /administracion/perfiles`, `PUT
+/administracion/perfiles/{id}`, `PATCH /administracion/perfiles/{id}/estado`,
+`GET /administracion/perfiles/{id}/permisos`, `PUT
+/administracion/perfiles/{id}/permisos` y `GET /administracion/actividades`;
+todos requieren exclusivamente `PERFILES_ADMINISTRAR`. El listado de F5A conserva
+la lectura con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`.
+
+LIVE F5C: la transacción sintética se revirtió y no dejó filas persistentes. No
+se ejecutó la acción destructiva que dejaría sin el último administrador efectivo;
+no se declara validación LIVE de ese caso. Runtime concede 19 `EXECUTE`
+específicos sobre los 19 SP `app24` y conserva cero grants directos sobre tablas.

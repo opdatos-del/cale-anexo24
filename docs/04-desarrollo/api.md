@@ -23,13 +23,19 @@ autorización por permiso · **Errores:** `{ code, message, correlationId, detai
 | PATCH | `/administracion/usuarios/{id}/vigencia` | Cambia la vigencia o la elimina. | `USUARIOS_ADMINISTRAR` |
 | POST | `/administracion/usuarios/{id}/password` | Restablece la contraseña y responde `204 No Content`. | `USUARIOS_ADMINISTRAR` |
 | GET | `/administracion/perfiles` | Lista perfiles paginados para el catálogo administrativo. | `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` |
+| POST | `/administracion/perfiles` | Crea un perfil activo sin permisos implícitos. | `PERFILES_ADMINISTRAR` |
+| PUT | `/administracion/perfiles/{id}` | Modifica exclusivamente el nombre del perfil. | `PERFILES_ADMINISTRAR` |
+| PATCH | `/administracion/perfiles/{id}/estado` | Activa o inactiva un perfil con guardrail administrativo. | `PERFILES_ADMINISTRAR` |
+| GET | `/administracion/perfiles/{id}/permisos` | Consulta las actividades asignadas al perfil. | `PERFILES_ADMINISTRAR` |
+| PUT | `/administracion/perfiles/{id}/permisos` | Reemplaza atómicamente el conjunto de actividades. | `PERFILES_ADMINISTRAR` |
+| GET | `/administracion/actividades` | Lista el catálogo técnico de actividades. | `PERFILES_ADMINISTRAR` |
 
 ## Administración de usuarios — Fase 3A
 
 Las rutas de usuarios están protegidas por `USUARIOS_ADMINISTRAR`.
 Fases 3A, 3B y 3C están implementadas e integradas en DEV mediante commands SP
 atómicos. Fase 3C también está validada LIVE. Runtime está
-READY: `app24_runtime` provisionado, membership correcta, 13 EXECUTE específicos,
+READY: `app24_runtime` provisionado, membership correcta, 19 EXECUTE específicos,
 cero grants directos de tablas y ownership chain compatible.
 
 ### `GET /administracion/usuarios`
@@ -110,14 +116,25 @@ si falla Bitácora, todo revierte. El detalle contiene únicamente
 `usuarioObjetivoId`. No cambia estado, vigencia, perfil, clave o permisos; no
 revoca JWT existentes ni agrega `must_change_password` o historial.
 
-## Administración de perfiles — Fase 5A
+## Administración de perfiles — Fases 5A, 5B y 5C
+
+F5B tiene el diseño cerrado. F5C está implementada y validada LIVE: desplegó
+seis SP `app24`, mantiene 19 grants `EXECUTE` específicos para SP `app24` y cero
+grants directos sobre tablas. Las operaciones mutables usan
+`appTransactionManager` con aislamiento `SERIALIZABLE`; los SP usan
+`SET XACT_ABORT ON`, `UPDLOCK` y `HOLDLOCK` donde requiere el guardrail, y el
+cambio de negocio y la Bitácora comparten la misma transacción.
+
+La validación sintética LIVE se ejecutó con rollback y no dejó filas persistentes.
+No se ejecutó la operación destructiva que dejaría sin el último administrador
+efectivo; no se declara esa prueba como realizada.
 
 ### `GET /administracion/perfiles`
 
 Endpoint read-only para el catálogo de perfiles. Requiere
 `hasAnyAuthority('USUARIOS_ADMINISTRAR', 'PERFILES_ADMINISTRAR')`: ambos permisos
 pueden consultar el catálogo, pues es dependencia de las operaciones de usuarios.
-Los futuros endpoints de escritura de perfiles requieren exclusivamente
+Los endpoints de escritura de perfiles requieren exclusivamente
 `PERFILES_ADMINISTRAR`.
 
 Acepta `nombre` como filtro parcial con comodines escapados, `estado`
@@ -128,19 +145,48 @@ Acepta `nombre` como filtro parcial con comodines escapados, `estado`
 La consulta se resuelve mediante `APP24_Q_PERFILES_LISTAR`, clasificado como
 `READ_ONLY`; no genera bitácora ni realiza DML.
 
+### Commands y consultas F5C
+
+`POST /administracion/perfiles` recibe `{ "nombre": "..." }`, crea un perfil
+`ACTIVO` sin permisos implícitos y responde `201 Created`. `PUT
+/administracion/perfiles/{id}` recibe el mismo cuerpo y sólo cambia el nombre.
+
+`PATCH /administracion/perfiles/{id}/estado` recibe `{ "estado": "ACTIVO" |
+"INACTIVO" }`. Al inactivar, preserva al menos un administrador efectivo:
+usuario `ACTIVO`, vigente, perfil `ACTIVO` y ambas autoridades
+`USUARIOS_ADMINISTRAR` y `PERFILES_ADMINISTRAR`.
+
+`GET /administracion/perfiles/{id}/permisos` devuelve `{ perfilId, permisos }`;
+las actividades se ordenan `clave ASC, id ASC`. `PUT
+/administracion/perfiles/{id}/permisos` recibe `{ "actividadIds": [...] }` y
+reemplaza el conjunto completo de forma atómica. IDs deben ser positivos,
+únicos y existentes; un conjunto vacío es válido si conserva el guardrail.
+
+`GET /administracion/actividades` devuelve el catálogo read-only completo con
+`id`, `clave`, `nombre`, `recurso` y `accion`, ordenado `clave ASC, id ASC`, sin
+paginación. No hay CRUD de Actividad en V1 y `ACTIVIDADES_ADMINISTRAR` permanece
+reservado.
+
+Todos estos endpoints requieren exclusivamente `PERFILES_ADMINISTRAR`. Los
+commands registran, sólo al tener éxito, `PERFIL_CREADO`,
+`PERFIL_ACTUALIZADO`, `PERFIL_ESTADO_CAMBIADO` o
+`PERFIL_PERMISOS_CAMBIADOS`; el detalle nunca contiene JWT, cabeceras,
+credenciales, SQL ni trazas.
+
 ## Bitácora de Administración
 
 Las acciones disponibles incluyen `LOGIN_OK`, `LOGIN_FALLIDO`,
 `USUARIO_CREADO`, `USUARIO_ACTUALIZADO`, `USUARIO_ESTADO_CAMBIADO`,
 `USUARIO_PERFIL_CAMBIADO`, `USUARIO_VIGENCIA_CAMBIADA` y
-`USUARIO_PASSWORD_RESTABLECIDA`. El detalle de los eventos no contiene
-contraseñas, hashes, JWT ni cabeceras de autorización.
+`USUARIO_PASSWORD_RESTABLECIDA`, `PERFIL_CREADO`, `PERFIL_ACTUALIZADO`,
+`PERFIL_ESTADO_CAMBIADO` y `PERFIL_PERMISOS_CAMBIADOS`. El detalle de los eventos
+no contiene contraseñas, hashes, JWT ni cabeceras de autorización.
 
 ## Recursos no expuestos
 
-Fase 5A expone únicamente el listado read-only de perfiles. Los endpoints de
-escritura de perfiles, actividades y PerfilActividad no forman parte todavía del
-contrato implementado.
+Actividad permanece como catálogo técnico: no expone `POST`, `PUT`, `PATCH` ni
+`DELETE`. Tampoco existe `DELETE` físico de PerfilApp; la baja es lógica mediante
+el endpoint de estado.
 
 Consumidor frontend de `GET /bitacora`: pantalla read-only en
 `frontend/src/app/features/administration/audit-log` (ruta `/bitacora`, permiso

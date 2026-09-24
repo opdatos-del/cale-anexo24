@@ -177,8 +177,9 @@ define `LOGIN_OK`, `LOGIN_FALLIDO`, `USUARIO_CREADO` y `USUARIO_ACTUALIZADO`.
 En Fases 3A/3B/3C, el writer append-only (`RegistrarEventoBitacoraService` +
 `BitacoraJdbcAdapter`) registra creación, edición, estado, perfil, vigencia y
 restablecimiento de contraseña con `AuthenticatedUserContext` como actor.
-`USUARIO_PASSWORD_RESTABLECIDA` guarda sólo `usuarioObjetivoId`; acciones futuras
-de perfiles permanecen pendientes.
+`USUARIO_PASSWORD_RESTABLECIDA` guarda sólo `usuarioObjetivoId`. F5C agregó
+`PERFIL_CREADO`, `PERFIL_ACTUALIZADO`, `PERFIL_ESTADO_CAMBIADO` y
+`PERFIL_PERMISOS_CAMBIADOS`; sus detalles contienen sólo datos técnicos seguros.
 
 **CONFIRMADO (hallazgo de diseño):** `AuthenticationEntryPoint` responde 401 sin
 registrar evento; 403 de `@PreAuthorize` tampoco registra evento. Política de
@@ -204,10 +205,11 @@ producción) pertenece a `ADMINISTRADOR`.
 
 **IMPLEMENTADO:** `USUARIOS_ADMINISTRAR` protege `GET` listado, `GET` detalle,
 `POST`, `PUT`, los tres `PATCH` y `POST /{id}/password` de `/api/v1/administracion/usuarios`.
-`GET /api/v1/administracion/perfiles` (Fase 5A) admite
-`USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` exclusivamente como lectura de
-catálogo. Los futuros commands de perfiles serán exclusivos de
-`PERFILES_ADMINISTRAR`; `ACTIVIDADES_ADMINISTRAR` está reservado, sin uso V1.
+`GET /api/v1/administracion/perfiles` admite `USUARIOS_ADMINISTRAR` o
+`PERFILES_ADMINISTRAR` exclusivamente como lectura de catálogo. F5C implementó
+los demás endpoints de perfiles y `GET /api/v1/administracion/actividades`; todos
+requieren exclusivamente `PERFILES_ADMINISTRAR`. `ACTIVIDADES_ADMINISTRAR` está
+reservado, sin uso V1.
 
 ## 9. Permisos runtime de base de datos — estado actual
 
@@ -220,7 +222,7 @@ Estado efectivo:
 | `db_datareader` / `db_datawriter` | membership removida |
 | EXECUTE database/global | revocado |
 | tablas `app24` objetivo | SELECT/INSERT/UPDATE/DELETE directos = 0 |
-| 13 SP app24 | EXECUTE específico concedido |
+| 19 SP app24 | EXECUTE específico concedido |
 | idempotencia | segunda ejecución PASS, sin diferencias |
 
 Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejecutó `APP24_Q_USUARIOS_LISTAR` sin SELECT directo sobre tablas; SELECT directo `TOP (0)` fue denegado.
@@ -578,8 +580,7 @@ coordinado (§23). Un `DELETE` directo rompería la correspondencia con
 
 ## 28. Bitácora administrativa — catálogo V1
 
-**DECISIÓN V1 — acciones candidatas para la primera implementación** (módulo
-`ADMINISTRACION`):
+**IMPLEMENTADO EN F5C — acciones de perfiles** (módulo `ADMINISTRACION`):
 
 ```text
 USUARIO_CREADO
@@ -595,8 +596,8 @@ PERFIL_ESTADO_CAMBIADO
 PERFIL_PERMISOS_CAMBIADOS
 ```
 
-**No implementar todavía.** Los nombres se agregan al enum `BitacoraAccion`
-junto con la implementación, no antes.
+F5C agregó las cuatro acciones de perfil al enum `BitacoraAccion`. Cada command
+registra sólo eventos exitosos seguros en la misma transacción de negocio.
 
 **Detalle seguro permitido:** IDs técnicos, `estado` anterior/nuevo,
 `perfilId` anterior/nuevo, cantidad o IDs de permisos si el tamaño es
@@ -625,8 +626,9 @@ configura aislamiento `SERIALIZABLE` para las mutaciones de estado, perfil y
 vigencia, incluido su guardrail global; los paths críticos usan `UPDLOCK` y
 `HOLDLOCK`. La escritura de negocio en `UsuarioApp` y el evento de
 `BitacoraEvento` participan en la misma transacción; no usan `REQUIRES_NEW`.
-Runtime: **READY**, con `app24_runtime`, membership correcta, 12 EXECUTE
-específicos, cero grants directos de tablas y ownership chain compatible.
+F5C extiende este patrón a perfiles y permisos. Runtime: **READY**, con
+`app24_runtime`, membership correcta, 19 EXECUTE específicos, cero grants
+directos de tablas y ownership chain compatible.
 
 ## 30. Estrategia de persistencia app24 — DECISIÓN V1
 
@@ -646,7 +648,10 @@ grants runtime son mínimos por objeto (§31).
 
 ## 31. Runtime permissions — estado versionado
 
-`04-app-runtime-permissions.sql` versiona el estado final least-privilege: membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE únicamente sobre los 13 SP app24 aprobados, incluido `APP24_Q_PERFILES_LISTAR` de Fase 5A. El script conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
+`04-app-runtime-permissions.sql` versiona el estado final least-privilege:
+membership exclusiva en `app24_runtime`, sin grants directos de tablas y EXECUTE
+únicamente sobre los 19 SP app24 aprobados, incluidos los seis de F5C. El script
+conserva REVOKE explícito para retirar permisos amplios heredados y es idempotente.
 
 ## 32. Rutas API V1 — DECISIÓN
 
@@ -663,7 +668,8 @@ contaminar la raíz `/api/v1` general, y el frontend ya agrupa
 `features/administration`.
 
 **ACTUALIZADO:** `docs/04-desarrollo/api.md` documenta las rutas reales bajo
-`/api/v1/administracion/*`, incluidos usuarios y `GET /perfiles` de Fase 5A.
+`/api/v1/administracion/*`, incluidos usuarios, perfiles, permisos y actividades
+de F5C.
 
 ## 33. Contratos — USUARIOS (candidatos)
 
@@ -717,9 +723,10 @@ runtime ready; reset de Fase 3C está implementado y validado LIVE en su rama.
 - **Item:** `id`, `nombre`, `estado`, `cantidadPermisos`.
 - **Persistencia:** `APP24_Q_PERFILES_LISTAR`, `READ_ONLY`; sin DML ni bitácora.
 
-### Futuros commands de perfiles
+### Fase 5C implementada y validada LIVE
 
-- **Permiso exclusivo:** `PERFILES_ADMINISTRAR`.
+- **Permiso exclusivo:** `PERFILES_ADMINISTRAR` para todos los endpoints de esta
+  sección, salvo el listado de perfiles de Fase 5A indicado arriba.
 
 ```text
 GET    /api/v1/administracion/perfiles
@@ -745,8 +752,11 @@ PUT    /api/v1/administracion/perfiles/{id}/permisos
   inexistente, 409 nombre duplicado, 409/400 regla de auto-bloqueo (§36).
 - **Bitácora:** `PERFIL_CREADO`, `PERFIL_ACTUALIZADO`,
   `PERFIL_ESTADO_CAMBIADO`, `PERFIL_PERMISOS_CAMBIADOS` (§28).
-- **Transacción:** negocio + evento de Bitácora en el transaction manager app24
-  (§29). **NO implementar.**
+- **Transacción:** negocio + evento de Bitácora en `appTransactionManager`, con
+  aislamiento `SERIALIZABLE`; los SP aplican `SET XACT_ABORT ON` y locks
+  `UPDLOCK`/`HOLDLOCK` para el guardrail. La validación LIVE sintética revirtió
+  la transacción y no dejó filas persistentes. No se ejecutó la operación
+  destructiva del último administrador efectivo.
 
 ## 35. Contrato — ACTIVIDADES (read-only)
 
@@ -777,8 +787,8 @@ GET /api/v1/administracion/actividades
 
 **Regla transversal:** nunca filtrar detalles SQL (`SQLException`, constraint
 names, mensajes de SQL Server). `GlobalExceptionHandler` ya enmascara
-`DataAccessException` → 503; los handlers 404/409 se incorporan en la fase de
-implementación. **No implementar todavía.**
+`DataAccessException` → 503; los handlers 404/409 forman parte del contrato
+implementado.
 
 ## 37. Filtros y paginación V1 — cerrados
 
@@ -870,14 +880,16 @@ FASE 5A **IMPLEMENTADA EN BACKEND**: `GET /api/v1/administracion/perfiles`
         `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`. Usa
         `APP24_Q_PERFILES_LISTAR`; **VALIDADA LIVE** y por suite backend.
 
-FASE 5B **AUDITORÍA Y DISEÑO CERRADOS; IMPLEMENTACIÓN PENDIENTE**:
-        - evidencia LIVE, contratos, guardrail y plan de SP/grants en
-          `auditoria-diseno-perfiles-permisos-fase-5b.md`;
-        - aún no existen commands, consultas de Actividades/permisos, Bitácora
-          de perfiles ni grants adicionales.
+FASE 5B **DISEÑO CERRADO**: evidencia LIVE, contratos, guardrail y diseño de
+        SP/grants documentados en
+        `auditoria-diseno-perfiles-permisos-fase-5b.md`.
 
-FASE 5C **PENDIENTE**: backend Perfiles + consulta Actividades, commands,
-        reemplazo transaccional PerfilActividad, Bitácora y grants mínimos.
+FASE 5C **IMPLEMENTADA / VALIDADA LIVE**: backend Perfiles y consulta de
+        Actividades, seis SP `app24`, commands, reemplazo transaccional de
+        `PerfilActividad`, Bitácora y seis grants mínimos adicionales. Runtime
+        queda con 19 SP/grants `EXECUTE` específicos y cero grants directos de
+        tablas. La transacción sintética se revirtió sin filas persistentes; la
+        prueba destructiva del último administrador efectivo no se ejecutó.
 
 FASE 6 **PENDIENTE**: Frontend Perfiles/Permisos.
 

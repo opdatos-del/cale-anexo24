@@ -1,6 +1,7 @@
 # Matriz de regresión SP-1D
 
-Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-sp-runtime`.
+Estado de auditoría: SP-1E runtime cerrado desde `feature/backend-sp-runtime`;
+F5B diseño cerrado y F5C implementada/validada LIVE.
 
 `UNIT` indica cobertura automatizada en backend; `LIVE` indica ejecución controlada contra `ANEXO24_DEV`. No se ejecutaron mutaciones en `CALE_IMMEX`. Los casos LIVE no ejecutables por dataset se mantienen cubiertos por contrato SQL y tests unitarios.
 
@@ -48,6 +49,17 @@ Estado de auditoría: 2026-09-23. SP-1E runtime cerrado desde `feature/backend-s
 | Listar perfiles | item `id`, `nombre`, `estado`, `cantidadPermisos`; sin DML ni bitácora | PASS | `APP24_Q_PERFILES_LISTAR` LIVE y tests de adapter/controller |
 | Listar perfiles | autorización con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`; escritura futura exclusiva de `PERFILES_ADMINISTRAR` | PASS | Tests controller/RBAC Fase 5A |
 
+## Perfiles y permisos — Fases 5B/5C
+
+| Área | Escenario | Estado | Evidencia |
+|---|---|---|---|
+| F5B | Diseño de contratos, RBAC, guardrail y persistencia | CERRADO | `auditoria-diseno-perfiles-permisos-fase-5b.md` |
+| F5C | Seis SP de perfiles/permisos desplegados | LIVE | `APP24_Q_ACTIVIDADES_LISTAR`, `APP24_Q_PERFIL_PERMISOS_LISTAR`, `APP24_C_PERFIL_CREAR`, `APP24_C_PERFIL_ACTUALIZAR_NOMBRE`, `APP24_C_PERFIL_CAMBIAR_ESTADO` y `APP24_C_PERFIL_REEMPLAZAR_PERMISOS` |
+| F5C | Endpoints de perfil, permisos y actividades; RBAC | LIVE | Escritura/consultas F5C con `PERFILES_ADMINISTRAR`; listado de perfiles conserva lectura con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` |
+| F5C | Guardrail, locks, transacción y Bitácora | LIVE | Commands con `SERIALIZABLE`, `SET XACT_ABORT ON`, `UPDLOCK`/`HOLDLOCK`; negocio y evento comparten transacción |
+| F5C | Operación sintética revertida | PASS | Rollback sin filas persistentes |
+| F5C | Último administrador efectivo | NO EJECUTADO LIVE | No se realizó la operación destructiva por seguridad del dataset; no se infiere cobertura adicional |
+
 ## Bitácora
 
 | Escenario | Estado | Evidencia |
@@ -78,8 +90,8 @@ No se fabricaron perfiles alternativos, perfil inactivo ni segundo administrador
 | `app24_runtime` provisionado | PASS | LIVE metadata |
 | `anexo24_app` miembro del rol | PASS | LIVE role membership |
 | `db_datareader` / `db_datawriter` | PASS removidos | LIVE role membership |
-| EXECUTE específico | 13 específicos | Runtime vigente; Fase 5A agregó `APP24_Q_PERFILES_LISTAR` |
+| EXECUTE específico | 19 específicos | Runtime vigente; F5C agregó seis SP/grants de perfiles y permisos |
 | grants directos de tablas | 0 | Runtime vigente; sin grants directos de tablas |
 | query read-only como runtime | PASS | impersonation `anexo24_app` |
 | SELECT directo de tabla | DENIED | `TOP (0)` bajo impersonation |
-| segunda ejecución 04 | Histórico: PASS | idempotencia confirmada en SP-1E; el runtime vigente concede 13 EXECUTE específicos |
+| segunda ejecución 04 | Histórico: PASS | idempotencia confirmada en SP-1E; F5C eleva el runtime vigente a 19 EXECUTE específicos |

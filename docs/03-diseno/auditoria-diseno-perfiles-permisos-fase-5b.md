@@ -2,17 +2,19 @@
 
 ## 1. Alcance y estado
 
-Este documento cierra el diseño V1 previo a implementar Administración de
-Perfiles y Permisos. No añade endpoints, commands, Stored Procedures ni cambios
-de datos. Las rutas descritas como **propuestas** no están implementadas.
+F5B cerró el diseño V1 de Administración de Perfiles y Permisos. F5C
+implementó el contrato backend, sus Stored Procedures `app24`, Bitácora y los
+grants runtime mínimos; la implementación fue validada LIVE contra
+`ANEXO24_DEV.app24`.
 
 Fuentes auditadas: DDL/seed/permisos runtime versionados, paquetes backend de
 Administración, Seguridad y Bitácora, y metadata/datos agregados **LIVE** de
 `ANEXO24_DEV.app24`.
 
-La auditoría LIVE usó exclusivamente `SELECT` sobre tablas `app24` y catálogos
-`sys.*`. No se ejecutaron SP, DML, DDL, `GRANT`, `REVOKE` ni consultas contra
-`CALE_IMMEX`.
+La validación LIVE incluyó metadata, permisos runtime y operaciones sintéticas
+controladas dentro de una transacción revertida. No se ejecutaron mutaciones en
+`CALE_IMMEX`. La prueba destructiva que dejaría al sistema sin el último
+administrador efectivo no se ejecutó por seguridad del dataset.
 
 ## 2. Modelo confirmado
 
@@ -116,7 +118,8 @@ nivel en toda operación que reduzca dicha capacidad.
 
 ## 6. Stored Procedures y runtime actuales
 
-`ANEXO24_DEV` tiene 13 SP en `app24`. Los candidatos relacionados son:
+F5C agregó seis SP propios a los 13 existentes; `ANEXO24_DEV` tiene 19 SP
+`app24` con grant `EXECUTE` específico. Los objetos relacionados son:
 
 | SP | Clasificación | Mutabilidad | Evidencia / reutilización |
 |---|---|---|---|
@@ -129,14 +132,13 @@ referencian PerfilApp/PerfilActividad y, cuando corresponde, Actividad/UsuarioAp
 el command de usuario referencia las cuatro tablas y contiene `UPDLOCK`,
 `HOLDLOCK` y evaluación de administrador efectivo.
 
-No existe SP para listar Actividad, consultar permisos de un perfil, crear/editar
-perfil, cambiar su estado ni reemplazar PerfilActividad. Esos casos requieren
-SP propios; no se reutilizan commands de Usuario.
+F5C implementó SP propios para listar Actividad, consultar permisos de un
+perfil, crear y renombrar perfiles, cambiar su estado y reemplazar
+`PerfilActividad`; no reutiliza commands de Usuario.
 
-Runtime LIVE: `app24_runtime` existe, `anexo24_app` pertenece al rol, hay 13
-`GRANT EXECUTE` específicos, y grants directos de tablas `app24` son 0. La futura
-fase debe agregar únicamente EXECUTE específico a cada SP nuevo y mantener cero
-`SELECT`/`INSERT`/`UPDATE`/`DELETE` directos.
+Runtime LIVE: `app24_runtime` existe, `anexo24_app` pertenece al rol, hay 19
+`GRANT EXECUTE` específicos sobre SP `app24`, y grants directos de tablas
+`app24` son 0. No hay permisos directos `SELECT`/`INSERT`/`UPDATE`/`DELETE`.
 
 La compatibilidad LIVE es 160, por lo que un parámetro JSON para el conjunto de
 IDs puede parsearse con `OPENJSON`. La implementación debe mantener un único
@@ -210,9 +212,9 @@ El mismo criterio se aplica cuando un actor modifica permisos de su propio
 perfil: no se prohíbe por identidad, pero la operación falla con 409
 `ESTADO_INCOMPATIBLE` si el resultado deja cero administradores efectivos.
 
-## 8. Contrato HTTP propuesto para implementación posterior
+## 8. Contrato HTTP implementado en F5C
 
-Todos los endpoints siguientes requieren exclusivamente:
+Los endpoints de F5C requieren exclusivamente:
 
 ```java
 @PreAuthorize("hasAuthority('PERFILES_ADMINISTRAR')")
@@ -243,9 +245,9 @@ por guardrail, y 503 dependencia. Los SP pueden reutilizar códigos ya tratados:
 51108 (parámetro inválido) y 51150 (inconsistencia interna). Nunca filtrar SQL,
 constraints ni detalle técnico.
 
-## 9. Diseño de persistencia para fase de implementación
+## 9. Persistencia implementada en F5C
 
-SP nuevos propuestos, todos en `app24` y versionados antes de desplegar:
+F5C versionó y desplegó estos seis SP en `app24`:
 
 ```text
 APP24_Q_ACTIVIDADES_LISTAR
@@ -256,20 +258,20 @@ APP24_C_PERFIL_CAMBIAR_ESTADO
 APP24_C_PERFIL_REEMPLAZAR_PERMISOS
 ```
 
-Los adapters sólo invocarán `{call app24...}` con `appJdbcTemplate`. Los commands
-usarían `@Transactional(transactionManager = "appTransactionManager",
-isolation = Isolation.SERIALIZABLE)` y los SP usarán `SET XACT_ABORT ON`,
-`UPDLOCK`/`HOLDLOCK` en perfiles/asignaciones/actividades/usuarios necesarios para
-el guardrail. No habrá SQL funcional inline.
+Los adapters invocan `{call app24...}` con `appJdbcTemplate`. Los commands usan
+`@Transactional(transactionManager = "appTransactionManager", isolation =
+Isolation.SERIALIZABLE)`; los SP usan `SET XACT_ABORT ON` y
+`UPDLOCK`/`HOLDLOCK` en perfiles, asignaciones, actividades y usuarios requeridos
+por el guardrail. No hay SQL funcional inline.
 
-Después de despliegue y verificación LIVE, `04-app-runtime-permissions.sql` debe
-sumar exactamente seis `GRANT EXECUTE ON OBJECT::app24... TO app24_runtime` y
-conservar los 13 existentes, sin permisos directos de tabla.
+`04-app-runtime-permissions.sql` agregó exactamente seis
+`GRANT EXECUTE ON OBJECT::app24... TO app24_runtime`, conserva los 13 previos y
+alcanza 19 grants específicos, sin permisos directos de tabla.
 
-## 10. Bitácora y frontend posteriores
+## 10. Bitácora implementada y frontend posterior
 
-Al implementar commands, agregar al enum de Bitácora y registrar, en la misma
-transacción, sólo eventos exitosos seguros:
+F5C agregó al enum de Bitácora y registra, en la misma transacción, sólo eventos
+exitosos seguros:
 
 ```text
 PERFIL_CREADO
@@ -282,18 +284,16 @@ Detalle permitido: IDs, estado anterior/nuevo, conteo o IDs de actividades si
 caben en el límite. Prohibido: JWT, headers Authorization, credenciales, SQL,
 stack traces y request completo.
 
-El frontend posterior tendrá ruta/pantalla de Perfiles sólo cuando se implemente
-este contrato. Usará IDs reales de actividades y perfiles, no nombres ni IDs
-hardcodeados. La infraestructura read-only actual de perfiles permanece como
-base reutilizable.
+El frontend permanece posterior a F5C. Cuando se implemente, usará IDs reales de
+actividades y perfiles, no nombres ni IDs hardcodeados.
 
-## 11. Gates para fase de implementación
+## 11. Cierre F5B/F5C
 
-1. discovery LIVE de SP antes de crear cada objeto;
-2. scripts versionados y metadata LIVE semánticamente coincidentes;
-3. tests unitarios de validación, RBAC, errores, matriz y guardrails;
-4. pruebas de concurrencia/rollback del reemplazo e inactivación;
-5. grants runtime específicos, sin acceso directo a tablas;
-6. bitácora en transacción con command;
-7. validación read-only de metadata y permisos tras despliegue;
-8. frontend sólo después de contratos backend integrados.
+- F5B: **diseño cerrado**.
+- F5C: **implementada y validada LIVE** con seis SP nuevos, endpoints protegidos
+  por RBAC, guardrails transaccionales, Bitácora transaccional y runtime
+  least-privilege de 19 grants `EXECUTE` específicos.
+- La transacción sintética de validación se revirtió y no dejó filas persistentes.
+- La operación destructiva del último administrador efectivo no se ejecutó en
+  LIVE; no se infiere cobertura adicional no evidenciada.
+- Fase 6 (frontend Perfiles/Permisos) permanece pendiente.
