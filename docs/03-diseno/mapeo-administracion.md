@@ -10,13 +10,13 @@ la migración de commands a Stored Procedures app24.
 Stored Procedures mediante `appJdbcTemplate` y `appTransactionManager`.
 **IMPLEMENTADO Y VALIDADO LIVE EN FASE 3C:** reset administrativo de contraseña.
 Commands sensibles de Fase 3B conservan aislamiento `SERIALIZABLE`, locking
-`UPDLOCK`/`HOLDLOCK` y guardrail atómico en SQL. CRUD de perfiles/actividades y
-frontend de administración de perfiles/permisos permanecen pendientes.
+`UPDLOCK`/`HOLDLOCK` y guardrail atómico en SQL. F5C implementó y validó LIVE
+administración backend de perfiles/permisos y catálogo read-only de actividades.
+Frontend de administración de perfiles/permisos permanece pendiente.
 
-Esta segunda pasada **cierra las decisiones funcionales/técnicas V1** previas a
-cualquier command administrativo. No contradice la evidencia confirmada: la
-amplía. Todo lo marcado `DECISIÓN V1` es contrato de diseño, no capacidad
-actual.
+Las decisiones V1 de perfiles/permisos se implementaron en F5C. Este documento
+conserva las decisiones como contrato y distingue capacidades implementadas de
+la futura interfaz frontend.
 
 > **DECISIÓN V1.** El módulo Administración usa `ANEXO24_DEV.app24`, no
 > Módulo C. La regla STORED PROCEDURE FIRST aplica a operaciones funcionales:

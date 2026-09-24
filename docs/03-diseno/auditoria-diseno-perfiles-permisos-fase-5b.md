@@ -293,7 +293,21 @@ actividades y perfiles, no nombres ni IDs hardcodeados.
 - F5C: **implementada y validada LIVE** con seis SP nuevos, endpoints protegidos
   por RBAC, guardrails transaccionales, Bitácora transaccional y runtime
   least-privilege de 19 grants `EXECUTE` específicos.
-- La transacción sintética de validación se revirtió y no dejó filas persistentes.
-- La operación destructiva del último administrador efectivo no se ejecutó en
-  LIVE; no se infiere cobertura adicional no evidenciada.
+- Conteo LIVE: 19 SP `app24`; 19 grants `EXECUTE` por objeto; `app24_runtime`
+  contiene `anexo24_app`; `db_datareader`/`db_datawriter`, EXECUTE database-wide,
+  EXECUTE schema-wide y grants directos a tablas: 0.
+- `HAS_PERMS_BY_NAME(..., 'EXECUTE')` para los seis SP F5C: 1; permisos SELECT
+  directos de runtime en `PerfilApp`, `PerfilActividad` y `Actividad`: 0.
+- Ejecución `EXECUTE AS USER='anexo24_app'`: queries de actividades/permisos y
+  create/rename sintéticos PASS; `REVERT` y `ROLLBACK`; filas persistidas: 0.
+- Negativos directos LIVE: actividad duplicada `51108`; actividad inexistente
+  `51102`; perfil inexistente `51102`; relaciones previas intactas y rollback.
+- Definiciones SQL normalizadas script-vs-LIVE: **6/6 MATCH**. Parámetros y
+  dependencias comprobados; dependencias limitadas a objetos `app24`; cero
+  referencias a `CALE_IMMEX`.
+- Suite final: **364 tests, 0 failures, 0 errors, 0 skipped**; `clean test` y
+  `build` PASS. SQL funcional inline de negocio: 0; frontend: sin cambios.
+- Prueba destructiva sobre el administrador real: **NO EJECUTADA POR SEGURIDAD**.
+  No se modificaron perfil ni usuario administrativos reales.
+- F5C: **IMPLEMENTADA / VALIDADA LIVE / READY FOR INTEGRATION**.
 - Fase 6 (frontend Perfiles/Permisos) permanece pendiente.

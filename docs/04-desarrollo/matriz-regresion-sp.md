@@ -58,7 +58,13 @@ F5B diseño cerrado y F5C implementada/validada LIVE.
 | F5C | Endpoints de perfil, permisos y actividades; RBAC | LIVE | Escritura/consultas F5C con `PERFILES_ADMINISTRAR`; listado de perfiles conserva lectura con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR` |
 | F5C | Guardrail, locks, transacción y Bitácora | LIVE | Commands con `SERIALIZABLE`, `SET XACT_ABORT ON`, `UPDLOCK`/`HOLDLOCK`; negocio y evento comparten transacción |
 | F5C | Operación sintética revertida | PASS | Rollback sin filas persistentes |
-| F5C | Último administrador efectivo | NO EJECUTADO LIVE | No se realizó la operación destructiva por seguridad del dataset; no se infiere cobertura adicional |
+| F5C | Último administrador efectivo | NO EJECUTADO LIVE | No se realizó la operación destructiva sobre el administrador real por seguridad; contrato inspeccionado y errores 51107 mapeados en adapter |
+| F5C | Reemplazo de permisos: actividadIds duplicados | LIVE PASS | Error directo SP `51108`; guardado en transacción y rollback |
+| F5C | Reemplazo: actividad inexistente | LIVE PASS | Error directo SP `51102`; relaciones del perfil intactas |
+| F5C | Command: perfil inexistente | LIVE PASS | `APP24_C_PERFIL_ACTUALIZAR_NOMBRE` devuelve `51102`; rollback |
+| F5C | Runtime EXECUTE-only | LIVE PASS | 19 SP/grants específicos; cero grants tabla, database-wide o schema-wide; `db_datareader`/`db_datawriter` ausentes |
+| F5C | Ownership chain runtime | LIVE PASS | Queries y create/rename sintéticos como `anexo24_app`; `REVERT` + rollback; filas persistidas 0 |
+| F5C | Script vs LIVE | LIVE PASS | Definiciones normalizadas: 6/6 MATCH; parámetros y dependencias coinciden con contrato versionado |
 
 ## Bitácora
 

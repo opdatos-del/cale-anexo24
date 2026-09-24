@@ -362,7 +362,20 @@ Los endpoints implementados son `POST /administracion/perfiles`, `PUT
 todos requieren exclusivamente `PERFILES_ADMINISTRAR`. El listado de F5A conserva
 la lectura con `USUARIOS_ADMINISTRAR` o `PERFILES_ADMINISTRAR`.
 
-LIVE F5C: la transacción sintética se revirtió y no dejó filas persistentes. No
-se ejecutó la acción destructiva que dejaría sin el último administrador efectivo;
-no se declara validación LIVE de ese caso. Runtime concede 19 `EXECUTE`
-específicos sobre los 19 SP `app24` y conserva cero grants directos sobre tablas.
+LIVE F5C gate: `ANEXO24_DEV` confirmó 19 SP `app24`, 19 grants `EXECUTE`
+específicos, `app24_runtime` con miembro `anexo24_app`; cero memberships
+`db_datareader`/`db_datawriter`, EXECUTE database-wide/schema-wide y grants
+`SELECT`/DML directos de tablas. Los seis `HAS_PERMS_BY_NAME(..., 'EXECUTE')`
+retornaron 1. `EXECUTE AS USER='anexo24_app'` ejecutó ambos queries y create/rename
+sintéticos; direct SELECT en `PerfilApp`, `PerfilActividad`, `Actividad` dio 0.
+`REVERT` + `ROLLBACK` dejó filas sintéticas persistidas: 0.
+
+Negativos directos LIVE dentro de transacción: duplicado de actividad `51108`,
+actividad inexistente `51102`, perfil inexistente `51102`; relaciones previas
+intactas y rollback. Normalización semántica de `sys.sql_modules` contra scripts:
+seis SP `MATCH`, cero `DRIFT`; parámetros, orden, tipos y dependencias revisados.
+Dependencias sólo `app24`; `CALE_IMMEX`: 0.
+
+Prueba destructiva sobre el administrador real: **NO EJECUTADA POR SEGURIDAD**.
+El caso guardrail `51107` queda respaldado por inspección SQL y tests automatizados,
+sin alterar perfil/usuario administrador LIVE.
