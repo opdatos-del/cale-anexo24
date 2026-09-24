@@ -12,11 +12,13 @@ Stored Procedures mediante `appJdbcTemplate` y `appTransactionManager`.
 Commands sensibles de Fase 3B conservan aislamiento `SERIALIZABLE`, locking
 `UPDLOCK`/`HOLDLOCK` y guardrail atómico en SQL. F5C implementó y validó LIVE
 administración backend de perfiles/permisos y catálogo read-only de actividades.
-Frontend de administración de perfiles/permisos permanece pendiente.
+F5D implementa frontend V1 de Administración → Perfiles sobre los endpoints
+cerrados de F5C, con autorización UX `PERFILES_ADMINISTRAR` y reemplazo total de
+permisos. No modifica backend, SQL ni permisos runtime.
 
 Las decisiones V1 de perfiles/permisos se implementaron en F5C. Este documento
-conserva las decisiones como contrato y distingue capacidades implementadas de
-la futura interfaz frontend.
+conserva decisiones como contrato y distingue backend F5C de interfaz frontend
+F5D.
 
 > **DECISIÓN V1.** El módulo Administración usa `ANEXO24_DEV.app24`, no
 > Módulo C. La regla STORED PROCEDURE FIRST aplica a operaciones funcionales:
@@ -238,20 +240,20 @@ Ownership chain validada de forma práctica: impersonation de `anexo24_app` ejec
 
 **CONFIRMADO:** `permissionGuard` redirige a `/forbidden` cuando el usuario no
 tiene el permiso; `app.routes.ts` usa el patrón `canActivate + data.permission`
-para las rutas protegidas. `users` está implementado e integrado en DEV. Los
-placeholders `profiles`/`permissions` aún no tienen rutas ni menú; la estructura
-hexagonal de `audit-log` es el patrón a replicar cuando se implementen.
+para las rutas protegidas. `users` está implementado e integrado en DEV. F5D
+agrega ruta y menú `profiles`, protegidos por `PERFILES_ADMINISTRAR`; la
+administración de perfiles consume casos de uso y puerto HTTP bajo la estructura
+hexagonal existente. No hay módulo separado de permisos.
 
 ## 11. Documentación declarada vs. realidad
 
 `docs/04-desarrollo/api.md` (§ endpoints) declara: «Los endpoints de
 administración siguen `/usuarios`, `/perfiles` y `/actividades»...».
 
-**HISTÓRICO / PARCIALMENTE RESUELTO:** esa declaración era prospectiva. Las rutas
-reales implementadas son bajo `/api/v1/administracion/*` (§32), incluidos
-usuarios y el listado read-only de perfiles de Fase 5A. Actividades y los
-commands de perfiles siguen pendientes. `api.md` refleja las rutas y permisos
-implementados.
+**HISTÓRICO / RESUELTO:** esa declaración era prospectiva. Las rutas reales
+implementadas están bajo `/api/v1/administracion/*` (§32), incluidos usuarios,
+consultas de perfiles/actividades y commands de perfiles F5C. El frontend F5D
+consume esos contratos; `api.md` refleja rutas y permisos.
 
 ## 12. Estados — catálogo V1 cerrado
 

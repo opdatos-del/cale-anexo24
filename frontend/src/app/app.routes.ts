@@ -48,6 +48,12 @@ export const routes: Routes = [
         loadChildren: () => import('@features/operations/operations.routes').then((routes) => routes.OPERATIONS_ROUTES),
       },
       {
+        path: 'perfiles',
+        canActivate: [permissionGuard],
+        data: { permission: 'PERFILES_ADMINISTRAR' },
+        loadChildren: () => import('@features/administration/profiles/profiles.routes').then((routes) => routes.PROFILES_ROUTES),
+      },
+      {
         path: 'usuarios',
         canActivate: [permissionGuard],
         data: { permission: 'USUARIOS_ADMINISTRAR' },

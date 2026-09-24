@@ -116,7 +116,7 @@ si falla Bitácora, todo revierte. El detalle contiene únicamente
 `usuarioObjetivoId`. No cambia estado, vigencia, perfil, clave o permisos; no
 revoca JWT existentes ni agrega `must_change_password` o historial.
 
-## Administración de perfiles — Fases 5A, 5B y 5C
+## Administración de perfiles — Fases 5A–5D
 
 F5B tiene el diseño cerrado. F5C está implementada y validada LIVE: desplegó
 seis SP `app24`, mantiene 19 grants `EXECUTE` específicos para SP `app24` y cero
@@ -172,6 +172,15 @@ commands registran, sólo al tener éxito, `PERFIL_CREADO`,
 `PERFIL_ACTUALIZADO`, `PERFIL_ESTADO_CAMBIADO` o
 `PERFIL_PERMISOS_CAMBIADOS`; el detalle nunca contiene JWT, cabeceras,
 credenciales, SQL ni trazas.
+
+### Frontend F5D
+
+La pantalla `/perfiles`, protegida por `PERFILES_ADMINISTRAR`, consume únicamente
+los endpoints anteriores: listado paginado (carga multipágina), catálogo de
+actividades, permisos actuales, creación, cambio de nombre/estado y reemplazo
+total. El catálogo y permisos son de sólo lectura; se evita el PUT si el conjunto
+final no cambió. Los errores usan el traductor seguro existente. F5D no agrega
+contratos backend, SP ni permisos.
 
 ## Bitácora de Administración
 

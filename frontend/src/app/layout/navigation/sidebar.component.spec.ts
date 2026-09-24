@@ -29,13 +29,31 @@ describe('SidebarComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Usuarios');
   });
 
-  it('muestra Usuarios y la ruta administrativa al contar con el permiso', () => {
+  it('muestra Usuarios pero no Perfiles con autoridad de usuarios solamente', () => {
     auth.hasPermission.mockImplementation((permission: string) => permission === 'USUARIOS_ADMINISTRAR');
     const fixture = TestBed.createComponent(SidebarComponent);
     fixture.detectChanges();
 
     const links = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
-        const link = Array.from(links).find((element) => element.textContent?.includes('Usuarios'));
+    const link = Array.from(links).find((element) => element.textContent?.includes('Usuarios'));
     expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/usuarios');
+    expect(fixture.nativeElement.textContent).not.toContain('Perfiles');
+  });
+
+  it('no concede acceso a Perfiles con ACTIVIDADES_ADMINISTRAR solamente', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'ACTIVIDADES_ADMINISTRAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Perfiles');
+  });
+
+  it('muestra Perfiles sólo con PERFILES_ADMINISTRAR', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'PERFILES_ADMINISTRAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+    const links = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+    const link = Array.from(links).find((element) => element.textContent?.includes('Perfiles'));
+    expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/perfiles');
+    expect(fixture.nativeElement.textContent).not.toContain('Usuarios');
   });
 });
