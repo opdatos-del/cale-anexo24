@@ -45,6 +45,20 @@ class ActividadAdministracionControllerWebTest {
     }
 
     @Test
+    void soloUsuariosAdministrarResponde403() throws Exception {
+        mockMvc.perform(get(ENDPOINT)
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("USUARIOS_ADMINISTRAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void soloActividadesAdministrarResponde403() throws Exception {
+        mockMvc.perform(get(ENDPOINT)
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("ACTIVIDADES_ADMINISTRAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void sinAutenticacionResponde401() throws Exception {
         mockMvc.perform(get(ENDPOINT))
                 .andExpect(status().isUnauthorized());
