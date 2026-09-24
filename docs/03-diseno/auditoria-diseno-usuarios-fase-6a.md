@@ -605,3 +605,57 @@ obtener la credencial vigente autorizada del responsable SQL Server y
 configurarla localmente en `APP_DB_PASSWORD`; no compartirla en chat/reporte.
 No rotar password ni probar alternativas en esta fase. Al disponer de
 credencial autorizada, reanudar desde `appDataSource` identity check.
+
+## 22. Seguimiento F6C — runtime real validado en el entorno actual
+
+**Resultado funcional:** `RUNTIME_DATASOURCE_VALIDATED`.
+
+Esta sección supersede las expectativas de identidad runtime descritas en los
+seguimientos F6C anteriores para el entorno actual. El operador confirmó que el
+principal autorizado y utilizado actualmente es `opdatos`; `anexo24_app` y
+`app24_runtime` corresponden al modelo de least privilege versionado/propuesto,
+pero no son la identidad runtime actual de este entorno. No se migró ni modificó
+ningún login, password, rol o grant.
+
+Evidencia manual recibida desde el `appDataSource` real:
+
+- JDBC principal: `opdatos`.
+- Database user: `dbo`.
+- Login: `opdatos`.
+- Catalog: `ANEXO24_DEV`.
+- Conexión funcional: PASS.
+- `APP24_Q_USUARIOS_LISTAR`: PASS, count `1`.
+- `APP24_Q_PERFILES_LISTAR`: PASS, count `2`.
+- Filas personales incluidas en evidencia: 0.
+
+Observación de seguridad de la misma sesión:
+
+- `app24_runtime=0`.
+- `db_owner=1`, `db_datareader=1`, `db_datawriter=1`, `sysadmin=1`.
+- `privileged_runtime_principal=true`.
+
+Interpretación: el runtime funcional y los dos READ smoke tests pasan. La base
+de datos **no aplica least privilege** al principal runtime actual; queda como
+`KNOWN_SECURITY_RISK` / deuda de hardening, no como fallo funcional ni como
+vulnerabilidad explotada. La identidad actual `opdatos` no se cambia en F6C. Una
+futura migración a una cuenta dedicada con EXECUTE específico requiere decisión
+y provisión explícitas.
+
+SP-FIRST sigue siendo una regla de arquitectura independiente de los privilegios
+del login: la aplicación conserva el consumo mediante Stored Procedures y no se
+autoriza acceso funcional directo a tablas. En esta fase no se ejecutaron SP
+WRITE, commands, DML, DDL ni cambios de grants/roles.
+
+Instrumentación temporal `F6cRuntimeGateRunner` retirada después de la evidencia;
+no forma parte del producto ni debe versionarse.
+
+### Backlog de seguridad independiente
+
+- `SECURITY_RUNTIME_LEAST_PRIVILEGE`: evaluar y planificar principal dedicado
+  con permisos mínimos de EXECUTE; no cambiar permisos ni identidad como parte
+  de F6C.
+- `SECURITY_HARDENING_DEFAULT_USER_AUTOCONFIG`: revisar por qué durante
+  `bootRun` aparece la autoconfiguración de `UserDetailsService`, un
+  `InMemoryUserDetailsManager` y una credencial generada de desarrollo, pese al
+  esquema JWT/stateless existente. La credencial observada no se registra ni se
+  reutiliza. No se modificó `SecurityConfig` en F6C.
