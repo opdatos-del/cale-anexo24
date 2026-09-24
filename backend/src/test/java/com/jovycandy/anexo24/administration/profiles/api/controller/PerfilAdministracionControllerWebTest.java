@@ -1,7 +1,12 @@
 package com.jovycandy.anexo24.administration.profiles.api.controller;
 
 import com.jovycandy.anexo24.Anexo24Application;
+import com.jovycandy.anexo24.administration.profiles.application.command.ActualizarNombrePerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.CambiarEstadoPerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.CrearPerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.ReemplazarPermisosPerfilUseCase;
 import com.jovycandy.anexo24.administration.profiles.application.query.ListarPerfilesUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.query.ObtenerPermisosPerfilUseCase;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +22,7 @@ import java.util.List;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Pruebas HTTP y de autorización del listado administrativo de perfiles. */
@@ -28,6 +34,11 @@ class PerfilAdministracionControllerWebTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private ListarPerfilesUseCase useCase;
+    @MockitoBean private CrearPerfilUseCase crearPerfilUseCase;
+    @MockitoBean private ActualizarNombrePerfilUseCase actualizarNombrePerfilUseCase;
+    @MockitoBean private CambiarEstadoPerfilUseCase cambiarEstadoPerfilUseCase;
+    @MockitoBean private ObtenerPermisosPerfilUseCase obtenerPermisosPerfilUseCase;
+    @MockitoBean private ReemplazarPermisosPerfilUseCase reemplazarPermisosPerfilUseCase;
 
     @Test
     void permisoUsuariosAdministrarResponde200() throws Exception {
@@ -51,6 +62,15 @@ class PerfilAdministracionControllerWebTest {
     void sinNingunoDeLosPermisosResponde403() throws Exception {
         mockMvc.perform(get(ENDPOINT)
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("OTRO_PERMISO"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void permisoUsuariosAdministrarNoAutorizaCommandsDePerfiles() throws Exception {
+        mockMvc.perform(post(ENDPOINT)
+                        .contentType("application/json")
+                        .content("{\"nombre\":\"OPERACION\"}")
+                        .with(user("admin").authorities(new SimpleGrantedAuthority("USUARIOS_ADMINISTRAR"))))
                 .andExpect(status().isForbidden());
     }
 

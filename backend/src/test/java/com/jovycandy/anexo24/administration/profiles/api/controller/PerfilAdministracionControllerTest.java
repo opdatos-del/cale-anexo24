@@ -1,7 +1,12 @@
 package com.jovycandy.anexo24.administration.profiles.api.controller;
 
 import com.jovycandy.anexo24.administration.profiles.api.dto.PerfilAdministracionDto;
+import com.jovycandy.anexo24.administration.profiles.application.command.ActualizarNombrePerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.CambiarEstadoPerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.CrearPerfilUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.command.ReemplazarPermisosPerfilUseCase;
 import com.jovycandy.anexo24.administration.profiles.application.query.ListarPerfilesUseCase;
+import com.jovycandy.anexo24.administration.profiles.application.query.ObtenerPermisosPerfilUseCase;
 import com.jovycandy.anexo24.administration.profiles.domain.model.PerfilAdministracion;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,8 +29,12 @@ import static org.mockito.Mockito.when;
 /** Pruebas unitarias del controlador de administración de perfiles. */
 @ExtendWith(MockitoExtension.class)
 class PerfilAdministracionControllerTest {
-
     @Mock private ListarPerfilesUseCase listarPerfilesUseCase;
+    @Mock private CrearPerfilUseCase crearPerfilUseCase;
+    @Mock private ActualizarNombrePerfilUseCase actualizarNombrePerfilUseCase;
+    @Mock private CambiarEstadoPerfilUseCase cambiarEstadoPerfilUseCase;
+    @Mock private ObtenerPermisosPerfilUseCase obtenerPermisosPerfilUseCase;
+    @Mock private ReemplazarPermisosPerfilUseCase reemplazarPermisosPerfilUseCase;
 
     @Test
     void listadoDelegaParametrosYConvierteDominioADto() {
@@ -41,20 +50,19 @@ class PerfilAdministracionControllerTest {
     }
 
     @Test
-    void endpointDeclaraPermisosYDocumentacionRequeridos() throws Exception {
-        Method metodo = PerfilAdministracionController.class.getDeclaredMethod(
-                "listar", String.class, String.class, int.class, int.class);
+    void listadoConservaHasAnyYCommandsExigenSoloPerfilesAdministrar() throws Exception {
+        Method listado = PerfilAdministracionController.class.getDeclaredMethod("listar", String.class, String.class, int.class, int.class);
+        Method crear = PerfilAdministracionController.class.getDeclaredMethod("crear", com.jovycandy.anexo24.administration.profiles.api.dto.CrearPerfilRequest.class, jakarta.servlet.http.HttpServletRequest.class);
 
-        PreAuthorize autorizacion = metodo.getAnnotation(PreAuthorize.class);
-        Operation operation = metodo.getAnnotation(Operation.class);
-
-        assertThat(autorizacion.value())
-                .isEqualTo("hasAnyAuthority('USUARIOS_ADMINISTRAR','PERFILES_ADMINISTRAR')");
-        assertThat(operation.summary()).isEqualTo("Listar perfiles de administración");
-        assertThat(metodo.getAnnotation(ApiResponses.class)).isNotNull();
+        assertThat(listado.getAnnotation(PreAuthorize.class).value()).isEqualTo("hasAnyAuthority('USUARIOS_ADMINISTRAR','PERFILES_ADMINISTRAR')");
+        assertThat(crear.getAnnotation(PreAuthorize.class).value()).isEqualTo("hasAuthority('PERFILES_ADMINISTRAR')");
+        assertThat(listado.getAnnotation(Operation.class).summary()).isEqualTo("Listar perfiles de administración");
+        assertThat(listado.getAnnotation(ApiResponses.class)).isNotNull();
     }
 
     private PerfilAdministracionController controller() {
-        return new PerfilAdministracionController(listarPerfilesUseCase);
+        return new PerfilAdministracionController(listarPerfilesUseCase, crearPerfilUseCase,
+                actualizarNombrePerfilUseCase, cambiarEstadoPerfilUseCase, obtenerPermisosPerfilUseCase,
+                reemplazarPermisosPerfilUseCase);
     }
 }
