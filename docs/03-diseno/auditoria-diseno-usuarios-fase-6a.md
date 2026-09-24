@@ -681,10 +681,12 @@ HTTP local confirmó:
   `password_hash`.
 - Listado sin token y con token inválido devolvieron `401`.
 
-No se ejecutaron commands: POST/PUT/PATCH/reset = 0 y LIVE writes = 0
-(`LIVE_COMMAND_E2E_SKIPPED_NO_SAFE_CLEANUP`). La cobertura de commands se
-mantiene en las suites ya aprobadas. No se realizaron DDL, DML, cambios de SP,
-roles, grants ni logins.
+No se ejecutaron commands de Usuarios: POST/PUT/PATCH/reset = 0
+(`LIVE_COMMAND_E2E_SKIPPED_NO_SAFE_CLEANUP`). El login exitoso registró sus
+propios eventos de Bitácora mediante el flujo ya existente; no se ejecutó DML
+manual ni se alteraron usuarios, perfiles ni datos de negocio. La cobertura de
+commands se mantiene en las suites ya aprobadas. No se realizaron DDL, cambios
+de SP, roles, grants ni logins SQL.
 
 Como verificación complementaria, Bitácora autenticada con rango UTC obligatorio
 respondió `200` y sus filtros `modulo`/`resultado` funcionaron; su listado no
