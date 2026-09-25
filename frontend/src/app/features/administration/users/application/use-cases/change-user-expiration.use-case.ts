@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ChangeUserExpirationCommand, UserAdministration } from '../../domain/models/user-administration.model';
-import { UserRepository } from '../../domain/repositories/user.repository';
+import { ChangeUserExpirationCommand, UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
+import { UserRepository } from '@features/administration/users/domain/repositories/user.repository';
 
 /** Cambia la vigencia de un usuario. */
 @Injectable()

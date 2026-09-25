@@ -1,4 +1,4 @@
-import { ProfileStatus } from '../../../domain/models/profile-administration.model';
+import { ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
 
 /** Perfil según el contrato HTTP V1. */
 export interface ProfileResponseDto {

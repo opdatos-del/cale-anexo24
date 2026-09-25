@@ -1,5 +1,5 @@
-import { Product } from '../../domain/models/product.model';
-import { ProductPage } from '../../domain/repositories/product.repository';
+import { Product } from '@features/catalogs/products/domain/models/product.model';
+import { ProductPage } from '@features/catalogs/products/domain/repositories/product.repository';
 import { ProductPageResponseDto, ProductResponseDto } from '../dto/product-response.dto';
 
 export const ProductMapper = {

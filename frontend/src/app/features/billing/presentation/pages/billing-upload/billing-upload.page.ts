@@ -3,8 +3,8 @@ import { Component, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { EMPTY, catchError, finalize } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
-import { UploadBillingFilesUseCase } from '../../../application/use-cases/upload-billing-files.use-case';
-import { BillingLoad, BillingUploadResponse } from '../../../domain/models/billing-upload.model';
+import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
+import { BillingLoad, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;

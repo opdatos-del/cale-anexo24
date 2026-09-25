@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditLogSearchCriteria } from '../../domain/models/audit-log.model';
+import { AuditLogSearchCriteria } from '@features/administration/audit-log/domain/models/audit-log.model';
 import { AuditLogPageResponseDto } from './dto/audit-log.dto';
 
 /** Adaptador HTTP del contrato V1 de Bitácora. */

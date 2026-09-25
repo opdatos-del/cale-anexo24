@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UsedMaterialPage, UsedMaterialSearchCriteria } from '../../domain/models/used-material.model';
-import { UsedMaterialRepository } from '../../domain/repositories/used-material.repository';
+import { UsedMaterialPage, UsedMaterialSearchCriteria } from '@features/operations/usedmaterials/domain/models/used-material.model';
+import { UsedMaterialRepository } from '@features/operations/usedmaterials/domain/repositories/used-material.repository';
 
 /** Caso de uso de consulta paginada de materiales utilizados. */
 @Injectable({ providedIn: 'root' })

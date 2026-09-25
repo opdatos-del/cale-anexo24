@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { ProductApi } from '../api/product.api';
 import { ProductMapper } from '../mappers/product.mapper';
-import { ProductPage, ProductRepository, ProductSearchCriteria } from '../../domain/repositories/product.repository';
+import { ProductPage, ProductRepository, ProductSearchCriteria } from '@features/catalogs/products/domain/repositories/product.repository';
 
 /** Implementación HTTP del puerto de productos. */
 @Injectable()

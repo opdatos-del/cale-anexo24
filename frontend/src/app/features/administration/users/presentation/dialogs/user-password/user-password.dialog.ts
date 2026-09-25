@@ -7,11 +7,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
-import { ResetUserPasswordUseCase } from '../../../application/use-cases/reset-user-password.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
-import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '../../../domain/validation/password.validation';
+import { ResetUserPasswordUseCase } from '@features/administration/users/application/use-cases/reset-user-password.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
+import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '@features/administration/users/domain/validation/password.validation';
 
-export { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '../../../domain/validation/password.validation';
+export { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '@features/administration/users/domain/validation/password.validation';
 
 /** Restablece una contraseña aplicando la política de seguridad. */
 @Component({

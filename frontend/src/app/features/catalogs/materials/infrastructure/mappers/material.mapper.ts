@@ -1,5 +1,5 @@
-import { Material } from '../../domain/models/material.model';
-import { MaterialPage } from '../../domain/repositories/material.repository';
+import { Material } from '@features/catalogs/materials/domain/models/material.model';
+import { MaterialPage } from '@features/catalogs/materials/domain/repositories/material.repository';
 import { MaterialPageResponseDto, MaterialResponseDto } from '../dto/material-response.dto';
 
 export const MaterialMapper = {

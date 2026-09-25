@@ -8,8 +8,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
-import { ChangeUserExpirationUseCase } from '../../../application/use-cases/change-user-expiration.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { ChangeUserExpirationUseCase } from '@features/administration/users/application/use-cases/change-user-expiration.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 
 /** Convierte una fecha local a la fecha civil esperada por el backend. */
 export function toLocalDate(value: Date | null): string | null {

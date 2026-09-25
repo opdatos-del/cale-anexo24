@@ -1,5 +1,5 @@
-import { EntryLine } from '../../domain/models/entry-line.model';
-import { EntryPage } from '../../domain/repositories/entry.repository';
+import { EntryLine } from '@features/operations/entries/domain/models/entry-line.model';
+import { EntryPage } from '@features/operations/entries/domain/repositories/entry.repository';
 import { EntryPageResponseDto, EntryResponseDto } from '../dto/entry-response.dto';
 
 export const EntryMapper = {

@@ -24,8 +24,8 @@ import {
   FixedAsset,
   FixedAssetPage,
   FixedAssetSearchCriteria,
-} from '../../../domain/models/fixed-asset.model';
-import { SearchFixedAssetsUseCase } from '../../../application/use-cases/search-fixed-assets.use-case';
+} from '@features/operations/fixed-assets/domain/models/fixed-asset.model';
+import { SearchFixedAssetsUseCase } from '@features/operations/fixed-assets/application/use-cases/search-fixed-assets.use-case';
 
 interface FixedAssetSearchResult {
   requestId: number;

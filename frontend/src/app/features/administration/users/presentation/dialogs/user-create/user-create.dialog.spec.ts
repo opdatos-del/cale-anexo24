@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationService } from '../../../../../../core/notifications/notification.service';
-import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
-import { CreateUserUseCase } from '../../../application/use-cases/create-user.use-case';
+import { NotificationService } from '@core/notifications/notification.service';
+import { LoadAllProfilesUseCase } from '@features/administration/profiles/application/use-cases/load-all-profiles.use-case';
+import { CreateUserUseCase } from '@features/administration/users/application/use-cases/create-user.use-case';
 import { UserCreateDialog } from './user-create.dialog';
 
 interface CreateDialogInternals {

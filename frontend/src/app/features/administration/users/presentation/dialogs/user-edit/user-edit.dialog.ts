@@ -6,8 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
-import { UpdateUserUseCase } from '../../../application/use-cases/update-user.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { UpdateUserUseCase } from '@features/administration/users/application/use-cases/update-user.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 
 /** Edita exclusivamente nombre y correo. */
 @Component({

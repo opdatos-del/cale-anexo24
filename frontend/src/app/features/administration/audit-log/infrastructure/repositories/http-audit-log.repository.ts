@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { AuditLogPage, AuditLogSearchCriteria } from '../../domain/models/audit-log.model';
-import { AuditLogRepository } from '../../domain/repositories/audit-log.repository';
+import { AuditLogPage, AuditLogSearchCriteria } from '@features/administration/audit-log/domain/models/audit-log.model';
+import { AuditLogRepository } from '@features/administration/audit-log/domain/repositories/audit-log.repository';
 import { AuditLogApiService } from '../api/audit-log-api.service';
 import { AuditLogMapper } from '../api/mappers/audit-log.mapper';
 

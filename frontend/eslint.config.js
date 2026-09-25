@@ -31,6 +31,17 @@ module.exports = defineConfig([
           style: 'kebab-case',
         },
       ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(?:\\.\\./){2,}',
+              message: 'Usa aliases estructurales para imports con dos o más niveles relativos.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

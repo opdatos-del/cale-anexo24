@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { FixedAssetSearchCriteria } from '../../domain/models/fixed-asset.model';
+import { FixedAssetSearchCriteria } from '@features/operations/fixed-assets/domain/models/fixed-asset.model';
 import { FixedAssetPageResponseDto } from './dto/fixed-asset.dto';
 
 /** Adaptador HTTP del contrato V1 de activos fijos. */

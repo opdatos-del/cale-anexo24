@@ -16,18 +16,18 @@ import { debounceTime, distinctUntilChanged, merge } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
-import { ChangeUserStatusUseCase } from '../../../application/use-cases/change-user-status.use-case';
+import { ChangeUserStatusUseCase } from '@features/administration/users/application/use-cases/change-user-status.use-case';
 
-import { GetUserUseCase } from '../../../application/use-cases/get-user.use-case';
-import { SearchUsersUseCase } from '../../../application/use-cases/search-users.use-case';
-import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
-import { ProfileAdministration } from '../../../../profiles/domain/models/profile-administration.model';
-import { UserAdministration, UserStatus } from '../../../domain/models/user-administration.model';
-import { UserCreateDialog } from '../../dialogs/user-create/user-create.dialog';
-import { UserEditDialog } from '../../dialogs/user-edit/user-edit.dialog';
-import { UserExpirationDialog } from '../../dialogs/user-expiration/user-expiration.dialog';
-import { UserPasswordDialog } from '../../dialogs/user-password/user-password.dialog';
-import { UserProfileDialog } from '../../dialogs/user-profile/user-profile.dialog';
+import { GetUserUseCase } from '@features/administration/users/application/use-cases/get-user.use-case';
+import { SearchUsersUseCase } from '@features/administration/users/application/use-cases/search-users.use-case';
+import { LoadAllProfilesUseCase } from '@features/administration/profiles/application/use-cases/load-all-profiles.use-case';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { UserAdministration, UserStatus } from '@features/administration/users/domain/models/user-administration.model';
+import { UserCreateDialog } from '@features/administration/users/presentation/dialogs/user-create/user-create.dialog';
+import { UserEditDialog } from '@features/administration/users/presentation/dialogs/user-edit/user-edit.dialog';
+import { UserExpirationDialog } from '@features/administration/users/presentation/dialogs/user-expiration/user-expiration.dialog';
+import { UserPasswordDialog } from '@features/administration/users/presentation/dialogs/user-password/user-password.dialog';
+import { UserProfileDialog } from '@features/administration/users/presentation/dialogs/user-profile/user-profile.dialog';
 
 /** Formatea una fecha civil sin conversiones de zona horaria. */
 export function formatExpiration(value: string | null): string {

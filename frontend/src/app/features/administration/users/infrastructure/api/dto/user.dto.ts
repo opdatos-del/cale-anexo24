@@ -1,4 +1,4 @@
-import { UserStatus } from '../../../domain/models/user-administration.model';
+import { UserStatus } from '@features/administration/users/domain/models/user-administration.model';
 
 /** Usuario según el contrato HTTP V1. */
 export interface UserResponseDto {

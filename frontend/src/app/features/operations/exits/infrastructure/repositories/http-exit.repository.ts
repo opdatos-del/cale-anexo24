@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { ExitPage, ExitRepository } from '../../domain/repositories/exit.repository';
+import { ExitPage, ExitRepository } from '@features/operations/exits/domain/repositories/exit.repository';
 import { ExitApi } from '../api/exit.api';
 import { ExitMapper } from '../mappers/exit.mapper';
 

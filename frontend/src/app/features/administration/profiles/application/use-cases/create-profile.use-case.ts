@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ProfileAdministration } from '../../domain/models/profile-administration.model';
-import { ProfileRepository } from '../../domain/repositories/profile.repository';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ProfileRepository } from '@features/administration/profiles/domain/repositories/profile.repository';
 
 /** Crea perfil con nombre; backend asigna ACTIVO y cero permisos. */
 @Injectable()

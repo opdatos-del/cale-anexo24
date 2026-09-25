@@ -1,4 +1,4 @@
-import { AuditLogModule, AuditLogResult } from '../../../domain/models/audit-log.model';
+import { AuditLogModule, AuditLogResult } from '@features/administration/audit-log/domain/models/audit-log.model';
 
 /** Evento de Bitácora tal como lo devuelve el contrato HTTP V1. */
 export interface AuditLogEntryResponseDto {

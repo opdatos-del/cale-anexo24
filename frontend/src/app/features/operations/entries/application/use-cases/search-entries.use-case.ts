@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { EntryPage, EntryRepository } from '../../domain/repositories/entry.repository';
+import { EntryPage, EntryRepository } from '@features/operations/entries/domain/repositories/entry.repository';
 
 /** Caso de uso de consulta paginada de líneas de entrada. */
 @Injectable({ providedIn: 'root' })

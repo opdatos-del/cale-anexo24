@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { UsedMaterialPage, UsedMaterialSearchCriteria } from '../../domain/models/used-material.model';
-import { UsedMaterialRepository } from '../../domain/repositories/used-material.repository';
+import { UsedMaterialPage, UsedMaterialSearchCriteria } from '@features/operations/usedmaterials/domain/models/used-material.model';
+import { UsedMaterialRepository } from '@features/operations/usedmaterials/domain/repositories/used-material.repository';
 import { UsedMaterialApiService } from '../api/used-material-api.service';
 import { UsedMaterialMapper } from '../api/mappers/used-material.mapper';
 

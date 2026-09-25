@@ -1,4 +1,4 @@
-import { ProfileAdministration, ProfilePage } from '../../../domain/models/profile-administration.model';
+import { ProfileAdministration, ProfilePage } from '@features/administration/profiles/domain/models/profile-administration.model';
 import { ProfilePageResponseDto, ProfileResponseDto } from '../dto/profile.dto';
 
 /** Traduce entre el contrato HTTP y el dominio de perfiles. */

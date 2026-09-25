@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { ReportPage, ReportSearchCriteria } from '../../domain/models/report.model';
-import { ReportRepository } from '../../domain/repositories/report.repository';
+import { ReportPage, ReportSearchCriteria } from '@features/reports/domain/models/report.model';
+import { ReportRepository } from '@features/reports/domain/repositories/report.repository';
 import { ReportApiService } from '../api/report-api.service';
 import { ReportMapper } from '../api/report.mapper';
 

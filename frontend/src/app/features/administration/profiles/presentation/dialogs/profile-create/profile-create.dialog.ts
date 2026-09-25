@@ -6,8 +6,8 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { userFacingApiError } from '@core/http/api-error.util';
-import { CreateProfileUseCase } from '../../../application/use-cases/create-profile.use-case';
-import { ProfileAdministration } from '../../../domain/models/profile-administration.model';
+import { CreateProfileUseCase } from '@features/administration/profiles/application/use-cases/create-profile.use-case';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
 
 /** Dialog de creación de perfil, sin asignación implícita de permisos. */
 @Component({

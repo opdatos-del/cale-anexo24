@@ -3,9 +3,9 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationService } from '../../../../../../core/notifications/notification.service';
-import { UpdateUserUseCase } from '../../../application/use-cases/update-user.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { NotificationService } from '@core/notifications/notification.service';
+import { UpdateUserUseCase } from '@features/administration/users/application/use-cases/update-user.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 import { UserEditDialog } from './user-edit.dialog';
 
 interface EditDialogInternals {

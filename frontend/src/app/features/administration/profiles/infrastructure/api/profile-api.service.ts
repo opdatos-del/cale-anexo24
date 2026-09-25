@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ProfileSearchCriteria, ProfileStatus } from '../../domain/models/profile-administration.model';
+import { ProfileSearchCriteria, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
 import { ProfilePageResponseDto, ProfileResponseDto } from './dto/profile.dto';
 import {
   ProfileActivityResponseDto,

@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { appConfig } from '../../../../../app.config';
-import { UploadBillingFilesUseCase } from '../../../application/use-cases/upload-billing-files.use-case';
-import { BillingRepository } from '../../../domain/repositories/billing.repository';
-import { HttpBillingRepository } from '../../../infrastructure/repositories/http-billing.repository';
+import { appConfig } from '@app/app.config';
+import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
+import { BillingRepository } from '@features/billing/domain/repositories/billing.repository';
+import { HttpBillingRepository } from '@features/billing/infrastructure/repositories/http-billing.repository';
 import { BillingUploadPage } from './billing-upload.page';
 
 describe('BillingUploadPage', () => {

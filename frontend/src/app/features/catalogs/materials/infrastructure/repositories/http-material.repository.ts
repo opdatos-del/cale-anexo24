@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { MaterialApi } from '../api/material.api';
 import { MaterialMapper } from '../mappers/material.mapper';
-import { MaterialPage, MaterialRepository, MaterialSearchCriteria } from '../../domain/repositories/material.repository';
+import { MaterialPage, MaterialRepository, MaterialSearchCriteria } from '@features/catalogs/materials/domain/repositories/material.repository';
 
 /** Implementación HTTP del puerto de materiales. */
 @Injectable()

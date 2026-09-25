@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
-import { ProfileAdministration, ProfilePage, ProfileSearchCriteria, ProfileStatus } from '../../domain/models/profile-administration.model';
-import { ProfileActivity, ProfilePermissions } from '../../domain/models/profile-permission.model';
-import { ProfileRepository } from '../../domain/repositories/profile.repository';
+import { ProfileAdministration, ProfilePage, ProfileSearchCriteria, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ProfileActivity, ProfilePermissions } from '@features/administration/profiles/domain/models/profile-permission.model';
+import { ProfileRepository } from '@features/administration/profiles/domain/repositories/profile.repository';
 import { ProfileApiService } from '../api/profile-api.service';
 import { ProfileMapper } from '../api/mappers/profile.mapper';
 import { ProfileManagementMapper } from '../api/mappers/profile-management.mapper';

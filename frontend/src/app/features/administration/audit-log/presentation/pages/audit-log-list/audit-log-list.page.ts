@@ -19,8 +19,8 @@ import {
   AuditLogPage,
   AuditLogResult,
   AuditLogSearchCriteria,
-} from '../../../domain/models/audit-log.model';
-import { SearchAuditLogUseCase } from '../../../application/use-cases/search-audit-log.use-case';
+} from '@features/administration/audit-log/domain/models/audit-log.model';
+import { SearchAuditLogUseCase } from '@features/administration/audit-log/application/use-cases/search-audit-log.use-case';
 
 /** Combina fecha local y hora local en un instante absoluto. */
 export function buildInstant(date: Date | null, time: string | null, endOfSecond = false): Date | null {

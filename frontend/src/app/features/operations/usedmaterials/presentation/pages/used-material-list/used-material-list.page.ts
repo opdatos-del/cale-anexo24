@@ -24,8 +24,8 @@ import {
   UsedMaterial,
   UsedMaterialPage,
   UsedMaterialSearchCriteria,
-} from '../../../domain/models/used-material.model';
-import { SearchUsedMaterialsUseCase } from '../../../application/use-cases/search-used-materials.use-case';
+} from '@features/operations/usedmaterials/domain/models/used-material.model';
+import { SearchUsedMaterialsUseCase } from '@features/operations/usedmaterials/application/use-cases/search-used-materials.use-case';
 
 interface UsedMaterialSearchResult {
   requestId: number;

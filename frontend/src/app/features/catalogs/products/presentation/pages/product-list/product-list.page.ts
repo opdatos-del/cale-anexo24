@@ -8,8 +8,8 @@ import { MatTableModule } from '@angular/material/table';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
-import { Product } from '../../../domain/models/product.model';
-import { SearchProductsUseCase } from '../../../application/use-cases/search-products.use-case';
+import { Product } from '@features/catalogs/products/domain/models/product.model';
+import { SearchProductsUseCase } from '@features/catalogs/products/application/use-cases/search-products.use-case';
 
 /** Consulta del catálogo de productos terminados. */
 @Component({

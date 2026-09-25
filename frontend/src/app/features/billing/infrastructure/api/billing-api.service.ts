@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { BillingUploadResponse } from '../../domain/models/billing-upload.model';
+import { BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
 
 @Injectable({ providedIn: 'root' })
 export class BillingApiService {

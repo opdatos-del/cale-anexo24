@@ -1,4 +1,4 @@
-import { ReportPage, ReportRow } from '../../domain/models/report.model';
+import { ReportPage, ReportRow } from '@features/reports/domain/models/report.model';
 
 interface ReportPageResponseDto {
   items: ReportRow[];

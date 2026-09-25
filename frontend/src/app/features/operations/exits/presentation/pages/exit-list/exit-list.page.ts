@@ -16,9 +16,9 @@ import {
   OperationPeriod,
   OperationPeriodFilterComponent,
 } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
-import { ExitLine } from '../../../domain/models/exit-line.model';
-import { ExitPage } from '../../../domain/repositories/exit.repository';
-import { SearchExitsUseCase } from '../../../application/use-cases/search-exits.use-case';
+import { ExitLine } from '@features/operations/exits/domain/models/exit-line.model';
+import { ExitPage } from '@features/operations/exits/domain/repositories/exit.repository';
+import { SearchExitsUseCase } from '@features/operations/exits/application/use-cases/search-exits.use-case';
 
 interface ExitSearchResult {
   requestId: number;

@@ -10,11 +10,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
-import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
-import { ProfileAdministration } from '../../../../profiles/domain/models/profile-administration.model';
-import { CreateUserUseCase } from '../../../application/use-cases/create-user.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
-import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '../../../domain/validation/password.validation';
+import { LoadAllProfilesUseCase } from '@features/administration/profiles/application/use-cases/load-all-profiles.use-case';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { CreateUserUseCase } from '@features/administration/users/application/use-cases/create-user.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
+import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '@features/administration/users/domain/validation/password.validation';
 import { toLocalDate } from '../user-expiration/user-expiration.dialog';
 
 

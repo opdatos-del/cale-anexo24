@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { MaterialPage, MaterialRepository, MaterialSearchCriteria } from '../../domain/repositories/material.repository';
+import { MaterialPage, MaterialRepository, MaterialSearchCriteria } from '@features/catalogs/materials/domain/repositories/material.repository';
 
 /** Caso de uso de consulta paginada del catálogo. */
 @Injectable({ providedIn: 'root' })

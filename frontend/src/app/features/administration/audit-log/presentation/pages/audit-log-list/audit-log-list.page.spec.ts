@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { NotificationService } from '@core/notifications/notification.service';
-import { SearchAuditLogUseCase } from '../../../application/use-cases/search-audit-log.use-case';
+import { SearchAuditLogUseCase } from '@features/administration/audit-log/application/use-cases/search-audit-log.use-case';
 import { AuditLogListPage } from './audit-log-list.page';
 
 describe('AuditLogListPage', () => {

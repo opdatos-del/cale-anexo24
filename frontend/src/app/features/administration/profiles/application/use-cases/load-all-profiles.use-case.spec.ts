@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProfilePage } from '../../domain/models/profile-administration.model';
-import { ProfileRepository } from '../../domain/repositories/profile.repository';
+import { ProfilePage } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ProfileRepository } from '@features/administration/profiles/domain/repositories/profile.repository';
 import { LoadAllProfilesUseCase } from './load-all-profiles.use-case';
 
 const page = (items: ProfilePage['items'], total: number, number: number): ProfilePage => ({

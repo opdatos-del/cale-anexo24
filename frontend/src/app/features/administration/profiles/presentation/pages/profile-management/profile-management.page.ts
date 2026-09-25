@@ -14,16 +14,16 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
-import { ChangeProfileStatusUseCase } from '../../../application/use-cases/change-profile-status.use-case';
-import { CreateProfileUseCase } from '../../../application/use-cases/create-profile.use-case';
-import { GetProfilePermissionsUseCase } from '../../../application/use-cases/get-profile-permissions.use-case';
-import { ListProfileActivitiesUseCase } from '../../../application/use-cases/list-profile-activities.use-case';
-import { LoadAllProfilesUseCase } from '../../../application/use-cases/load-all-profiles.use-case';
-import { ReplaceProfilePermissionsUseCase } from '../../../application/use-cases/replace-profile-permissions.use-case';
-import { UpdateProfileNameUseCase } from '../../../application/use-cases/update-profile-name.use-case';
-import { ProfileActivity, ProfilePermissions } from '../../../domain/models/profile-permission.model';
-import { ProfileAdministration, ProfileStatus } from '../../../domain/models/profile-administration.model';
-import { ProfileCreateDialog } from '../../dialogs/profile-create/profile-create.dialog';
+import { ChangeProfileStatusUseCase } from '@features/administration/profiles/application/use-cases/change-profile-status.use-case';
+import { CreateProfileUseCase } from '@features/administration/profiles/application/use-cases/create-profile.use-case';
+import { GetProfilePermissionsUseCase } from '@features/administration/profiles/application/use-cases/get-profile-permissions.use-case';
+import { ListProfileActivitiesUseCase } from '@features/administration/profiles/application/use-cases/list-profile-activities.use-case';
+import { LoadAllProfilesUseCase } from '@features/administration/profiles/application/use-cases/load-all-profiles.use-case';
+import { ReplaceProfilePermissionsUseCase } from '@features/administration/profiles/application/use-cases/replace-profile-permissions.use-case';
+import { UpdateProfileNameUseCase } from '@features/administration/profiles/application/use-cases/update-profile-name.use-case';
+import { ProfileActivity, ProfilePermissions } from '@features/administration/profiles/domain/models/profile-permission.model';
+import { ProfileAdministration, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ProfileCreateDialog } from '@features/administration/profiles/presentation/dialogs/profile-create/profile-create.dialog';
 
 /** Administración de perfiles, estado y conjunto final de permisos. */
 @Component({

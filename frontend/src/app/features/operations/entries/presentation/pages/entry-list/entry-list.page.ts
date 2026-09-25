@@ -16,9 +16,9 @@ import {
   OperationPeriod,
   OperationPeriodFilterComponent,
 } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
-import { EntryLine } from '../../../domain/models/entry-line.model';
-import { EntryPage } from '../../../domain/repositories/entry.repository';
-import { SearchEntriesUseCase } from '../../../application/use-cases/search-entries.use-case';
+import { EntryLine } from '@features/operations/entries/domain/models/entry-line.model';
+import { EntryPage } from '@features/operations/entries/domain/repositories/entry.repository';
+import { SearchEntriesUseCase } from '@features/operations/entries/application/use-cases/search-entries.use-case';
 
 interface EntrySearchResult {
   requestId: number;

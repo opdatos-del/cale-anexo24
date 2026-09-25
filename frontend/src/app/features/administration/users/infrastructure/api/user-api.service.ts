@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UserSearchCriteria } from '../../domain/models/user-administration.model';
+import { UserSearchCriteria } from '@features/administration/users/domain/models/user-administration.model';
 import {
   ChangeUserExpirationRequestDto,
   ChangeUserProfileRequestDto,

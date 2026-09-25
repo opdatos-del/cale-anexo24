@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ReportSearchCriteria } from '../../domain/models/report.model';
+import { ReportSearchCriteria } from '@features/reports/domain/models/report.model';
 import { ReportApiService } from './report-api.service';
 
 const criteria: ReportSearchCriteria = {

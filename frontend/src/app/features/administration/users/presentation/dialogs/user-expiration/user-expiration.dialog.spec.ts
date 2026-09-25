@@ -2,9 +2,9 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationService } from '../../../../../../core/notifications/notification.service';
-import { ChangeUserExpirationUseCase } from '../../../application/use-cases/change-user-expiration.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { NotificationService } from '@core/notifications/notification.service';
+import { ChangeUserExpirationUseCase } from '@features/administration/users/application/use-cases/change-user-expiration.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 import { UserExpirationDialog, toLocalDate } from './user-expiration.dialog';
 
 interface ExpirationDialogInternals {

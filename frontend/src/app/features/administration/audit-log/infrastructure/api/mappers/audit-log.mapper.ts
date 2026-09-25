@@ -1,4 +1,4 @@
-import { AuditLogEntry, AuditLogPage } from '../../../domain/models/audit-log.model';
+import { AuditLogEntry, AuditLogPage } from '@features/administration/audit-log/domain/models/audit-log.model';
 import { AuditLogPageResponseDto, AuditLogEntryResponseDto } from '../dto/audit-log.dto';
 
 /** Mapea el contrato HTTP de Bitácora al dominio frontend. */

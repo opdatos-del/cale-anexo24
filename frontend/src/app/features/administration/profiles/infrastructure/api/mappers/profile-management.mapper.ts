@@ -1,5 +1,5 @@
-import { ProfileActivity, ProfilePermissions } from '../../../domain/models/profile-permission.model';
-import { ProfileAdministration } from '../../../domain/models/profile-administration.model';
+import { ProfileActivity, ProfilePermissions } from '@features/administration/profiles/domain/models/profile-permission.model';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
 import {
   ProfileActivityResponseDto,
   ProfilePermissionsResponseDto,

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CreateUserCommand, UserAdministration } from '../../domain/models/user-administration.model';
-import { UserRepository } from '../../domain/repositories/user.repository';
+import { CreateUserCommand, UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
+import { UserRepository } from '@features/administration/users/domain/repositories/user.repository';
 
 /** Crea un usuario administrativo con datos validados por la presentación y backend. */
 @Injectable()

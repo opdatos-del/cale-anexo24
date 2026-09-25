@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UsedMaterialSearchCriteria } from '../../domain/models/used-material.model';
+import { UsedMaterialSearchCriteria } from '@features/operations/usedmaterials/domain/models/used-material.model';
 import { UsedMaterialPageResponseDto } from './dto/used-material.dto';
 
 /** Adaptador HTTP del contrato V1 de materiales utilizados. */

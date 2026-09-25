@@ -10,8 +10,8 @@ import {
   UserAdministration,
   UserPage,
   UserSearchCriteria,
-} from '../../domain/models/user-administration.model';
-import { UserRepository } from '../../domain/repositories/user.repository';
+} from '@features/administration/users/domain/models/user-administration.model';
+import { UserRepository } from '@features/administration/users/domain/repositories/user.repository';
 import { UserApiService } from '../api/user-api.service';
 import { UserMapper } from '../api/mappers/user.mapper';
 

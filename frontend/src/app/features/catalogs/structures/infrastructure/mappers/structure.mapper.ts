@@ -1,5 +1,5 @@
-import { StructureLine } from '../../domain/models/structure-line.model';
-import { StructurePage } from '../../domain/repositories/structure.repository';
+import { StructureLine } from '@features/catalogs/structures/domain/models/structure-line.model';
+import { StructurePage } from '@features/catalogs/structures/domain/repositories/structure.repository';
 import { StructurePageResponseDto, StructureResponseDto } from '../dto/structure-response.dto';
 
 export const StructureMapper = {

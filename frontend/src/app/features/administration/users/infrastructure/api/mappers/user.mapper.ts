@@ -7,7 +7,7 @@ import {
   UpdateUserCommand,
   UserAdministration,
   UserPage,
-} from '../../../domain/models/user-administration.model';
+} from '@features/administration/users/domain/models/user-administration.model';
 import {
   ChangeUserExpirationRequestDto,
   ChangeUserProfileRequestDto,

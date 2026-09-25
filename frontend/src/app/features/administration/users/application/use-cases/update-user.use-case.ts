@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UpdateUserCommand, UserAdministration } from '../../domain/models/user-administration.model';
-import { UserRepository } from '../../domain/repositories/user.repository';
+import { UpdateUserCommand, UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
+import { UserRepository } from '@features/administration/users/domain/repositories/user.repository';
 
 /** Actualiza nombre y correo de un usuario. */
 @Injectable()

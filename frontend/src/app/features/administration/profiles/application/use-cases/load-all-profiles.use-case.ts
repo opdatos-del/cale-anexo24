@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, Observable, defer, expand, map, reduce } from 'rxjs';
-import { ProfileAdministration, ProfilePage, ProfileStatus } from '../../domain/models/profile-administration.model';
-import { ProfileRepository } from '../../domain/repositories/profile.repository';
+import { ProfileAdministration, ProfilePage, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ProfileRepository } from '@features/administration/profiles/domain/repositories/profile.repository';
 
 const MAX_PAGE_SIZE = 100;
 

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 import { SidebarComponent } from './sidebar.component';
 
 describe('SidebarComponent', () => {

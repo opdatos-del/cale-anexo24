@@ -3,8 +3,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MatDialogRef } from '@angular/material/dialog';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CreateProfileUseCase } from '../../../application/use-cases/create-profile.use-case';
-import { ProfileAdministration } from '../../../domain/models/profile-administration.model';
+import { CreateProfileUseCase } from '@features/administration/profiles/application/use-cases/create-profile.use-case';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
 import { ProfileCreateDialog } from './profile-create.dialog';
 
 interface DialogInternals { name: { setValue(value: string): void; markAsTouched(): void }; save(): void; saving(): boolean; error(): string | null }

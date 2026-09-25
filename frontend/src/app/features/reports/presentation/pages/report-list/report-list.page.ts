@@ -12,9 +12,9 @@ import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { formatLocalDateForApi, formatOperationDate, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
-import { ExportReportUseCase } from '../../../application/use-cases/export-report.use-case';
-import { SearchReportUseCase } from '../../../application/use-cases/search-report.use-case';
-import { ReportRow, ReportSearchCriteria, ReportType } from '../../../domain/models/report.model';
+import { ExportReportUseCase } from '@features/reports/application/use-cases/export-report.use-case';
+import { SearchReportUseCase } from '@features/reports/application/use-cases/search-report.use-case';
+import { ReportRow, ReportSearchCriteria, ReportType } from '@features/reports/domain/models/report.model';
 
 interface ReportOption {
   type: ReportType | 'saldos';

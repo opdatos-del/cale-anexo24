@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ReportRow, ReportSearchCriteria } from '../../domain/models/report.model';
+import { ReportRow, ReportSearchCriteria } from '@features/reports/domain/models/report.model';
 
 interface ReportPageResponseDto {
   items: ReportRow[];

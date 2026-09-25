@@ -7,10 +7,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
-import { LoadAllProfilesUseCase } from '../../../../profiles/application/use-cases/load-all-profiles.use-case';
-import { ProfileAdministration } from '../../../../profiles/domain/models/profile-administration.model';
-import { ChangeUserProfileUseCase } from '../../../application/use-cases/change-user-profile.use-case';
-import { UserAdministration } from '../../../domain/models/user-administration.model';
+import { LoadAllProfilesUseCase } from '@features/administration/profiles/application/use-cases/load-all-profiles.use-case';
+import { ProfileAdministration } from '@features/administration/profiles/domain/models/profile-administration.model';
+import { ChangeUserProfileUseCase } from '@features/administration/users/application/use-cases/change-user-profile.use-case';
+import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 
 /** Cambia el perfil de un usuario por uno que se encuentre activo. */
 @Component({
