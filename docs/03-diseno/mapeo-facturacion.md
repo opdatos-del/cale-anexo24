@@ -343,11 +343,40 @@ retención. Esos elementos dependen de los pendientes siguientes.
    contradicción API/DDL de lote no persistido frente a `CargaFacturacion`.
 8. Definir fuente canónica y retención de bitácora para confirmaciones.
 
-## 16. Restricciones cumplidas
+## 16. Actualización de implementación V1 (2026-09-25)
 
-- Cero backend, frontend o SQL persistente modificados.
-- Cero cargas, inserciones de factura, altas de producto/cliente o cambios a
-  `PSALIDAS`.
-- Cero procedimientos legacy ejecutados.
-- Cero bypass TLS, credenciales expuestas o consultas a SQL Server.
-- Cero PR, merge o code review automático.
+Esta sección supersede las declaraciones de alcance/estado de implementación
+anteriores; las secciones previas documentan auditoría y decisiones de diseño.
+
+- `POST /api/v1/facturacion/cargas` está implementado para archivos `.xls` y
+  `.xlsx`, con límites de 5 archivos, 10 MiB por archivo y 50 MiB por lote.
+- La respuesta entrega preview, errores estructurados, fingerprint SHA-256 y
+  estado de validación. La definición de columnas sigue provisional porque no
+  existe plantilla activa verificada.
+- `FACTURACION_CARGAR` está exigido en backend. No se implementó confirmación ni
+  botón funcional de guardar; permanece `FACTURACION_CONFIRM_PENDING_LEGACY_CONTRACT`.
+- Staging/errores se escriben mediante SP versionados en `ANEXO24_DEV`; evento
+  de bitácora sólo contiene metadata de carga. No se guarda el workbook.
+- Verificación LIVE posterior a una carga sintética: `DB_NAME() = ANEXO24_DEV`,
+  `CargaFacturacion = 1`, `ErrorCarga = 0`, `ConfiguracionPlantilla = 0`,
+  plantillas activas `= 0`, eventos de FACTURACION `= 1`. Se verificaron PK,
+  índices únicos y FKs esperadas. La fila es evidencia sintética de staging;
+  no eliminarla porque su evento asociado forma parte de bitácora inmutable.
+- La carga sintética no escribió datos operativos: escrituras en `CALE_IMMEX`
+  `= 0`; ningún procedimiento legacy mutable se ejecutó.
+- Smoke HTTP: login `200`, upload XLSX sintético válido `200`, extensión
+  inválida `400`, sin token `401`, token inválido `401`. Pruebas automatizadas
+  cubren `401`, `403` para otra authority y acceso a validación con
+  `FACTURACION_CARGAR`.
+- UI `/facturacion` está implementada. No hay descarga de plantilla ni
+  confirmación; se comunica que la plantilla V1 es provisional.
+- Reglas de headers obligatorios, catálogos, formato oficial y semántica de
+  negocio no se inventan: pendientes de validación funcional.
+
+## 17. Restricciones cumplidas
+
+- Implementación V1 limitada a carga, validación, preview y staging de aplicación.
+- Cero cargas operativas, inserciones de factura, altas de producto/cliente o
+  cambios a `PSALIDAS` en `CALE_IMMEX`.
+- Cero procedimientos legacy ejecutados y cero cambios al esquema legacy.
+- No se persisten credenciales, JWT ni archivos XLS/XLSX.
