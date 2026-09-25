@@ -21,6 +21,13 @@ describe('rutas de la aplicación', () => {
     expect(profiles?.loadChildren).toBeTypeOf('function');
   });
 
+  it('declara Facturación con la autoridad exacta de carga', () => {
+    const layout = routes.find((route) => route.path === '');
+    const billing = layout?.children?.find((route) => route.path === 'facturacion');
+    expect(billing).toMatchObject({ canActivate: [permissionGuard], data: { permission: 'FACTURACION_CARGAR' } });
+    expect(billing?.loadChildren).toBeTypeOf('function');
+  });
+
   it('declara Reportes con la autoridad de generación', () => {
     const layout = routes.find((route) => route.path === '');
     const reports = layout?.children?.find((route) => route.path === 'reportes');

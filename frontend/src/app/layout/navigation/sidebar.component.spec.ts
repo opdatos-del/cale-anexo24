@@ -57,6 +57,16 @@ describe('SidebarComponent', () => {
     expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/reportes');
   });
 
+  it('muestra Carga de facturación sólo con FACTURACION_CARGAR', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'FACTURACION_CARGAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+    const links = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+    const link = Array.from(links).find((element) => element.textContent?.includes('Carga de facturación'));
+    expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/facturacion');
+    expect(fixture.nativeElement.textContent).not.toContain('Usuarios');
+  });
+
   it('muestra Perfiles sólo con PERFILES_ADMINISTRAR', () => {
     auth.hasPermission.mockImplementation((permission: string) => permission === 'PERFILES_ADMINISTRAR');
     const fixture = TestBed.createComponent(SidebarComponent);
