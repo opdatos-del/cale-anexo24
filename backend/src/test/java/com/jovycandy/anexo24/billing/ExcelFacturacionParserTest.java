@@ -1,6 +1,7 @@
 package com.jovycandy.anexo24.billing;
 
 import com.jovycandy.anexo24.billing.application.command.ExcelFacturacionParser;
+import com.jovycandy.anexo24.billing.domain.model.PlantillaFacturacion;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
@@ -62,6 +63,31 @@ class ExcelFacturacionParserTest {
         }
         var result = parser.parsear("prueba.xlsx", "d".repeat(64), bytes);
         assertTrue(result.errores().stream().anyMatch(error -> error.codigo().equals("COLUMNA_DUPLICADA")));
+    }
+
+    @Test
+    void validaLayoutRealYConservaTodasLasFilasParaStaging() throws Exception {
+        var columns = java.util.List.of(
+                new PlantillaFacturacion.Columna("Documento", true, "TEXTO"),
+                new PlantillaFacturacion.Columna("Fecha", true, "FECHA"),
+                new PlantillaFacturacion.Columna("Almacen", false, "TEXTO"));
+        var template = new PlantillaFacturacion("FACTURACION", "LEGACY-2026-09", "XLSX", "FACTURAS", columns);
+        byte[] bytes;
+        try (var workbook = new XSSFWorkbook(); var out = new ByteArrayOutputStream()) {
+            var sheet = workbook.createSheet("FACTURAS");
+            sheet.createRow(0).createCell(0).setCellValue("Documento");
+            sheet.getRow(0).createCell(1).setCellValue("Fecha");
+            sheet.getRow(0).createCell(2).setCellValue("Almacen");
+            for (int i = 1; i <= 2; i++) {
+                var row = sheet.createRow(i); row.createCell(0).setCellValue("DOC-" + i);
+                row.createCell(1).setCellValue("2026-01-02"); row.createCell(2).setCellValue("A");
+            }
+            workbook.write(out); bytes = out.toByteArray();
+        }
+        var result = parser.parsear("Layout_Facturas.xlsx", "f".repeat(64), bytes, template);
+        assertTrue(result.errores().isEmpty());
+        assertEquals(2, result.filasNormalizadas().size());
+        assertEquals(java.util.List.of("Documento", "Fecha", "Almacen"), result.columnas());
     }
 
     @Test

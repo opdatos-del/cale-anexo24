@@ -4,10 +4,13 @@ import com.jovycandy.anexo24.billing.api.dto.CargaFacturacionResponse;
 import com.jovycandy.anexo24.billing.application.command.ExcelFacturacionParser;
 import com.jovycandy.anexo24.billing.application.usecase.CargarFacturacionUseCase;
 import com.jovycandy.anexo24.billing.domain.model.ArchivoFacturacion;
+import com.jovycandy.anexo24.billing.domain.model.PlantillaFacturacion;
+import com.jovycandy.anexo24.billing.domain.port.PlantillaFacturacionRepository;
 import com.jovycandy.anexo24.security.AuthenticatedUserPrincipal;
 import com.jovycandy.anexo24.shared.api.GlobalExceptionHandler;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,10 +34,21 @@ public class CargaFacturacionController {
     private static final int MAX_FILES = 5;
     private final ExcelFacturacionParser parser;
     private final CargarFacturacionUseCase useCase;
+    private final PlantillaFacturacionRepository plantillaRepository;
 
+    @Autowired
+    public CargaFacturacionController(ExcelFacturacionParser parser, CargarFacturacionUseCase useCase,
+                                      PlantillaFacturacionRepository plantillaRepository) {
+        this.parser = parser;
+        this.useCase = useCase;
+        this.plantillaRepository = plantillaRepository;
+    }
+
+    /** Constructor de compatibilidad para pruebas unitarias del controlador. */
     public CargaFacturacionController(ExcelFacturacionParser parser, CargarFacturacionUseCase useCase) {
         this.parser = parser;
         this.useCase = useCase;
+        this.plantillaRepository = null;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,9 +72,13 @@ public class CargaFacturacionController {
         }
         Object correlation = request.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR);
         String correlationId = correlation == null ? UUID.randomUUID().toString() : correlation.toString();
+        PlantillaFacturacion plantilla = plantillaRepository == null ? null : plantillaRepository.findActive().orElseThrow(() ->
+                new BillingUploadExceptionHandler.BillingArchivoInvalidoException("FACTURACION_PLANTILLA_NO_CONFIGURADA"));
         List<ArchivoFacturacion> parsedFiles = new ArrayList<>();
         for (int i = 0; i < archivos.size(); i++) {
-            parsedFiles.add(parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i)));
+            parsedFiles.add(plantilla == null
+                    ? parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i))
+                    : parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i), plantilla));
         }
         List<Long> ids = useCase.ejecutarLote(parsedFiles, principal.userId(), correlationId);
 
@@ -81,7 +99,7 @@ public class CargaFacturacionController {
                     parsed.filas(), valid, invalid, preview, errors));
         }
         return ResponseEntity.ok(new CargaFacturacionResponse(cargas, correlationId,
-                "FACTURACION_TEMPLATE_V1_PROVISIONAL", false));
+                plantilla == null ? "FACTURACION_TEMPLATE_V1_PROVISIONAL" : plantilla.nombre() + ":" + plantilla.version(), false));
     }
 
     private int invalidRows(ArchivoFacturacion archivo) {

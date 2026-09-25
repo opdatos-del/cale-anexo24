@@ -34,12 +34,26 @@ class CargarFacturacionUseCaseTest {
         var archivo = new ArchivoFacturacion("x.xlsx", "a".repeat(64), 1, 0,
                 List.of("Documento"), List.of(), List.of(), false);
         when(repository.existsByHash(archivo.hash())).thenReturn(false);
-        when(repository.save(archivo, 5L, "corr-5")).thenReturn(17L);
+        when(repository.save(archivo, 5L, "corr-5", "[]")).thenReturn(17L);
 
         List<Long> ids = useCase.ejecutarLote(List.of(archivo), 5L, "corr-5");
 
         org.junit.jupiter.api.Assertions.assertEquals(List.of(17L), ids);
-        verify(repository).save(archivo, 5L, "corr-5");
+        verify(repository).save(archivo, 5L, "corr-5", "[]");
+    }
+
+    @Test
+    void transmiteFilasNormalizadasAlStaging() {
+        var useCase = new CargarFacturacionUseCase(repository);
+        var archivo = new ArchivoFacturacion("x.xlsx", "c".repeat(64), 1, 1,
+                List.of("Documento"), List.of(),
+                List.of(new ArchivoFacturacion.Fila("FACTURAS", 2, List.of("DOC-1"))), List.of(), false);
+        when(repository.existsByHash(archivo.hash())).thenReturn(false);
+        when(repository.save(org.mockito.ArgumentMatchers.eq(archivo), org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("corr-6"), org.mockito.ArgumentMatchers.contains("DOC-1"))).thenReturn(18L);
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(18L), useCase.ejecutarLote(List.of(archivo), 5L, "corr-6"));
+        verify(repository).save(org.mockito.ArgumentMatchers.eq(archivo), org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("corr-6"), org.mockito.ArgumentMatchers.contains("DOC-1"));
     }
 
     @Test

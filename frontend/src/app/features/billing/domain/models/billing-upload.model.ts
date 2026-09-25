@@ -29,6 +29,19 @@ export interface BillingLoad {
 export interface BillingUploadResponse {
   cargas: BillingLoad[];
   correlationId: string;
-  plantilla: 'FACTURACION_TEMPLATE_V1_PROVISIONAL';
+  plantilla: string;
   confirmacionDisponible: false;
+}
+
+export interface BillingTemplateColumn {
+  nombre: string;
+  obligatoria: boolean;
+  tipo: string;
+}
+
+export interface BillingTemplate {
+  nombre: string;
+  version: string;
+  hoja: string;
+  columnas: BillingTemplateColumn[];
 }

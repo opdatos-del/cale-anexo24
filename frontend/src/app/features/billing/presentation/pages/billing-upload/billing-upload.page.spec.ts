@@ -33,12 +33,12 @@ describe('BillingUploadPage', () => {
     expect(page.selectionMessage()).toContain('supera el máximo');
   });
 
-  it('mantiene deshabilitados el formato pendiente y cualquier confirmación', () => {
+  it('muestra el layout compatible y mantiene deshabilitada cualquier confirmación', () => {
     const useCase = { execute: vi.fn() };
     TestBed.configureTestingModule({ imports: [BillingUploadPage], providers: [{ provide: UploadBillingFilesUseCase, useValue: useCase }] });
     const fixture = TestBed.createComponent(BillingUploadPage);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Formato de carga');
+    expect(fixture.nativeElement.textContent).toContain('Descargar layout');
     expect(fixture.nativeElement.textContent).toContain('Aún no hay cargas');
     expect(fixture.nativeElement.querySelector('button[disabled]')).not.toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Plantilla oficial');

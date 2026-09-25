@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { EMPTY, catchError, finalize } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
-import { BillingLoad, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
+import { BillingLoad, BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
+import { BillingApiService } from '@features/billing/infrastructure/api/billing-api.service';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -23,7 +24,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Carga de archivos de facturación">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="m-0 text-base font-semibold text-slate-800">Selecciona archivos</h2><p class="mb-0 mt-1 text-xs text-slate-500">Excel .xls o .xlsx · máximo 5 archivos · 10 MiB por archivo</p></div>
-          <button type="button" disabled class="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-400" title="El formato de carga sigue pendiente de validación"><mat-icon aria-hidden="true">description</mat-icon>Formato de carga <span class="text-xs">(pendiente)</span></button>
+          <button type="button" (click)="downloadTemplate()" [disabled]="!template() || isLoading()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 px-4 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50" title="Descargar layout compatible"><mat-icon aria-hidden="true">description</mat-icon>Descargar layout</button>
         </div>
 
         <label class="mt-5 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-5 text-center transition hover:border-blue-400 hover:bg-blue-50/40" [class.pointer-events-none]="isLoading()" [class.opacity-60]="isLoading()">
@@ -63,7 +64,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
               @if (load.errores.length) { <div class="border-t border-slate-100 p-4 sm:px-5"><h4 class="mb-3 mt-0 text-sm font-semibold text-slate-700">Errores de validación</h4><div class="space-y-2">@for (issue of load.errores; track $index) { <div class="rounded-lg border border-red-100 bg-red-50/60 p-3"><p class="m-0 text-sm font-medium text-red-800">{{ issue.mensaje }}</p><p class="mb-0 mt-1 text-xs text-red-700">{{ errorLocation(issue) }} · {{ issue.codigo }}@if (issue.valorEnmascarado) { · Valor: {{ issue.valorEnmascarado }} }</p></div> }</div></div> }
             </article>
           } @empty { <div class="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">La respuesta no contiene cargas.</div> }
-          <p class="m-0 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><strong>El formato de carga es provisional y está pendiente de validación.</strong> Esta carga sólo valida y muestra una vista previa; no confirma ni guarda registros de facturación.</p>
+          <p class="m-0 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><strong>Estructura {{ template()?.nombre ?? 'de Facturación' }} validada.</strong> Esta carga persiste una vista previa para revisión. La confirmación pendiente de validación del proceso de integración con Módulo C.</p>
         </section>
       } @else if (!isLoading() && !error()) {
         <section class="mt-5 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-8 text-center"><mat-icon class="mb-2 text-slate-300" aria-hidden="true">receipt_long</mat-icon><p class="m-0 text-sm font-medium text-slate-600">Aún no hay cargas para mostrar</p><span class="mt-1 text-xs text-slate-400">Selecciona uno o varios archivos Excel para comenzar.</span></section>
@@ -71,13 +72,30 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
     </main>
   `,
 })
-export class BillingUploadPage {
+export class BillingUploadPage implements OnInit {
   protected readonly selectedFiles = signal<File[]>([]);
   protected readonly selectionMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly response = signal<BillingUploadResponse | null>(null);
+  protected readonly template = signal<BillingTemplate | null>(null);
   private readonly uploadFiles = inject(UploadBillingFilesUseCase);
+  private readonly billingApi = inject(BillingApiService);
+
+  ngOnInit(): void {
+    this.billingApi.template().pipe(catchError(() => EMPTY)).subscribe((template) => this.template.set(template));
+  }
+
+  protected downloadTemplate(): void {
+    this.billingApi.downloadTemplate().subscribe((blob) => {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'Layout_Facturas.xlsx';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    });
+  }
 
   protected onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
