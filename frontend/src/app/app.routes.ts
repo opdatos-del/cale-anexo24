@@ -70,6 +70,12 @@ export const routes: Routes = [
         canActivate: [permissionGuard],
         data: { permission: 'REPORTES_GENERAR' },
         loadChildren: () => import('@features/reports/reports.routes').then((routes) => routes.REPORTS_ROUTES),
+      },
+      {
+        path: 'facturacion',
+        canActivate: [permissionGuard],
+        data: { permission: 'FACTURACION_CARGAR' },
+        loadChildren: () => import('@features/billing/billing.routes').then((routes) => routes.BILLING_ROUTES),
       }
     ],
   },

@@ -160,6 +160,10 @@ export class SidebarComponent implements OnDestroy {
       groups.push({ label: 'Reportes', items: [{ label: 'Reportes', icon: 'assessment', route: '/reportes', permission: 'REPORTES_GENERAR' }] });
     }
 
+    if (this.auth.hasPermission('FACTURACION_CARGAR')) {
+      groups.push({ label: 'Facturación', items: [{ label: 'Carga de facturación', icon: 'upload_file', route: '/facturacion', permission: 'FACTURACION_CARGAR' }] });
+    }
+
     return groups;
   });
 
