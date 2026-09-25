@@ -1,9 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
+import { appConfig } from '../../../../../app.config';
 import { UploadBillingFilesUseCase } from '../../../application/use-cases/upload-billing-files.use-case';
+import { BillingRepository } from '../../../domain/repositories/billing.repository';
+import { HttpBillingRepository } from '../../../infrastructure/repositories/http-billing.repository';
 import { BillingUploadPage } from './billing-upload.page';
 
 describe('BillingUploadPage', () => {
+  it('resuelve repositorio Billing con configuración real', () => {
+    TestBed.configureTestingModule({ providers: appConfig.providers });
+
+    expect(TestBed.inject(UploadBillingFilesUseCase)).toBeInstanceOf(UploadBillingFilesUseCase);
+    expect(TestBed.inject(BillingRepository)).toBeInstanceOf(HttpBillingRepository);
+  });
+
   it('permite sólo xls/xlsx hasta 10 MiB y máximo cinco archivos', () => {
     const useCase = { execute: vi.fn() };
     TestBed.configureTestingModule({ imports: [BillingUploadPage], providers: [{ provide: UploadBillingFilesUseCase, useValue: useCase }] });

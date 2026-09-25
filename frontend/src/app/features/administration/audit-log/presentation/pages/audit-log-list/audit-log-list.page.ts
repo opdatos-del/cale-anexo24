@@ -138,7 +138,7 @@ interface AuditLogSearchResult {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Fecha desde</mat-label>
               <input matInput [matDatepicker]="fromPicker" [(ngModel)]="fromDate" (dateChange)="onPeriodChange()" aria-label="Fecha desde" />
-              <mat-datepicker-toggle matIconSuffix [for]="fromPicker" aria-hidden="true"></mat-datepicker-toggle>
+              <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
               <mat-datepicker #fromPicker></mat-datepicker>
             </mat-form-field>
             <label>
@@ -148,7 +148,7 @@ interface AuditLogSearchResult {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Fecha hasta</mat-label>
               <input matInput [matDatepicker]="toPicker" [(ngModel)]="toDate" (dateChange)="onPeriodChange()" aria-label="Fecha hasta" />
-              <mat-datepicker-toggle matIconSuffix [for]="toPicker" aria-hidden="true"></mat-datepicker-toggle>
+              <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
               <mat-datepicker #toPicker></mat-datepicker>
             </mat-form-field>
             <label>

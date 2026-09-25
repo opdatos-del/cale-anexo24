@@ -5,7 +5,6 @@ import { EMPTY, catchError, finalize } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { UploadBillingFilesUseCase } from '../../../application/use-cases/upload-billing-files.use-case';
 import { BillingLoad, BillingUploadResponse } from '../../../domain/models/billing-upload.model';
-import { BILLING_PROVIDERS } from '../../../infrastructure/repositories/billing.providers';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -13,7 +12,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 @Component({
   imports: [CommonModule, MatIconModule],
   selector: 'app-billing-upload',
-  providers: BILLING_PROVIDERS,
   template: `
     <main class="mx-auto min-h-full w-full max-w-7xl bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
       <header class="mb-6">

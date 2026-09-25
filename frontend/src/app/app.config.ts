@@ -22,6 +22,8 @@ import { AuditLogRepository } from '@features/administration/audit-log/domain/re
 import { HttpAuditLogRepository } from '@features/administration/audit-log/infrastructure/repositories/http-audit-log.repository';
 import { ReportRepository } from '@features/reports/domain/repositories/report.repository';
 import { HttpReportRepository } from '@features/reports/infrastructure/repositories/http-report.repository';
+import { BillingRepository } from '@features/billing/domain/repositories/billing.repository';
+import { HttpBillingRepository } from '@features/billing/infrastructure/repositories/http-billing.repository';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -38,5 +40,6 @@ export const appConfig: ApplicationConfig = {
     { provide: FixedAssetRepository, useClass: HttpFixedAssetRepository },
     { provide: AuditLogRepository, useClass: HttpAuditLogRepository },
     { provide: ReportRepository, useClass: HttpReportRepository },
+    { provide: BillingRepository, useClass: HttpBillingRepository },
   ],
 };
