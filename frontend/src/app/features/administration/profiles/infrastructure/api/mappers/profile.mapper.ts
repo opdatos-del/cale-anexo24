@@ -1,5 +1,5 @@
 import { ProfileAdministration, ProfilePage } from '@features/administration/profiles/domain/models/profile-administration.model';
-import { ProfilePageResponseDto, ProfileResponseDto } from '../dto/profile.dto';
+import { ProfilePageResponseDto, ProfileResponseDto } from '@features/administration/profiles/infrastructure/api/dto/profile.dto';
 
 /** Traduce entre el contrato HTTP y el dominio de perfiles. */
 export const ProfileMapper = {

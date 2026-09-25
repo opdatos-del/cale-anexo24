@@ -1,6 +1,6 @@
 import { Product } from '@features/catalogs/products/domain/models/product.model';
 import { ProductPage } from '@features/catalogs/products/domain/repositories/product.repository';
-import { ProductPageResponseDto, ProductResponseDto } from '../dto/product-response.dto';
+import { ProductPageResponseDto, ProductResponseDto } from '@features/catalogs/products/infrastructure/dto/product-response.dto';
 
 export const ProductMapper = {
   toDomain(dto: ProductResponseDto): Product {

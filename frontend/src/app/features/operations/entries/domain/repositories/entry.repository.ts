@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { EntryLine } from '../models/entry-line.model';
+import { EntryLine } from '@features/operations/entries/domain/models/entry-line.model';
 
 export interface EntryPage {
   items: EntryLine[];

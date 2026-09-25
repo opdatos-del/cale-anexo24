@@ -2,7 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 
 /**
  * Adjunta el token JWT a cada solicitud autenticada.

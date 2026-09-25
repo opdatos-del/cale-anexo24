@@ -1,6 +1,6 @@
 import { Material } from '@features/catalogs/materials/domain/models/material.model';
 import { MaterialPage } from '@features/catalogs/materials/domain/repositories/material.repository';
-import { MaterialPageResponseDto, MaterialResponseDto } from '../dto/material-response.dto';
+import { MaterialPageResponseDto, MaterialResponseDto } from '@features/catalogs/materials/infrastructure/dto/material-response.dto';
 
 export const MaterialMapper = {
   toDomain(dto: MaterialResponseDto): Material {

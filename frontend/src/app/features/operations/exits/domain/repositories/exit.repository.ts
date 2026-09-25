@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { ExitLine } from '../models/exit-line.model';
+import { ExitLine } from '@features/operations/exits/domain/models/exit-line.model';
 
 export interface ExitPage {
   items: ExitLine[];

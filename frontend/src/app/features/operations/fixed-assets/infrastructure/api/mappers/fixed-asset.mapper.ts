@@ -1,5 +1,5 @@
 import { FixedAsset, FixedAssetPage } from '@features/operations/fixed-assets/domain/models/fixed-asset.model';
-import { FixedAssetPageResponseDto, FixedAssetResponseDto } from '../dto/fixed-asset.dto';
+import { FixedAssetPageResponseDto, FixedAssetResponseDto } from '@features/operations/fixed-assets/infrastructure/api/dto/fixed-asset.dto';
 
 /** Mapea el contrato HTTP de activos fijos al dominio frontend. */
 export const FixedAssetMapper = {

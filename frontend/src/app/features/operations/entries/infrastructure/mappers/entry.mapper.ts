@@ -1,6 +1,6 @@
 import { EntryLine } from '@features/operations/entries/domain/models/entry-line.model';
 import { EntryPage } from '@features/operations/entries/domain/repositories/entry.repository';
-import { EntryPageResponseDto, EntryResponseDto } from '../dto/entry-response.dto';
+import { EntryPageResponseDto, EntryResponseDto } from '@features/operations/entries/infrastructure/dto/entry-response.dto';
 
 export const EntryMapper = {
   toDomain(dto: EntryResponseDto): EntryLine {

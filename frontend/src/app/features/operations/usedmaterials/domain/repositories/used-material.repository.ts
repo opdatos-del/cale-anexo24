@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { UsedMaterialPage, UsedMaterialSearchCriteria } from '../models/used-material.model';
+import { UsedMaterialPage, UsedMaterialSearchCriteria } from '@features/operations/usedmaterials/domain/models/used-material.model';
 
 /** Puerto de consulta del histórico de materiales utilizados. */
 export abstract class UsedMaterialRepository {

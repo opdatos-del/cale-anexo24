@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ProductPageResponseDto } from '../dto/product-response.dto';
+import { ProductPageResponseDto } from '@features/catalogs/products/infrastructure/dto/product-response.dto';
 
 /** Adaptador HTTP del contrato real de Productos. */
 @Injectable({ providedIn: 'root' })

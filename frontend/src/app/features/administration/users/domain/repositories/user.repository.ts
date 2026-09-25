@@ -9,7 +9,7 @@ import {
   UserAdministration,
   UserPage,
   UserSearchCriteria,
-} from '../models/user-administration.model';
+} from '@features/administration/users/domain/models/user-administration.model';
 
 /** Puerto de administración de usuarios. */
 export abstract class UserRepository {

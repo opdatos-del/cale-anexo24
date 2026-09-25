@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { StructureLine } from '../models/structure-line.model';
+import { StructureLine } from '@features/catalogs/structures/domain/models/structure-line.model';
 
 export interface StructureSearchCriteria {
   product: string;

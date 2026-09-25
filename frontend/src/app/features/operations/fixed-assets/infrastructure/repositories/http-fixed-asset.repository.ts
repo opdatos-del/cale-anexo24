@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { FixedAssetPage, FixedAssetSearchCriteria } from '@features/operations/fixed-assets/domain/models/fixed-asset.model';
 import { FixedAssetRepository } from '@features/operations/fixed-assets/domain/repositories/fixed-asset.repository';
-import { FixedAssetApiService } from '../api/fixed-asset-api.service';
-import { FixedAssetMapper } from '../api/mappers/fixed-asset.mapper';
+import { FixedAssetApiService } from '@features/operations/fixed-assets/infrastructure/api/fixed-asset-api.service';
+import { FixedAssetMapper } from '@features/operations/fixed-assets/infrastructure/api/mappers/fixed-asset.mapper';
 
 /** Implementación HTTP del puerto de activos fijos. */
 @Injectable()

@@ -3,9 +3,9 @@ import { map, Observable } from 'rxjs';
 import { ProfileAdministration, ProfilePage, ProfileSearchCriteria, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
 import { ProfileActivity, ProfilePermissions } from '@features/administration/profiles/domain/models/profile-permission.model';
 import { ProfileRepository } from '@features/administration/profiles/domain/repositories/profile.repository';
-import { ProfileApiService } from '../api/profile-api.service';
-import { ProfileMapper } from '../api/mappers/profile.mapper';
-import { ProfileManagementMapper } from '../api/mappers/profile-management.mapper';
+import { ProfileApiService } from '@features/administration/profiles/infrastructure/api/profile-api.service';
+import { ProfileMapper } from '@features/administration/profiles/infrastructure/api/mappers/profile.mapper';
+import { ProfileManagementMapper } from '@features/administration/profiles/infrastructure/api/mappers/profile-management.mapper';
 
 /** Implementación HTTP del puerto read-only de perfiles. */
 @Injectable()

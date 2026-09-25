@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { EntryPageResponseDto } from '../dto/entry-response.dto';
+import { EntryPageResponseDto } from '@features/operations/entries/infrastructure/dto/entry-response.dto';
 
 /** Adaptador HTTP del contrato real de Entradas. */
 @Injectable({ providedIn: 'root' })

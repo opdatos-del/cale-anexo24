@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
-import { ProfileActivity, ProfilePermissions } from '../models/profile-permission.model';
-import { ProfileAdministration, ProfilePage, ProfileSearchCriteria, ProfileStatus } from '../models/profile-administration.model';
+import { ProfileActivity, ProfilePermissions } from '@features/administration/profiles/domain/models/profile-permission.model';
+import { ProfileAdministration, ProfilePage, ProfileSearchCriteria, ProfileStatus } from '@features/administration/profiles/domain/models/profile-administration.model';
 
 /** Puerto de consulta read-only de perfiles administrativos. */
 export abstract class ProfileRepository {

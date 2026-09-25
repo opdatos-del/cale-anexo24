@@ -1,6 +1,6 @@
 import { ExitLine } from '@features/operations/exits/domain/models/exit-line.model';
 import { ExitPage } from '@features/operations/exits/domain/repositories/exit.repository';
-import { ExitPageResponseDto, ExitResponseDto } from '../dto/exit-response.dto';
+import { ExitPageResponseDto, ExitResponseDto } from '@features/operations/exits/infrastructure/dto/exit-response.dto';
 
 export const ExitMapper = {
   toDomain(dto: ExitResponseDto): ExitLine {

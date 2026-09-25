@@ -12,8 +12,8 @@ import {
   UserSearchCriteria,
 } from '@features/administration/users/domain/models/user-administration.model';
 import { UserRepository } from '@features/administration/users/domain/repositories/user.repository';
-import { UserApiService } from '../api/user-api.service';
-import { UserMapper } from '../api/mappers/user.mapper';
+import { UserApiService } from '@features/administration/users/infrastructure/api/user-api.service';
+import { UserMapper } from '@features/administration/users/infrastructure/api/mappers/user.mapper';
 
 /** Adaptador HTTP del puerto de usuarios. */
 @Injectable()

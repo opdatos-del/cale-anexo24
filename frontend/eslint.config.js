@@ -36,8 +36,8 @@ module.exports = defineConfig([
         {
           patterns: [
             {
-              regex: '^(?:\\.\\./){2,}',
-              message: 'Usa aliases estructurales para imports con dos o más niveles relativos.',
+              regex: '^\.\./',
+              message: 'Usa aliases estructurales para cualquier import parent-relative.',
             },
           ],
         },

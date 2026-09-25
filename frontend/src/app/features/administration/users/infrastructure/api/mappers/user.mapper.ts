@@ -17,7 +17,7 @@ import {
   UpdateUserRequestDto,
   UserPageResponseDto,
   UserResponseDto,
-} from '../dto/user.dto';
+} from '@features/administration/users/infrastructure/api/dto/user.dto';
 
 /** Traduce entre el contrato HTTP en español y el dominio frontend. */
 export const UserMapper = {

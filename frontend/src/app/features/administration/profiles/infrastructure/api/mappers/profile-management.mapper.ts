@@ -3,8 +3,8 @@ import { ProfileAdministration } from '@features/administration/profiles/domain/
 import {
   ProfileActivityResponseDto,
   ProfilePermissionsResponseDto,
-} from '../dto/profile-management.dto';
-import { ProfileResponseDto } from '../dto/profile.dto';
+} from '@features/administration/profiles/infrastructure/api/dto/profile-management.dto';
+import { ProfileResponseDto } from '@features/administration/profiles/infrastructure/api/dto/profile.dto';
 import { ProfileMapper } from './profile.mapper';
 
 /** Traduce respuestas de administración al modelo frontend. */

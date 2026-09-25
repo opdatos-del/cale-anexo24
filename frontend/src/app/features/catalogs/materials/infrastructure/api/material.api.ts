@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { MaterialPageResponseDto } from '../dto/material-response.dto';
+import { MaterialPageResponseDto } from '@features/catalogs/materials/infrastructure/dto/material-response.dto';
 
 /** Adaptador HTTP: conoce únicamente el contrato REST de materiales. */
 @Injectable({ providedIn: 'root' })

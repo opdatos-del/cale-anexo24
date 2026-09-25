@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { StructurePageResponseDto } from '../dto/structure-response.dto';
+import { StructurePageResponseDto } from '@features/catalogs/structures/infrastructure/dto/structure-response.dto';
 
 /** Adaptador HTTP del contrato real de Estructuras. */
 @Injectable({ providedIn: 'root' })

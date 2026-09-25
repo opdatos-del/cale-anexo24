@@ -1,5 +1,5 @@
 import { UsedMaterial, UsedMaterialPage } from '@features/operations/usedmaterials/domain/models/used-material.model';
-import { UsedMaterialPageResponseDto, UsedMaterialResponseDto } from '../dto/used-material.dto';
+import { UsedMaterialPageResponseDto, UsedMaterialResponseDto } from '@features/operations/usedmaterials/infrastructure/api/dto/used-material.dto';
 
 /** Mapea el contrato HTTP de materiales utilizados al dominio frontend. */
 export const UsedMaterialMapper = {

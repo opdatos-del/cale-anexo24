@@ -1,6 +1,6 @@
 import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 
 /**
  * Bloquea rutas sin sesión activa redirigiendo al login.

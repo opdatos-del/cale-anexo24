@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Product } from '../models/product.model';
+import { Product } from '@features/catalogs/products/domain/models/product.model';
 
 export interface ProductSearchCriteria {
   filter: string;

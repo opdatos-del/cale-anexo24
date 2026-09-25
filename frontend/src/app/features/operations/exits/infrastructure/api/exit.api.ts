@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
-import { ExitPageResponseDto } from '../dto/exit-response.dto';
+import { ExitPageResponseDto } from '@features/operations/exits/infrastructure/dto/exit-response.dto';
 
 /** Adaptador HTTP del contrato real de Salidas. */
 @Injectable({ providedIn: 'root' })

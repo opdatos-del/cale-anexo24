@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { Material } from '../models/material.model';
+import { Material } from '@features/catalogs/materials/domain/models/material.model';
 
 export interface MaterialSearchCriteria {
   filter: string;

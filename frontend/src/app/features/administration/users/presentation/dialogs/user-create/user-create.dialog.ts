@@ -15,7 +15,7 @@ import { ProfileAdministration } from '@features/administration/profiles/domain/
 import { CreateUserUseCase } from '@features/administration/users/application/use-cases/create-user.use-case';
 import { UserAdministration } from '@features/administration/users/domain/models/user-administration.model';
 import { passwordsMatchValidator, STRONG_PASSWORD_PATTERN } from '@features/administration/users/domain/validation/password.validation';
-import { toLocalDate } from '../user-expiration/user-expiration.dialog';
+import { toLocalDate } from '@features/administration/users/presentation/dialogs/user-expiration/user-expiration.dialog';
 
 
 /** Crea un usuario con un perfil activo y sin conservar su contraseña. */

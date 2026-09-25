@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '@core/auth/auth.service';
 
 /** Protege rutas de navegación según permisos de UX del usuario autenticado. */
 export const permissionGuard: CanActivateFn = (route) => {
