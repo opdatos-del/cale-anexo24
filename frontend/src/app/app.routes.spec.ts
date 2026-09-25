@@ -20,4 +20,14 @@ describe('rutas de la aplicación', () => {
     });
     expect(profiles?.loadChildren).toBeTypeOf('function');
   });
+
+  it('declara Reportes con la autoridad de generación', () => {
+    const layout = routes.find((route) => route.path === '');
+    const reports = layout?.children?.find((route) => route.path === 'reportes');
+    expect(reports).toMatchObject({
+      canActivate: [permissionGuard],
+      data: { permission: 'REPORTES_GENERAR' },
+    });
+    expect(reports?.loadChildren).toBeTypeOf('function');
+  });
 });

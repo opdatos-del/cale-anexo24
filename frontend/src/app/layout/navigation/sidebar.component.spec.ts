@@ -47,6 +47,16 @@ describe('SidebarComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Perfiles');
   });
 
+  it('muestra Reportes únicamente con REPORTES_GENERAR', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'REPORTES_GENERAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+
+    const links = fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+    const link = Array.from(links).find((element) => element.textContent?.includes('Reportes'));
+    expect(link?.getAttribute('ng-reflect-router-link') ?? link?.getAttribute('href')).toContain('/reportes');
+  });
+
   it('muestra Perfiles sólo con PERFILES_ADMINISTRAR', () => {
     auth.hasPermission.mockImplementation((permission: string) => permission === 'PERFILES_ADMINISTRAR');
     const fixture = TestBed.createComponent(SidebarComponent);
