@@ -356,3 +356,86 @@ Pendientes antes de aprobar un endpoint:
 - Cero SP APP24, exportación o SQL persistente creados.
 - Cero procedimientos, views o procesos legacy ejecutados.
 - Cero PR, merge o revisión automática.
+
+## 18. Implementación y validación runtime — Reportes V1
+
+**Esta sección supersede decisiones de no implementación y métricas pendientes
+anteriores para Entradas, Salidas, Materiales utilizados y Bitácora.** No cambia
+las restricciones legacy: no se ejecutan rutinas mutables.
+
+Consultas implementadas reutilizan los casos de uso/SP existentes; no añaden SQL
+ni procedimientos:
+
+| Reporte | Consulta | Exportación | Fuente comparada |
+|---|---|---|---|
+| Entradas | `GET /api/v1/reportes/entradas` | `.../exportacion` | `GET /api/v1/operaciones/entradas` |
+| Salidas | `GET /api/v1/reportes/salidas` | `.../exportacion` | `GET /api/v1/operaciones/salidas` |
+| Materiales utilizados | `GET /api/v1/reportes/materiales-utilizados` | `.../exportacion` | `GET /api/v1/operaciones/materiales-utilizados` |
+| Bitácora | `GET /api/v1/reportes/bitacora` | `.../exportacion` | `GET /api/v1/bitacora` |
+
+Rutas de consulta requieren `REPORTES_GENERAR`; rutas XLSX requieren
+`REPORTES_EXPORTAR`. Rangos son obligatorios, validación `desde <= hasta` y
+paginación conservan los límites de los use cases fuentes. Exportes recorren
+páginas de 100 filas hasta el total, con máximo de 10,000; sin resultados:
+`204 No Content`. Texto potencialmente ejecutable por Excel se emite como cadena
+con prefijo de escape para `=`, `+`, `-` y `@`.
+
+Smoke autenticado ejecutado contra instancia local de la feature en `8082`:
+login `200`; ambas authorities presentes. Totales del rango histórico probado y
+comparación con endpoint fuente: Entradas `2/2`, Salidas `3392/3392`, Materiales
+utilizados `3866/3866`, Bitácora `15/15`. Consultas devolvieron `200`; páginas
+respetaron sus tamaños. Los conteos son medición runtime del momento, no
+assertions permanentes.
+
+Las cuatro exportaciones devolvieron `200`, media type XLSX y filename `.xlsx`;
+ZIP/workbook abrieron con una hoja, headers presentes, todas las filas del
+resultado (2, 3392, 3866, 15), cero merged cells y cero fórmulas. Exportación
+vacía: consulta `200`/total 0 y XLSX `204`. Sin token/token inválido: `401`;
+fechas faltantes, rango invertido y tamaño inválido: `400`. No se imprimieron
+filas personales ni contenido de detalle de Bitácora.
+
+Fix runtime: parámetro requerido ausente inicialmente causaba `500` porque
+`MissingServletRequestParameterException` caía en handler inesperado. Handler
+global ahora traduce esta excepción a `400 SOLICITUD_INVALIDA` con correlación;
+regresión añadida.
+
+### Saldos — decisión tras metadata LIVE
+
+Consulta metadata en `CALE_IMMEX` (sin leer valores de filas ni ejecutar
+procedimientos) encontró:
+
+- `dbo.v_saldos`: columnas `Documento`, `Fecha de Pago`, `Clave`, `Fraccion`,
+  `Cant. Importado`, `Saldo`, `Temporalidad(Meses)`, `Fecha de Vencimiento`,
+  `PedimentoOriginal`, además de valores, desperdicio y unidades.
+- `dbo.v_saldosdesp`: variante con `Saldo`, `SaldoT`, `Temporalidad(Meses)`,
+  `Fecha de Vencimiento`, `PedimentoOriginal`, `Descargado`, `Desperdicio` y
+  `Saldodesperdicio`.
+- Ambas vistas dependen de objetos distintos/compartidos de importación,
+  partidas, descargas, categorías y `BUSCATIPOM`; son candidatas de lectura, pero
+  no equivalentes ni seleccionadas por contrato.
+- Agregados READ-only: ambas vistas devolvieron total `0` en estado actual,
+  también `0` para 2025 en `v_saldos`. No fue posible comparar con las 42 filas
+  observadas en reporte histórico.
+- `PR_INFORME_SALDOS` está clasificado previamente como REPORT/QUERY read-only;
+  se ejecutó con rango 2025 y con rango histórico disponible. Ambos calls
+  terminaron correctamente pero sin filas; SQL Server emitió warning de NULL en
+  agregado. Por eso no se pudo validar columnas/fórmula ni comparar las 42 filas
+  del snapshot funcional de 2025.
+- `SALDOS`, `SALDOS_FAMILIA`, `SALDOS2` y `SALDOSCTM` no se ejecutaron; metadata
+  y uso documentado los clasifican como procesos de cálculo/descarga. No son
+  fuente GET segura.
+
+**Decisión:** `REPORT_SALDOS_BLOCKED_DOMAIN_RULE`. No se creó SP wrapper ni
+endpoint: cero filas actuales impiden validar resultado y no hay decisión sobre
+vista variante, fecha de corte vs rango, saldo de desperdicio, conversiones ni
+compatibilidad histórica. Frontend mantiene Saldos deshabilitado con mensaje de
+pendiente contractual; no afirma “sin datos”. Se requiere fuente/variante
+aprobada y fixture/corte histórico representativo para cerrar.
+
+### Regresión y alcance
+
+Después del fix: backend `clean test build` PASS, 381 tests; frontend `65` tests,
+lint y build PASS (warnings de budgets existentes). No hubo DML, DDL de tablas
+legacy, ejecución de SP desconocidos, cambios de permisos ni procedimientos SQL
+nuevos. Apache POI se usa para archivos XLSX generados en backend; no se dejó
+export ni log temporal en el repositorio.
