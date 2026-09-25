@@ -32,6 +32,6 @@ describe('BillingUploadPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Aún no hay cargas');
     expect(fixture.nativeElement.querySelector('button[disabled]')).not.toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Plantilla oficial');
-        expect(fixture.nativeElement.textContent).not.toContain('Confirmar carga');
+    expect(fixture.nativeElement.textContent).not.toContain('Confirmar carga');
   });
 });
