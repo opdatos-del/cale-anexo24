@@ -1,6 +1,6 @@
 package com.jovycandy.anexo24.auditlog.domain.model;
 
-/** Acciones de Bitácora aprobadas para autenticación y administración de usuarios. */
+/** Acciones controladas registradas en la Bitácora de la aplicación. */
 public enum BitacoraAccion {
     LOGIN_OK,
     LOGIN_FALLIDO,
@@ -13,5 +13,7 @@ public enum BitacoraAccion {
     PERFIL_CREADO,
     PERFIL_ACTUALIZADO,
     PERFIL_ESTADO_CAMBIADO,
-    PERFIL_PERMISOS_CAMBIADOS
+    PERFIL_PERMISOS_CAMBIADOS,
+    CARGA_VALIDADA,
+    CARGA_CON_ERRORES
 }

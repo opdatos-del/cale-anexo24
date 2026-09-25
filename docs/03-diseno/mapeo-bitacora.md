@@ -259,6 +259,7 @@ concreto en esta fase.
 | `ADMINISTRADOR` | Sí: recibe todas las actividades existentes |
 | `CONSULTA` | No: sólo materiales, productos, estructuras y operaciones |
 
+
 La matriz propuesta menciona visibilidad potencial para operador/auditoría,
 pero no es asignación de seed. No se modifica seguridad.
 
@@ -355,3 +356,11 @@ específico y ownership chain compatible.
 - Runtime least-privilege de app24 aplicado y validado LIVE en SP-1E; no se
   ejecutó SQL LIVE durante DOC-1.
 - Cero bypass TLS, procesos legacy, PR, merge o code review automático.
+
+## 17. Acciones de facturación
+
+La carga de Facturación registra `CARGA_VALIDADA` y `CARGA_CON_ERRORES` en
+`app24.BitacoraEvento`. `BitacoraAccion` debe mantener estos códigos
+sincronizados: una acción persistida fuera del enum impedía mapear la fila y
+fallaba la consulta de Bitácora. El adaptador prueba ahora el mapeo real del
+`ResultSet` para ambas acciones.

@@ -30,7 +30,7 @@ public class BitacoraConsultaJdbcAdapter implements BitacoraConsultaRepository {
     private static final String RESULTADO = "items";
     private static final String TOTAL = "Total";
 
-    private static final RowMapper<BitacoraRegistro> MAPPER = (rs, rowNum) -> {
+    static final RowMapper<BitacoraRegistro> MAPPER = (rs, rowNum) -> {
         LocalDateTime fecha = rs.getObject("fecha", LocalDateTime.class);
         return new BitacoraRegistro(
                 rs.getLong("id"),
