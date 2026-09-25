@@ -14,6 +14,13 @@ import org.springframework.web.multipart.MultipartException;
 @RestControllerAdvice(basePackageClasses = CargaFacturacionController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class BillingUploadExceptionHandler {
+    @ExceptionHandler(PlantillaFacturacionNoConfiguradaException.class)
+    public ResponseEntity<ApiError> plantillaNoConfigurada(PlantillaFacturacionNoConfiguradaException exception,
+                                                             HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error("FACTURACION_PLANTILLA_NO_CONFIGURADA",
+                "No existe una plantilla activa de Facturación.", request));
+    }
+
     @ExceptionHandler(BillingArchivoInvalidoException.class)
     public ResponseEntity<ApiError> archivoInvalido(BillingArchivoInvalidoException exception,
                                                      HttpServletRequest request) {
@@ -31,6 +38,9 @@ public class BillingUploadExceptionHandler {
     private ApiError error(String code, String message, HttpServletRequest request) {
         Object correlationId = request.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR);
         return new ApiError(code, message, correlationId == null ? "" : correlationId.toString());
+    }
+
+    public static class PlantillaFacturacionNoConfiguradaException extends RuntimeException {
     }
 
     public static class BillingArchivoInvalidoException extends RuntimeException {

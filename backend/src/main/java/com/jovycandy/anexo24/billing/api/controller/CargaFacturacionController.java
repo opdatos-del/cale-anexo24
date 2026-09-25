@@ -44,12 +44,6 @@ public class CargaFacturacionController {
         this.plantillaRepository = plantillaRepository;
     }
 
-    /** Constructor de compatibilidad para pruebas unitarias del controlador. */
-    public CargaFacturacionController(ExcelFacturacionParser parser, CargarFacturacionUseCase useCase) {
-        this.parser = parser;
-        this.useCase = useCase;
-        this.plantillaRepository = null;
-    }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('FACTURACION_CARGAR')")
@@ -72,13 +66,11 @@ public class CargaFacturacionController {
         }
         Object correlation = request.getAttribute(GlobalExceptionHandler.CORRELATION_ID_ATTR);
         String correlationId = correlation == null ? UUID.randomUUID().toString() : correlation.toString();
-        PlantillaFacturacion plantilla = plantillaRepository == null ? null : plantillaRepository.findActive().orElseThrow(() ->
-                new BillingUploadExceptionHandler.BillingArchivoInvalidoException("FACTURACION_PLANTILLA_NO_CONFIGURADA"));
+        PlantillaFacturacion plantilla = plantillaRepository.findActive().orElseThrow(
+                BillingUploadExceptionHandler.PlantillaFacturacionNoConfiguradaException::new);
         List<ArchivoFacturacion> parsedFiles = new ArrayList<>();
         for (int i = 0; i < archivos.size(); i++) {
-            parsedFiles.add(plantilla == null
-                    ? parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i))
-                    : parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i), plantilla));
+            parsedFiles.add(parser.parsear(archivos.get(i).getOriginalFilename(), hashes.get(i), contents.get(i), plantilla));
         }
         List<Long> ids = useCase.ejecutarLote(parsedFiles, principal.userId(), correlationId);
 
@@ -99,7 +91,7 @@ public class CargaFacturacionController {
                     parsed.filas(), valid, invalid, preview, errors));
         }
         return ResponseEntity.ok(new CargaFacturacionResponse(cargas, correlationId,
-                plantilla == null ? "FACTURACION_TEMPLATE_V1_PROVISIONAL" : plantilla.nombre() + ":" + plantilla.version(), false));
+                plantilla.nombre() + ":" + plantilla.version(), false));
     }
 
     private int invalidRows(ArchivoFacturacion archivo) {

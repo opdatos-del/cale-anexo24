@@ -41,7 +41,7 @@ public class PlantillaFacturacionJdbcAdapter implements PlantillaFacturacionRepo
             List<PlantillaFacturacion.Columna> columns = mapper.readValue(
                     String.valueOf(row.get("columnas_json")), new TypeReference<>() {});
             return Optional.of(new PlantillaFacturacion(String.valueOf(row.get("nombre")),
-                    String.valueOf(row.get("version")), String.valueOf(row.get("extension")), "FACTURAS", columns));
+                    String.valueOf(row.get("version")), String.valueOf(row.get("extension")), PlantillaFacturacion.HOJA_FACTURAS, columns));
         } catch (Exception exception) {
             throw new IllegalStateException("La configuración activa de Facturación no es válida", exception);
         }

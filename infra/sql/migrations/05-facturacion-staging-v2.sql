@@ -32,8 +32,12 @@ BEGIN
 END;
 GO
 
-UPDATE app24.ConfiguracionPlantilla SET activa = 0 WHERE nombre = 'FACTURACION';
-UPDATE app24.ConfiguracionPlantilla SET activa = 1 WHERE nombre = 'FACTURACION' AND version = 'LEGACY-2026-09';
+IF NOT EXISTS (SELECT 1 FROM app24.ConfiguracionPlantilla WHERE nombre = 'FACTURACION' AND activa = 1)
+BEGIN
+    UPDATE app24.ConfiguracionPlantilla
+    SET activa = 1
+    WHERE nombre = 'FACTURACION' AND version = 'LEGACY-2026-09';
+END;
 GO
 
 GRANT EXECUTE ON OBJECT::app24.APP24_C_FACTURACION_CARGA_CREAR TO app24_runtime;

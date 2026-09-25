@@ -16,7 +16,8 @@ Estados de esta fase:
 
 ## Layout validado
 
-- Hoja: `FACTURAS`.
+- Hoja: `FACTURAS`, una invariancia del dominio de Facturación.
+- `ConfiguracionPlantilla` define versión, extensión, columnas, obligatoriedad y tipos.
 - Columnas: Documento, Fecha, Almacen, Observaciones, Descarga, Tipo, Linea,
   Clave, Lote, Cantidad, Unidad, Dirigido y Cliente.
 - Obligatorias: Documento, Fecha, Descarga, Tipo, Linea, Clave, Cantidad y
@@ -24,6 +25,13 @@ Estados de esta fase:
 - Opcionales: Almacen, Observaciones, Lote, Dirigido y Cliente.
 
 La estructura validada no demuestra todavía el pipeline de guardado legacy.
+
+El parser construye cada fila en el orden canónico de la plantilla buscando cada
+encabezado por nombre normalizado; no depende del orden físico del XLSX. Las
+columnas opcionales ausentes se persisten como cadena vacía y las columnas
+adicionales desconocidas generan `COLUMNA_NO_CONFIGURADA` sin entrar a
+`datos_json`. Las fechas válidas se normalizan a `yyyy-MM-dd` y las cantidades
+a decimal positivo mediante `BigDecimal.toPlainString()`.
 `CARGAFACTURASENPSALIDAS` requiere campos monetarios, fracción y país que no
 forman parte del layout auditado (`NOT_PROVEN_COMPATIBLE_WITH_INTFACTURACION`).
 `CARGA_FACTURAS` tampoco tiene correspondencia 1:1 demostrada. El pipeline
@@ -41,13 +49,17 @@ La creación se realiza mediante `APP24_C_FACTURACION_CARGA_CREAR` dentro del
 transaction manager `appTransactionManager`; carga, filas, errores y evento de
 bitácora forman una unidad app24. La plantilla se obtiene sólo mediante
 `APP24_Q_FACTURACION_PLANTILLA_ACTIVA`; si no hay configuración activa se
-rechaza la carga con `FACTURACION_PLANTILLA_NO_CONFIGURADA`.
+rechaza la operación con HTTP 409 y `FACTURACION_PLANTILLA_NO_CONFIGURADA`,
+incluyendo `correlationId`. No existe fallback provisional. La hoja `FACTURAS`
+es una invariancia del dominio; la configuración DB define versión, extensión,
+columnas, obligatoriedad y tipos.
 
 ## API
 
 - `GET /api/v1/facturacion/plantilla`: contrato activo, columnas, tipos y
-  obligatoriedad.
-- `GET /api/v1/facturacion/plantilla/archivo`: XLSX sin filas de ejemplo.
+  obligatoriedad; sin plantilla responde HTTP 409 estructurado.
+- `GET /api/v1/facturacion/plantilla/archivo`: XLSX sin filas de ejemplo;
+  sin plantilla responde el mismo HTTP 409 estructurado.
 - `POST /api/v1/facturacion/cargas`: valida y persiste staging app24.
 - `GET /api/v1/facturacion/cargas/{id}?pagina=1&tamano=100`: recupera metadata,
   filas y errores desde DB, no desde memoria.

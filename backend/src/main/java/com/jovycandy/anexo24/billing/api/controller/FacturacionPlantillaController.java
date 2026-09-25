@@ -26,15 +26,16 @@ public class FacturacionPlantillaController {
     @GetMapping
     @PreAuthorize("hasAuthority('FACTURACION_CARGAR')")
     public ResponseEntity<FacturacionTemplateResponse> obtener() {
-        return repository.findActive().map(template -> ResponseEntity.ok(FacturacionTemplateResponse.from(template)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        PlantillaFacturacion template = repository.findActive().orElseThrow(
+                BillingUploadExceptionHandler.PlantillaFacturacionNoConfiguradaException::new);
+        return ResponseEntity.ok(FacturacionTemplateResponse.from(template));
     }
 
     @GetMapping("/archivo")
     @PreAuthorize("hasAuthority('FACTURACION_CARGAR')")
     public ResponseEntity<byte[]> descargar() {
-        PlantillaFacturacion template = repository.findActive().orElseThrow(() ->
-                new BillingUploadExceptionHandler.BillingArchivoInvalidoException("FACTURACION_PLANTILLA_NO_CONFIGURADA"));
+        PlantillaFacturacion template = repository.findActive().orElseThrow(
+                BillingUploadExceptionHandler.PlantillaFacturacionNoConfiguradaException::new);
         try (var workbook = new XSSFWorkbook(); var output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet(template.hoja());
             var header = sheet.createRow(0);

@@ -5,7 +5,10 @@ import java.util.List;
 /** Contrato estructural versionado del layout de Facturación. */
 public record PlantillaFacturacion(String nombre, String version, String extension, String hoja,
                                    List<Columna> columnas) {
+    public static final String HOJA_FACTURAS = "FACTURAS";
+
     public PlantillaFacturacion {
+        if (!HOJA_FACTURAS.equals(hoja)) throw new IllegalArgumentException("La hoja de Facturación debe ser FACTURAS");
         columnas = List.copyOf(columnas);
     }
 

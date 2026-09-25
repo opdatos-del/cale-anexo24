@@ -25,6 +25,6 @@ describe('BillingApiService', () => {
     const form = request.request.body as FormData;
     expect(form.getAll('archivos')).toEqual(files);
     expect(request.request.headers.has('Content-Type')).toBe(false);
-    request.flush({ cargas: [], correlationId: 'test', plantilla: 'FACTURACION_TEMPLATE_V1_PROVISIONAL', confirmacionDisponible: false });
+    request.flush({ cargas: [], correlationId: 'test', plantilla: 'FACTURACION:LEGACY-2026-09', confirmacionDisponible: false });
   });
 });
