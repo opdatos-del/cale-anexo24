@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -88,7 +89,8 @@ public class GlobalExceptionHandler {
      * @param request solicitud HTTP actual
      * @return 400 con mensaje accionable y correlación
      */
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class})
     public ResponseEntity<ApiError> handleMalformedRequest(Exception ex,
                                                             HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, "SOLICITUD_INVALIDA",
