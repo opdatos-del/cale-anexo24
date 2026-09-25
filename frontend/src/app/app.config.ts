@@ -20,6 +20,8 @@ import { FixedAssetRepository } from '@features/operations/fixed-assets/domain/r
 import { HttpFixedAssetRepository } from '@features/operations/fixed-assets/infrastructure/repositories/http-fixed-asset.repository';
 import { AuditLogRepository } from '@features/administration/audit-log/domain/repositories/audit-log.repository';
 import { HttpAuditLogRepository } from '@features/administration/audit-log/infrastructure/repositories/http-audit-log.repository';
+import { ReportRepository } from '@features/reports/domain/repositories/report.repository';
+import { HttpReportRepository } from '@features/reports/infrastructure/repositories/http-report.repository';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,5 +37,6 @@ export const appConfig: ApplicationConfig = {
     { provide: UsedMaterialRepository, useClass: HttpUsedMaterialRepository },
     { provide: FixedAssetRepository, useClass: HttpFixedAssetRepository },
     { provide: AuditLogRepository, useClass: HttpAuditLogRepository },
+    { provide: ReportRepository, useClass: HttpReportRepository },
   ],
 };

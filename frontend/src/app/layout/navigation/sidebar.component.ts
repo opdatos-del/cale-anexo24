@@ -156,6 +156,10 @@ export class SidebarComponent implements OnDestroy {
 
     if (administrationItems.length > 0) groups.push({ label: 'Administración', items: administrationItems });
 
+    if (this.auth.hasPermission('REPORTES_GENERAR')) {
+      groups.push({ label: 'Reportes', items: [{ label: 'Reportes', icon: 'assessment', route: '/reportes', permission: 'REPORTES_GENERAR' }] });
+    }
+
     return groups;
   });
 

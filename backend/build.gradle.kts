@@ -44,6 +44,9 @@ dependencies {
     // OpenAPI / Swagger
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
+    // Exportación de reportes
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
+
     // Pruebas
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
