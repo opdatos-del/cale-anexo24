@@ -1,0 +1,11 @@
+.env*
+.git
+.gradle
+build
+bin
+*.class
+*.log
+.idea
+.vscode
+.DS_Store
+Thumbs.db
