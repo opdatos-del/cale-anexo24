@@ -27,3 +27,14 @@ sus permisos para producción requiere una decisión de seguridad separada.
 | Producción | Operación autorizada | Información real | HTTPS, mínimo privilegio, monitoreo, respaldo y cambio aprobado. |
 
 Las URL y credenciales se administran como configuración de cada ambiente, nunca dentro del repositorio.
+
+## Desarrollo local product-like con contenedores
+
+`compose.prod.yml` permite empaquetar y ejecutar localmente el frontend Angular
+con Nginx y el backend Spring Boot con perfil `prod`, usando las bases de datos
+externas del ambiente. No es un despliegue productivo ni dockeriza SQL Server.
+
+La arquitectura, variables obligatorias, comandos de build, healthcheck,
+troubleshooting y manejo de secretos están documentados en
+[`contenedores.md`](contenedores.md). El procedimiento no versiona `.env` reales
+ni valores de credenciales.
