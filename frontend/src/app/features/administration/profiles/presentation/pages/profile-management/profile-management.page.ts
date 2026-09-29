@@ -117,7 +117,7 @@ import { ProfileCreateDialog } from '@features/administration/profiles/presentat
               </div>
 
               <div class="grid gap-6 p-5 sm:p-6">
-                <form class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start" (ngSubmit)="saveName()" aria-label="Cambiar nombre del perfil">
+                <form class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start" (submit)="$event.preventDefault(); saveName()" aria-label="Cambiar nombre del perfil">
                   <mat-form-field appearance="outline" subscriptSizing="dynamic">
                     <mat-label>Nombre del perfil</mat-label>
                     <input matInput [formControl]="profileName" maxlength="80" autocomplete="off" [readonly]="!canManage()" />
@@ -195,6 +195,7 @@ export class ProfileManagementPage implements OnInit {
   private readonly viewContainerRef = inject(ViewContainerRef);
   private readonly destroyRef = inject(DestroyRef);
   private permissionRequest = 0;
+  private profilesRequest = 0;
 
   protected readonly canManage = computed(() => this.auth.hasPermission('PERFILES_ADMINISTRAR'));
   protected readonly profiles = signal<ProfileAdministration[]>([]);
@@ -242,10 +243,12 @@ export class ProfileManagementPage implements OnInit {
   }
 
   protected loadProfiles(preferredId?: number): void {
+    const request = ++this.profilesRequest;
     this.profilesLoading.set(true);
     this.profilesError.set(null);
     this.loadAllProfilesUseCase.execute().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (profiles) => {
+        if (request !== this.profilesRequest) return;
         this.profiles.set(profiles);
         this.profilesLoading.set(false);
         const selectedId = preferredId ?? this.selectedProfile()?.id;
@@ -255,6 +258,7 @@ export class ProfileManagementPage implements OnInit {
         else if (!profiles.length) this.clearSelection();
       },
       error: (error: unknown) => {
+        if (request !== this.profilesRequest) return;
         this.profilesLoading.set(false);
         this.profilesError.set(userFacingApiError(error, 'No fue posible consultar los perfiles.'));
       },
@@ -274,6 +278,7 @@ export class ProfileManagementPage implements OnInit {
   }
 
   protected selectProfile(profile: ProfileAdministration): void {
+    ++this.profilesRequest;
     this.selectedProfile.set(profile);
     this.profileName.setValue(profile.name, { emitEvent: false });
     this.nameDraft.set(profile.name);

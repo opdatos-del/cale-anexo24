@@ -125,7 +125,7 @@ export function formatExpiration(value: string | null): string {
               @if (hasFilters()) { <p class="m-0 text-sm text-slate-500">Prueba con otros filtros.</p> }
             </div>
           } @else {
-            <div class="hidden min-w-0 max-w-full overflow-x-auto lg:block">
+            <div class="hidden min-w-0 max-w-full overflow-x-auto xl:block">
               <table mat-table [dataSource]="users()" class="w-full">
                 <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>Usuario</th><td mat-cell *matCellDef="let user"><div class="font-medium text-slate-900">{{ user.name }}</div><div class="text-xs text-slate-500">{{ user.key }}</div></td></ng-container>
                 <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>Correo</th><td mat-cell *matCellDef="let user">{{ user.email }}</td></ng-container>
@@ -147,7 +147,7 @@ export function formatExpiration(value: string | null): string {
               </ng-template>
             </mat-menu>
 
-            <div class="divide-y divide-slate-100 lg:hidden">
+            <div class="divide-y divide-slate-100 xl:hidden">
               @for (user of users(); track user.id) {
                 <article class="p-4">
                   <div class="flex items-start justify-between gap-3"><div><h3 class="m-0 font-semibold text-slate-900">{{ user.name }}</h3><p class="m-0 text-xs text-slate-500">{{ user.key }} · {{ user.profileName }}</p></div><span class="rounded-full px-2 py-1 text-xs font-semibold" [class]="user.status === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'">{{ user.status === 'ACTIVO' ? 'Activo' : 'Inactivo' }}</span></div>

@@ -34,6 +34,8 @@ interface PageInternals {
   permissionsChanged(): boolean;
   commandBusy(): boolean;
   selectedProfile(): ProfileAdministration | null;
+  profilesLoading(): boolean;
+  profiles(): ProfileAdministration[];
 }
 
 describe('ProfileManagementPage', () => {
@@ -109,6 +111,21 @@ describe('ProfileManagementPage', () => {
     expect(fixture.nativeElement.textContent).toContain('No tienes permiso para realizar esta operación.');
   });
 
+  it('descarta una respuesta obsoleta del listado y conserva la selección actual', () => {
+    const first = new Subject<ProfileAdministration[]>();
+    const second = new Subject<ProfileAdministration[]>();
+    const newer = { id: 18, name: 'Perfil nuevo', status: 'ACTIVO' as const, permissionCount: 0 };
+    loadProfiles.execute.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    page.loadProfiles();
+    page.loadProfiles();
+    second.next([newer]);
+    first.next([{ ...TEST_PROFILE, name: 'Respuesta obsoleta' }]);
+    expect(page.profiles()).toEqual([newer]);
+    expect(page.selectedProfile()?.id).toBe(17);
+    expect(page.selectedProfile()?.name).toBe('Operaciones');
+    expect(page.profilesLoading()).toBe(false);
+  });
+
   it('cambia perfil seleccionado y consulta permisos del nuevo perfil', () => {
     const second = { id: 18, name: 'Auditoría', status: 'INACTIVO' as const, permissionCount: 0 };
     getPermissions.execute.mockReturnValue(of({ profileId: 18, permissions: [] }));
@@ -144,9 +161,27 @@ describe('ProfileManagementPage', () => {
     expect(replacePermissions.execute).toHaveBeenCalledWith(17, []);
   });
 
+  it('ejecuta el submit DOM, previene navegación nativa y conserva el perfil seleccionado', () => {
+    updateName.execute.mockReturnValue(of({ ...TEST_PROFILE, name: 'Operación editada' }));
+    const formControl = (fixture.componentInstance as unknown as { profileName: { setValue(value: string): void } }).profileName;
+    formControl.setValue('Operación editada');
+    fixture.detectChanges();
+    const form = fixture.nativeElement.querySelector('form[aria-label="Cambiar nombre del perfil"]') as HTMLFormElement | null;
+    expect(form).not.toBeNull();
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    const dispatchResult = form!.dispatchEvent(event);
+    fixture.detectChanges();
+
+    expect(dispatchResult).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(updateName.execute).toHaveBeenCalledWith(17, 'Operación editada');
+    expect(page.selectedProfile()?.id).toBe(17);
+    expect(page.selectedProfile()?.name).toBe('Operación editada');
+    expect((form!.querySelector('input') as HTMLInputElement).value).toBe('Operación editada');
+  });
+
   it('renombra con valor normalizado y evita request no-op', () => {
-    const input = fixture.nativeElement.querySelector('input[formcontrolname="profileName"]') as HTMLInputElement | null;
-    expect(input).toBeNull();
     const formControl = (fixture.componentInstance as unknown as { profileName: { setValue(value: string): void } }).profileName;
     formControl.setValue(' Operación ');
     page.saveName();
