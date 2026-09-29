@@ -219,7 +219,7 @@ export class LoginPage {
     this.auth
       .login({ username: this.username.value, password: this.password.value })
       .subscribe({
-        next: () => this.router.navigate(['/materiales']),
+        next: () => this.router.navigate(['/dashboard']),
         error: (err) => {
           this.isLoading.set(false);
           this.form.enable();

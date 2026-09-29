@@ -24,14 +24,17 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Carga de archivos de facturación">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="m-0 text-base font-semibold text-slate-800">Selecciona archivos</h2><p class="mb-0 mt-1 text-xs text-slate-500">Excel .xls o .xlsx · máximo 5 archivos · 10 MiB por archivo</p></div>
-          <button type="button" (click)="downloadTemplate()" [disabled]="!template() || isLoading()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 px-4 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50" title="Descargar layout compatible"><mat-icon aria-hidden="true">description</mat-icon>Descargar layout</button>
+          <button type="button" (click)="downloadTemplate()" [disabled]="!template() || isLoading() || isTemplateLoading() || isDownloading()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 px-4 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50" title="Descargar layout compatible"><mat-icon aria-hidden="true">description</mat-icon>{{ isDownloading() ? 'Descargando…' : 'Descargar layout' }}</button>
         </div>
 
-        <label class="mt-5 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-5 text-center transition hover:border-blue-400 hover:bg-blue-50/40" [class.pointer-events-none]="isLoading()" [class.opacity-60]="isLoading()">
+        @if (isTemplateLoading()) { <p class="mt-5 mb-0 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900" role="status" aria-live="polite">Obteniendo la configuración de Facturación…</p> }
+        @if (templateError(); as templateMessage) { <section class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert"><p class="m-0 font-semibold">No fue posible obtener la configuración de Facturación.</p><p class="mb-3 mt-1">{{ templateMessage }}</p><button type="button" (click)="loadTemplate()" [disabled]="isTemplateLoading()" class="min-h-9 rounded-lg border border-red-300 px-3 text-sm font-medium text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60">Reintentar</button></section> }
+        @if (downloadError(); as downloadMessage) { <p class="mt-3 mb-0 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">No fue posible descargar el layout. {{ downloadMessage }}</p> }
+        <label class="mt-5 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-5 text-center transition hover:border-blue-400 hover:bg-blue-50/40" [class.pointer-events-none]="isLoading() || isTemplateLoading() || !template()" [class.opacity-60]="isLoading() || isTemplateLoading() || !template()">
           <mat-icon class="mb-2 text-blue-500" aria-hidden="true">upload_file</mat-icon>
           <span class="text-sm font-medium text-slate-700">Selecciona archivos desde tu equipo</span>
           <span class="mt-1 text-xs text-slate-500">No se aceptan otros formatos</span>
-          <input class="sr-only" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple [disabled]="isLoading()" (change)="onFilesSelected($event)" aria-label="Seleccionar archivos Excel" />
+          <input class="sr-only" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple [disabled]="isLoading() || isTemplateLoading() || !template()" (change)="onFilesSelected($event)" aria-label="Seleccionar archivos Excel" />
         </label>
         @if (selectionMessage()) { <p class="mb-0 mt-3 text-sm text-amber-700" role="status">{{ selectionMessage() }}</p> }
 
@@ -76,24 +79,46 @@ export class BillingUploadPage implements OnInit {
   protected readonly selectedFiles = signal<File[]>([]);
   protected readonly selectionMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
+  protected readonly isTemplateLoading = signal(false);
+  protected readonly isDownloading = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly templateError = signal<string | null>(null);
+  protected readonly downloadError = signal<string | null>(null);
   protected readonly response = signal<BillingUploadResponse | null>(null);
   protected readonly template = signal<BillingTemplate | null>(null);
   private readonly uploadFiles = inject(UploadBillingFilesUseCase);
   private readonly billingApi = inject(BillingApiService);
 
   ngOnInit(): void {
-    this.billingApi.template().pipe(catchError(() => EMPTY)).subscribe((template) => this.template.set(template));
+    this.loadTemplate();
+  }
+
+  protected loadTemplate(): void {
+    this.isTemplateLoading.set(true);
+    this.templateError.set(null);
+    this.billingApi.template().pipe(finalize(() => this.isTemplateLoading.set(false))).subscribe({
+      next: (template) => this.template.set(template),
+      error: (cause: unknown) => {
+        this.template.set(null);
+        this.templateError.set(userFacingApiError(cause, 'Verifica la configuración e inténtalo nuevamente.'));
+      },
+    });
   }
 
   protected downloadTemplate(): void {
-    this.billingApi.downloadTemplate().subscribe((blob) => {
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'Layout_Facturas.xlsx';
-      anchor.click();
-      URL.revokeObjectURL(url);
+    if (!this.template() || this.isDownloading()) return;
+    this.isDownloading.set(true);
+    this.downloadError.set(null);
+    this.billingApi.downloadTemplate().pipe(finalize(() => this.isDownloading.set(false))).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'Layout_Facturas.xlsx';
+        anchor.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (cause: unknown) => this.downloadError.set(userFacingApiError(cause, 'Verifica tu conexión e inténtalo nuevamente.')),
     });
   }
 
@@ -115,9 +140,10 @@ export class BillingUploadPage implements OnInit {
   }
 
   protected upload(): void {
-    if (!this.selectedFiles().length || this.isLoading()) return;
+    if (!this.template() || !this.selectedFiles().length || this.isLoading()) return;
     this.isLoading.set(true);
     this.error.set(null);
+    this.downloadError.set(null);
     this.response.set(null);
     this.uploadFiles.execute(this.selectedFiles()).pipe(
       catchError((cause: unknown) => {
