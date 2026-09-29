@@ -6,6 +6,8 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -43,8 +45,10 @@ public class DataSourceConfig {
      */
     @Bean
     @Primary
+    @ConfigurationProperties("spring.datasource.hikari")
     public DataSource primaryDataSource(
             @Qualifier("primaryDataSourceProperties") DataSourceProperties properties) {
+        validateRequiredProperties("spring.datasource", properties);
         return properties.initializeDataSourceBuilder().build();
     }
 
@@ -78,8 +82,10 @@ public class DataSourceConfig {
      * @return origen de datos del esquema {@code app24}
      */
     @Bean
+    @ConfigurationProperties("app.datasource.hikari")
     public DataSource appDataSource(
             @Qualifier("appDataSourceProperties") DataSourceProperties properties) {
+        validateRequiredProperties("app.datasource", properties);
         return properties.initializeDataSourceBuilder().build();
     }
 
@@ -126,4 +132,49 @@ public class DataSourceConfig {
             @Qualifier("appDataSource") DataSource dataSource) {
         return new JdbcTransactionManager(dataSource);
     }
+
+    /**
+     * Fuerza la resolución de todas las variables obligatorias del perfil productivo.
+     *
+     * @return marcador de configuración validada
+     */
+    @Bean
+    @Profile("prod")
+    public Object productionConfigurationRequired(
+            @Value("${DB_URL}") String dbUrl,
+            @Value("${DB_USERNAME}") String dbUsername,
+            @Value("${DB_PASSWORD}") String dbPassword,
+            @Value("${APP_DB_URL}") String appDbUrl,
+            @Value("${APP_DB_USERNAME}") String appDbUsername,
+            @Value("${APP_DB_PASSWORD}") String appDbPassword,
+            @Value("${JWT_SECRET}") String jwtSecret,
+            @Value("${JWT_EXPIRATION_MINUTES}") String jwtExpirationMinutes,
+            @Value("${APP_CORS_ALLOWED_ORIGINS}") String corsAllowedOrigins) {
+        return new Object();
+    }
+
+    /**
+     * Valida propiedades de conexión antes de crear pools que fallarían de forma diferida.
+     *
+     * @param prefix prefijo de propiedades del origen
+     * @param properties propiedades enlazadas del origen
+     */
+    private static void validateRequiredProperties(String prefix, DataSourceProperties properties) {
+        validateRequiredProperty(prefix + ".url", properties.getUrl());
+        validateRequiredProperty(prefix + ".username", properties.getUsername());
+        validateRequiredProperty(prefix + ".password", properties.getPassword());
+    }
+
+    /**
+     * Rechaza valores vacíos o placeholders que Spring no pudo resolver.
+     *
+     * @param property nombre de propiedad requerido
+     * @param value valor recibido
+     */
+    private static void validateRequiredProperty(String property, String value) {
+        if (value == null || value.isBlank() || value.startsWith("${")) {
+            throw new IllegalStateException("Configuración obligatoria ausente: " + property);
+        }
+    }
+
 }
