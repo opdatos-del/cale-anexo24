@@ -29,12 +29,17 @@ export class ReportApiService {
 
   private params(criteria: ReportSearchCriteria, pageSize = criteria.pageSize): HttpParams {
     let params = new HttpParams()
-      .set('desde', criteria.type === 'bitacora' ? this.startOfDayInstant(criteria.from) : criteria.from)
-      .set('hasta', criteria.type === 'bitacora' ? this.endOfDayInstant(criteria.to) : criteria.to)
       .set('pagina', criteria.page)
       .set('tamano', pageSize);
+    if (criteria.type !== 'compulsa') {
+      params = params
+        .set('desde', criteria.type === 'bitacora' ? this.startOfDayInstant(criteria.from) : criteria.from)
+        .set('hasta', criteria.type === 'bitacora' ? this.endOfDayInstant(criteria.to) : criteria.to);
+    }
 
-    const optional = criteria.type === 'materiales-utilizados'
+    const optional = criteria.type === 'compulsa'
+      ? { filtro: criteria.filter }
+      : criteria.type === 'materiales-utilizados'
       ? { material: criteria.material, producto: criteria.product, pedimentoSalida: criteria.customsDocument, clavePedimentoSalida: criteria.customsCode }
       : criteria.type === 'bitacora'
         ? { usuarioId: criteria.userId?.toString() ?? '', modulo: criteria.module, resultado: criteria.result, correlationId: criteria.correlationId }

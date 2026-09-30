@@ -1,5 +1,5 @@
 /** Reportes disponibles en el contrato V1. */
-export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora';
+export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora' | 'compulsa';
 
 /** Filtros comunes y específicos admitidos por los reportes V1. */
 export interface ReportSearchCriteria {
@@ -18,6 +18,7 @@ export interface ReportSearchCriteria {
   module: string;
   result: string;
   correlationId: string;
+  filter: string;
 }
 
 /** Fila de reporte: las columnas dependen del reporte seleccionado. */

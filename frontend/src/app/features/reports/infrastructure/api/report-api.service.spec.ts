@@ -8,7 +8,7 @@ import { ReportApiService } from './report-api.service';
 const criteria: ReportSearchCriteria = {
   type: 'entradas', from: '2026-01-01', to: '2026-01-31', page: 2, pageSize: 20,
   customsDocument: '  26  ', customsCode: ' A1 ', tariffFraction: ' 1234 ', partNumber: ' P-1 ',
-  material: '', product: '', userId: null, module: '', result: '', correlationId: '',
+  material: '', product: '', userId: null, module: '', result: '', correlationId: '', filter: '',
 };
 
 describe('ReportApiService', () => {
@@ -40,6 +40,14 @@ describe('ReportApiService', () => {
     expect(request.request.params.get('pedimentoSalida')).toBe('S-1');
     expect(request.request.params.get('tamano')).toBe('100');
     request.flush(new Blob());
+  });
+
+  it('consulta compulsa sin periodo y con filtro textual', () => {
+    service.search({ ...criteria, type: 'compulsa', filter: ' A1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/compulsa');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('A1');
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
   it('convierte el periodo completo de bitácora a instantes ISO', () => {

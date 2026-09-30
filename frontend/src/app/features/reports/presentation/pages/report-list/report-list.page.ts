@@ -34,6 +34,7 @@ const REPORTS: ReportOption[] = [
   { type: 'salidas', label: 'Salidas', icon: 'outbox', available: true },
   { type: 'materiales-utilizados', label: 'Materiales utilizados', icon: 'layers', available: true },
   { type: 'bitacora', label: 'Bitácora', icon: 'manage_search', available: true },
+  { type: 'compulsa', label: 'Compulsa', icon: 'compare_arrows', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: false },
 ];
 
@@ -62,6 +63,12 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'modulo', label: 'Módulo' }, { key: 'accion', label: 'Acción' }, { key: 'resultado', label: 'Resultado' },
     { key: 'detalle', label: 'Detalle' }, { key: 'correlationId', label: 'Correlation ID' },
   ],
+  compulsa: [
+    { key: 'pedimentoGlosa', label: 'Pedimento glosa' }, { key: 'pedimentoAnexo24', label: 'Pedimento Anexo 24' },
+    { key: 'fechaGlosa', label: 'Fecha glosa', format: 'date' }, { key: 'fechaAnexo24', label: 'Fecha Anexo 24', format: 'date' },
+    { key: 'claveGlosa', label: 'Clave glosa' }, { key: 'claveAnexo24', label: 'Clave Anexo 24' },
+    { key: 'fraccionGlosa', label: 'Fracción glosa' }, { key: 'fraccionAnexo24', label: 'Fracción Anexo 24' },
+  ],
 };
 
 /** Genera reportes V1 paginados para el periodo obligatorio seleccionado. */
@@ -88,12 +95,18 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
-            <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
-            @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
+            @if (selectedType() !== 'compulsa') {
+              <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
+              @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
+            } @else {
+              <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento, clave o fracción</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
+            }
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
-            @if (isOperationalReport()) {
+            @if (selectedType() === 'compulsa') {
+              <p class="m-0 text-xs text-slate-500">Compara registros generales de glosa contra Anexo 24.</p>
+            } @else if (isOperationalReport()) {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento</span><input matInput name="customsDocument" [(ngModel)]="customsDocument" maxlength="50" class="report-input" /></label>
                 <label><span class="mb-1 block text-xs font-medium text-slate-700">Clave de pedimento</span><input matInput name="customsCode" [(ngModel)]="customsCode" maxlength="5" class="report-input" /></label>
@@ -180,6 +193,7 @@ export class ReportListPage {
   protected module = '';
   protected result = '';
   protected correlationId = '';
+  protected filter = '';
   protected currentPage = 1;
   protected pageSize = 20;
 
@@ -202,6 +216,7 @@ export class ReportListPage {
 
   protected isOperationalReport(): boolean { return this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
+    if (this.selectedType() === 'compulsa') return null;
     if (!this.fromDate || !this.toDate) return 'Selecciona fecha inicial y fecha final para generar el reporte.';
     return this.fromDate.getTime() > this.toDate.getTime() ? 'La fecha inicial no puede ser posterior a la final.' : null;
   }
@@ -209,7 +224,7 @@ export class ReportListPage {
   protected columns(): ReportColumn[] { return COLUMNS[this.selectedType()]; }
   protected displayedColumns(): string[] { return this.columns().map((column) => column.key); }
   protected formatTotal(): string { return new Intl.NumberFormat('es-MX').format(this.totalItems()); }
-  protected canExport(): boolean { return this.auth.hasPermission('REPORTES_EXPORTAR') && this.hasGenerated() && this.items().length > 0; }
+  protected canExport(): boolean { return this.selectedType() !== 'compulsa' && this.auth.hasPermission('REPORTES_EXPORTAR') && this.hasGenerated() && this.items().length > 0; }
 
   protected generate(): void {
     if (!this.canGenerate()) return;
@@ -232,7 +247,7 @@ export class ReportListPage {
   }
 
   protected clearFilters(): void {
-    this.periodFilter?.clear(); this.fromDate = null; this.toDate = null; this.customsDocument = ''; this.customsCode = ''; this.tariffFraction = ''; this.partNumber = ''; this.material = ''; this.product = ''; this.userId = null; this.module = ''; this.result = ''; this.correlationId = ''; this.currentPage = 1; this.resetResults();
+    this.periodFilter?.clear(); this.fromDate = null; this.toDate = null; this.customsDocument = ''; this.customsCode = ''; this.tariffFraction = ''; this.partNumber = ''; this.material = ''; this.product = ''; this.userId = null; this.module = ''; this.result = ''; this.correlationId = ''; this.filter = ''; this.currentPage = 1; this.resetResults();
   }
 
   protected changePage(event: PageEvent): void { if (!this.hasGenerated()) return; this.currentPage = event.pageIndex + 1; this.pageSize = event.pageSize; this.generate(); }
@@ -244,7 +259,7 @@ export class ReportListPage {
   }
 
   private criteria(): ReportSearchCriteria {
-    return { type: this.selectedType(), from: formatLocalDateForApi(this.fromDate) ?? '', to: formatLocalDateForApi(this.toDate) ?? '', page: this.currentPage, pageSize: this.pageSize, customsDocument: this.customsDocument, customsCode: this.customsCode, tariffFraction: this.tariffFraction, partNumber: this.partNumber, material: this.material, product: this.product, userId: this.userId, module: this.module, result: this.result, correlationId: this.correlationId };
+    return { type: this.selectedType(), from: formatLocalDateForApi(this.fromDate) ?? '', to: formatLocalDateForApi(this.toDate) ?? '', page: this.currentPage, pageSize: this.pageSize, customsDocument: this.customsDocument, customsCode: this.customsCode, tariffFraction: this.tariffFraction, partNumber: this.partNumber, material: this.material, product: this.product, userId: this.userId, module: this.module, result: this.result, correlationId: this.correlationId, filter: this.filter };
   }
   private resetResults(): void { this.items.set([]); this.totalItems.set(0); this.hasGenerated.set(false); this.error.set(null); this.isLoading.set(false); }
   private download(file: Blob): void { const url = URL.createObjectURL(file); const link = document.createElement('a'); link.href = url; link.download = `${this.selectedType()}.xlsx`; link.click(); URL.revokeObjectURL(url); }
