@@ -70,9 +70,9 @@ versionada.
 | LEGACY-006 | Catálogos y maestros | `NOT_CAPTURED` — Unidades | Consultar catálogo de unidades | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Unidades | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/unidades` | `dbo.unidad`, `dbo.APP24_Q_UNIDADES_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
 | LEGACY-007 | Catálogos y maestros | `NOT_CAPTURED` — Categorías | Consultar categorías y temporalidad | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Categorías | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/categorias` | `dbo.categorias`, `dbo.APP24_Q_CATEGORIAS_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
 | LEGACY-008 | Catálogos y maestros | `NOT_CAPTURED` — Divisiones/almacenes | Consultar divisiones o almacenes | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Almacenes; división independiente no identificada | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/almacenes` | `dbo.almacen`, `dbo.APP24_Q_ALMACENES_LISTAR`; `DIVISION`/`ENTIDAD` sin fuente canónica | PARTIAL | P1 | Almacenes implementados; falta contrato independiente de división | Catálogos auxiliares |
-| LEGACY-009 | Catálogos y maestros | `NOT_CAPTURED` — Proveedores | Consultar proveedores | AUDIT_UI, SQL_METADATA | No identificado | No | No | `PROVEEDORES`; usado por entradas e informes | UNKNOWN | P1 | Falta contrato de catálogo | Catálogos auxiliares |
-| LEGACY-010 | Catálogos y maestros | `NOT_CAPTURED` — Clientes | Consultar clientes | SQL_METADATA | No identificado | No | No | `CLIENTES`; usado por salidas y facturación | UNKNOWN | P1 | Falta contrato de catálogo | Catálogos auxiliares |
-| LEGACY-011 | Catálogos y maestros | `NOT_CAPTURED` — Agentes aduanales | Consultar agentes aduanales | AUDIT_UI, SQL_METADATA | No identificado | No | No | Referencias en `SALIDAS`; fuente canónica no cerrada | UNKNOWN | P2 | Falta fuente y contrato | Catálogos auxiliares |
+| LEGACY-009 | Catálogos y maestros | `NOT_CAPTURED` — Proveedores | Consultar proveedores | AUDIT_UI, SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Proveedores | `BusinessPartiesPage` | `GET /api/v1/catalogos/proveedores` | `dbo.Proveedores`, `dbo.APP24_Q_PROVEEDORES_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | Sólo lectura V1; importación/confirmación fuera de alcance | Catálogos / socios comerciales |
+| LEGACY-010 | Catálogos y maestros | `NOT_CAPTURED` — Clientes | Consultar clientes | SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Clientes | `BusinessPartiesPage` | `GET /api/v1/catalogos/clientes` | `dbo.clientes`, `dbo.APP24_Q_CLIENTES_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | Sólo lectura V1; importación/confirmación fuera de alcance | Catálogos / socios comerciales |
+| LEGACY-011 | Catálogos y maestros | `NOT_CAPTURED` — Agentes aduanales | Consultar agentes aduanales | AUDIT_UI, SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Agentes aduanales | `BusinessPartiesPage` | `GET /api/v1/catalogos/agentes-aduanales` | `dbo.agentes`, `dbo.APP24_Q_AGENTES_ADUANALES_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; importación fuera de alcance | Catálogos / socios comerciales |
 | LEGACY-012 | Catálogos y maestros | `NOT_CAPTURED` — Submaquilas | Consultar submaquilas | SQL_METADATA | No identificado | No | No | `CARGA_SUBMAQUILA` y referencias CTM; contrato no cerrado | UNKNOWN | P2 | Falta alcance funcional | Catálogos auxiliares |
 | LEGACY-013 | Catálogos y maestros | `NOT_CAPTURED` — Activo fijo | Consultar partidas marcadas como activo fijo | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | La granularidad nueva es partida, no activo individual | Operaciones / activo fijo |
 | LEGACY-014 | Catálogos y maestros | `NOT_CAPTURED` — Consultas guardadas | Guardar y reutilizar consultas o filtros | AUDIT_UI | No identificado | No | No | UNKNOWN | UNKNOWN | P3 | No existe contrato versionado | Catálogos auxiliares / consultas |
@@ -146,7 +146,7 @@ versionada.
 
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Catálogos y maestros | 14 | 3 | 4 | 1 | 1 | 0 | 0 | 5 |
+| Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 1 | 6 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
 | Reportes y consolidados | 18 | 0 | 5 | 0 | 0 | 2 | 5 | 6 |
@@ -154,7 +154,7 @@ versionada.
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **17** | **7** | **10** | **5** | **6** | **29** |
+| **Total** | **79** | **5** | **20** | **7** | **10** | **5** | **6** | **26** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -177,12 +177,12 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 17`
+- `IMPLEMENTED_REDESIGNED = 20`
 - `PARTIAL = 7`
 - `MISSING = 10`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 29`
+- `UNKNOWN = 26`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -190,7 +190,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 29 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 26 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.

@@ -41,14 +41,18 @@ material, Categorías y Almacenes como consultas `READ_ONLY`, cada uno con fuent
 SQL, procedimiento versionado, endpoint, permiso común y superficie agrupada en
 `/catalogos`. La capacidad de División independiente permanece `UNKNOWN`.
 
-**Pendiente:** proveedores, clientes, agentes aduanales, submaquilas, datos
-relacionados y consultas guardadas; también confirmar si existe un catálogo
-canónico independiente de divisiones.
+**Implementado en `feature/legacy-business-parties-v1`:** Clientes, Proveedores y
+Agentes aduanales como consultas `READ_ONLY`, paginadas y agrupadas en
+`/catalogos/socios-comerciales`. Reutilizan `CATALOGOS_AUX_CONSULTAR`.
 
-**Evidencia:** `dbo.unidad`, `dbo.TipoMaterial`, `dbo.categorias` y `dbo.almacen`
-fueron reconciliados contra sus SP read-only en `CALE_IMMEX`. `ENTIDAD(DIVISION)`,
-`PROVEEDORES`, `CLIENTES` y referencias de submaquila permanecen sin contrato
-suficiente.
+**Pendiente:** submaquilas, datos relacionados y consultas guardadas; también
+confirmar si existe un catálogo canónico independiente de divisiones. El staging
+de importación de socios queda pendiente por falta de layout aislado y contrato
+de validación suficiente.
+
+**Evidencia:** los catálogos foundation y los maestros `dbo.clientes`,
+`dbo.Proveedores` y `dbo.agentes` tienen fuentes y contratos read-only cerrados.
+`ENTIDAD(DIVISION)` y submaquila permanecen sin maestro canónico suficiente.
 
 **Trabajo restante:**
 
