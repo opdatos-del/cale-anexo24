@@ -7,8 +7,9 @@ export const permissionGuard: CanActivateFn = (route) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const permission = route.data['permission'] as string | undefined;
+  const permissions = route.data['permissions'] as string[] | undefined;
 
-  if (permission && auth.hasPermission(permission)) {
+  if ((permission && auth.hasPermission(permission)) || (permissions?.length && auth.hasAnyPermission(...permissions))) {
     return true;
   }
 

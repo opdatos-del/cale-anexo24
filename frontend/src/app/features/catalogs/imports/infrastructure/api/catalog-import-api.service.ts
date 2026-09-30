@@ -1,0 +1,21 @@
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { CatalogImportResponse, CatalogImportType } from '@features/catalogs/imports/domain/models/catalog-import.model';
+
+@Injectable({ providedIn: 'root' })
+export class CatalogImportApiService {
+  private readonly http = inject(HttpClient);
+
+  upload(type: CatalogImportType, file: File): Observable<CatalogImportResponse> {
+    const form = new FormData();
+    form.append('archivo', file);
+    const endpoint = type === 'MATERIAL' ? 'materiales' : 'productos';
+    return this.http.post<CatalogImportResponse>(`/api/v1/catalogos/importaciones/${endpoint}`, form);
+  }
+
+  get(type: CatalogImportType, id: number): Observable<CatalogImportResponse> {
+    const endpoint = type === 'MATERIAL' ? 'materiales' : 'productos';
+    return this.http.get<CatalogImportResponse>(`/api/v1/catalogos/importaciones/${endpoint}/${id}`);
+  }
+}

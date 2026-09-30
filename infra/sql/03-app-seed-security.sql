@@ -21,6 +21,8 @@ FROM (VALUES
     ('CATALOGOS_AUX_CONSULTAR','Consultar catálogos auxiliares', 'catalogos', 'CONSULTAR'),
     ('OPERACIONES_CONSULTAR',   'Consultar operaciones',   'operaciones',     'CONSULTAR'),
     ('PEDIMENTOS_CARGAR',       'Cargar pedimentos para previsualización', 'pedimentos', 'CARGAR'),
+    ('MATERIALES_CARGAR',       'Cargar materiales para previsualización', 'materiales', 'CARGAR'),
+    ('PRODUCTOS_CARGAR',        'Cargar productos para previsualización', 'productos', 'CARGAR'),
     ('REPORTES_GENERAR',        'Generar reportes',        'reportes',      'GENERAR'),
     ('REPORTES_EXPORTAR',       'Exportar reportes',       'reportes',      'EXPORTAR'),
     ('FACTURACION_CARGAR',      'Cargar facturación',      'facturacion',   'CARGAR'),

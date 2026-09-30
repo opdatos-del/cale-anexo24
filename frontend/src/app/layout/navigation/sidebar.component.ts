@@ -12,7 +12,7 @@ interface NavItem {
   label: string;
   icon: string;
   route: string;
-  permission: string;
+  permission: string | string[];
 }
 
 interface NavGroup {
@@ -133,7 +133,10 @@ export class SidebarComponent implements OnDestroy {
       { label: 'Productos', icon: 'category', route: '/productos', permission: 'PRODUCTOS_CONSULTAR' },
       { label: 'Estructuras', icon: 'account_tree', route: '/estructuras', permission: 'ESTRUCTURAS_CONSULTAR' },
       { label: 'Catálogos auxiliares', icon: 'list_alt', route: '/catalogos', permission: 'CATALOGOS_AUX_CONSULTAR' },
-    ].filter((item) => this.auth.hasPermission(item.permission));
+      { label: 'Importar catálogos', icon: 'upload_file', route: '/catalogos/importaciones', permission: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
+    ].filter((item) => Array.isArray(item.permission)
+      ? item.permission.some((permission) => this.auth.hasPermission(permission))
+      : this.auth.hasPermission(item.permission));
 
     if (catalogItems.length > 0) groups.push({ label: 'Catálogos', items: catalogItems });
 

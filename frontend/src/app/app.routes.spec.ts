@@ -21,6 +21,16 @@ describe('rutas de la aplicación', () => {
     expect(profiles?.loadChildren).toBeTypeOf('function');
   });
 
+  it('declara importaciones de catálogos con permisos de carga exactos', () => {
+    const layout = routes.find((route) => route.path === '');
+    const catalogs = layout?.children?.find((route) => route.path === 'catalogos');
+    expect(catalogs).toMatchObject({
+      canActivate: [permissionGuard],
+      data: { permission: 'CATALOGOS_AUX_CONSULTAR', permissions: ['CATALOGOS_AUX_CONSULTAR', 'MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
+    });
+    expect(catalogs?.loadChildren).toBeTypeOf('function');
+  });
+
   it('declara Facturación con la autoridad exacta de carga', () => {
     const layout = routes.find((route) => route.path === '');
     const billing = layout?.children?.find((route) => route.path === 'facturacion');

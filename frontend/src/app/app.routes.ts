@@ -44,7 +44,7 @@ export const routes: Routes = [
       {
         path: 'catalogos',
         canActivate: [permissionGuard],
-        data: { permission: 'CATALOGOS_AUX_CONSULTAR' },
+        data: { permission: 'CATALOGOS_AUX_CONSULTAR', permissions: ['CATALOGOS_AUX_CONSULTAR', 'MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
         loadChildren: () => import('@features/catalogs/auxiliary/auxiliary.routes').then((routes) => routes.AUXILIARY_CATALOGS_ROUTES),
       },
       {
