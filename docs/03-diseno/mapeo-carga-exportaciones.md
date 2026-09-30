@@ -59,6 +59,23 @@ MUTABLE_SP_EXECUTED = 0
 INLINE_JAVA_SQL = 0
 ```
 
-La diferencia entre `LEGACY-019` y `LEGACY-057` se conserva: esta feature
-reutiliza staging/preview para una rama de exportación; no implementa la
-importación/confirmación operacional legacy.
+## Reconciliación de capacidades de pedimentos
+
+| ID | Significado reconciliado | Relación | Estado |
+|---|---|---|---|
+| `LEGACY-016` | Carga técnica de pedimentos a staging y preview | Superficie común de entrada | `PARTIAL` |
+| `LEGACY-019` | Carga/preparación de la rama de salida/exportación | Comparte staging con 016; agrega semántica `TipoOperacion=2` | `PARTIAL` |
+| `LEGACY-057` | Importación/procesamiento autoritativo posterior del pedimento hacia tablas operativas | Usa la familia legacy de carga, pero no es sólo preview | `MISSING` |
+
+```text
+LEGACY_016_MEANING = STAGING_AND_PREVIEW
+LEGACY_019_MEANING = STAGING_AND_PREVIEW_FOR_EXPORT_BRANCH
+LEGACY_057_MEANING = AUTHORITATIVE_IMPORT_AND_PROCESSING
+OVERLAP = PARTIAL
+```
+
+La clasificación de `LEGACY-057` no se consolida como duplicado: la evidencia de
+`CARGAPEDIMENTOS`, `CargaPedimentosIE`, `ERRORCARGA` y la documentación de
+Interfaces distingue el staging/preview de la escritura posterior en
+`IMPORTACIONES`, `PARTIDAS`, `SALIDAS` y `PSALIDAS`. Esa operación posterior
+continúa pendiente y no se implementa en esta feature.
