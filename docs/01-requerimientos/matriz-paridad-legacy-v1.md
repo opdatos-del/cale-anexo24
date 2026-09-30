@@ -66,10 +66,10 @@ versionada.
 | LEGACY-002 | Catálogos y maestros | `NOT_CAPTURED` — Materiales | Consultar catálogo de materiales | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/materiales` | `MaterialListPage` | `GET /api/v1/catalogos/materiales` | `dbo.APP24_Q_MATERIALES_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Catálogos / materiales |
 | LEGACY-003 | Catálogos y maestros | `NOT_CAPTURED` — Productos | Consultar catálogo de productos | AUDIT_UI, SQL_METADATA, CODE | `/productos` | `ProductListPage` | `GET /api/v1/catalogos/productos` | `dbo.APP24_Q_PRODUCTOS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Catálogos / productos |
 | LEGACY-004 | Catálogos y maestros | `NOT_CAPTURED` — Estructuras | Consultar estructura o BOM | AUDIT_UI, SQL_METADATA, CODE | `/estructuras` | `StructureListPage` | `GET /api/v1/catalogos/estructuras` | `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P1 | El snapshot SQL tenía cero estructuras | Catálogos / estructuras |
-| LEGACY-005 | Catálogos y maestros | `NOT_CAPTURED` — Tipos de material | Consultar catálogo de tipos de material | SQL_METADATA | No identificado | No | No | `MATERIAL.TIPOM`, fuentes auxiliares; contrato no cerrado | UNKNOWN | P2 | Falta contrato funcional | Catálogos auxiliares |
-| LEGACY-006 | Catálogos y maestros | `NOT_CAPTURED` — Unidades | Consultar catálogo de unidades | SQL_METADATA | No identificado | No | No | `unidad` y validaciones `VALIDUNIT`; contrato no cerrado | UNKNOWN | P2 | Falta fuente canónica y reglas | Catálogos auxiliares |
-| LEGACY-007 | Catálogos y maestros | `NOT_CAPTURED` — Categorías | Consultar categorías y temporalidad | SQL_METADATA | No identificado | No | No | `CATEGORIAS`; usada por informes y procesos | UNKNOWN | P2 | Falta alcance V1 | Catálogos auxiliares |
-| LEGACY-008 | Catálogos y maestros | `NOT_CAPTURED` — Divisiones/almacenes | Consultar divisiones o almacenes | SQL_METADATA | No identificado | No | No | `ALMACENKEY`, `ENTIDAD(DIVISION)`; contrato no cerrado | UNKNOWN | P1 | Falta contrato y responsable funcional | Catálogos auxiliares |
+| LEGACY-005 | Catálogos y maestros | `NOT_CAPTURED` — Tipos de material | Consultar catálogo de tipos de material | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Tipos de material | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/tipos-material` | `dbo.TipoMaterial`, `dbo.APP24_Q_TIPOS_MATERIAL_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
+| LEGACY-006 | Catálogos y maestros | `NOT_CAPTURED` — Unidades | Consultar catálogo de unidades | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Unidades | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/unidades` | `dbo.unidad`, `dbo.APP24_Q_UNIDADES_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
+| LEGACY-007 | Catálogos y maestros | `NOT_CAPTURED` — Categorías | Consultar categorías y temporalidad | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Categorías | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/categorias` | `dbo.categorias`, `dbo.APP24_Q_CATEGORIAS_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
+| LEGACY-008 | Catálogos y maestros | `NOT_CAPTURED` — Divisiones/almacenes | Consultar divisiones o almacenes | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Almacenes; división independiente no identificada | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/almacenes` | `dbo.almacen`, `dbo.APP24_Q_ALMACENES_LISTAR`; `DIVISION`/`ENTIDAD` sin fuente canónica | PARTIAL | P1 | Almacenes implementados; falta contrato independiente de división | Catálogos auxiliares |
 | LEGACY-009 | Catálogos y maestros | `NOT_CAPTURED` — Proveedores | Consultar proveedores | AUDIT_UI, SQL_METADATA | No identificado | No | No | `PROVEEDORES`; usado por entradas e informes | UNKNOWN | P1 | Falta contrato de catálogo | Catálogos auxiliares |
 | LEGACY-010 | Catálogos y maestros | `NOT_CAPTURED` — Clientes | Consultar clientes | SQL_METADATA | No identificado | No | No | `CLIENTES`; usado por salidas y facturación | UNKNOWN | P1 | Falta contrato de catálogo | Catálogos auxiliares |
 | LEGACY-011 | Catálogos y maestros | `NOT_CAPTURED` — Agentes aduanales | Consultar agentes aduanales | AUDIT_UI, SQL_METADATA | No identificado | No | No | Referencias en `SALIDAS`; fuente canónica no cerrada | UNKNOWN | P2 | Falta fuente y contrato | Catálogos auxiliares |
@@ -146,7 +146,7 @@ versionada.
 
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Catálogos y maestros | 14 | 3 | 1 | 0 | 1 | 0 | 0 | 9 |
+| Catálogos y maestros | 14 | 3 | 4 | 1 | 1 | 0 | 0 | 5 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 0 | 7 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
 | Reportes y consolidados | 18 | 0 | 5 | 0 | 0 | 2 | 5 | 6 |
@@ -154,21 +154,23 @@ versionada.
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **14** | **3** | **13** | **5** | **6** | **33** |
+| **Total** | **79** | **5** | **17** | **4** | **13** | **5** | **6** | **29** |
 
-`LEGACY_CAPABILITIES_TOTAL = 79`. Las filas 64–73 conservan capacidades
-identificadas por la auditoría consolidada, pero permanecen `UNKNOWN` porque el
-repositorio no contiene todavía un contrato funcional o una fuente SQL suficiente.
+`LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
+capacidades identificadas por la auditoría consolidada, pero el repositorio no
+contiene todavía un contrato funcional o una fuente SQL suficiente. `LEGACY-008`
+es `PARTIAL`: el subcaso de almacenes tiene contrato read-only y el catálogo
+independiente de divisiones continúa sin fuente canónica demostrada.
 
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 14`
-- `PARTIAL = 3`
+- `IMPLEMENTED_REDESIGNED = 17`
+- `PARTIAL = 4`
 - `MISSING = 13`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 33`
+- `UNKNOWN = 29`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -176,7 +178,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 33 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 29 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.

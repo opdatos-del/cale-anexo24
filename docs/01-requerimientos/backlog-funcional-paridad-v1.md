@@ -31,25 +31,37 @@ se ejecutan como parte de este inventario.
 
 ### EPIC-CATALOGS-AUX — Catálogos auxiliares
 
-**Prioridad:** P1/P2 · **Estado:** `UNKNOWN` en la mayoría de capacidades.
+**Prioridad:** P1/P2 · **Estado:** `PARTIAL`.
 
 **Incluye:** tipos de material, unidades, categorías, divisiones/almacenes,
 proveedores, clientes, agentes aduanales, submaquilas y consultas guardadas.
 
-**Evidencia:** `MATERIAL`, `CATEGORIAS`, `unidad`, `ALMACENKEY`,
-`ENTIDAD(DIVISION)`, `PROVEEDORES`, `CLIENTES` y referencias de submaquila en
-mapeos SQL. No existe todavía un contrato común de catálogo.
+**Implementado en `feature/legacy-catalogs-aux-v1`:** Unidades, Tipos de
+material, Categorías y Almacenes como consultas `READ_ONLY`, cada uno con fuente
+SQL, procedimiento versionado, endpoint, permiso común y superficie agrupada en
+`/catalogos`. La capacidad de División independiente permanece `UNKNOWN`.
 
-**Trabajo:**
+**Pendiente:** proveedores, clientes, agentes aduanales, submaquilas, datos
+relacionados y consultas guardadas; también confirmar si existe un catálogo
+canónico independiente de divisiones.
 
-1. identificar la fuente canónica de cada catálogo;
-2. documentar clave, etiqueta, estado, filtros y permisos;
-3. separar catálogos de lectura de efectos de cargas legacy;
-4. decidir si se consolidan en una superficie configurable o en endpoints
+**Evidencia:** `dbo.unidad`, `dbo.TipoMaterial`, `dbo.categorias` y `dbo.almacen`
+fueron reconciliados contra sus SP read-only en `CALE_IMMEX`. `ENTIDAD(DIVISION)`,
+`PROVEEDORES`, `CLIENTES` y referencias de submaquila permanecen sin contrato
+suficiente.
+
+**Trabajo restante:**
+
+1. cerrar fuente canónica, clave, etiqueta, filtros y permisos de cada candidato;
+2. separar catálogos de lectura de efectos de cargas legacy;
+3. decidir si se consolidan en una superficie configurable o en endpoints
    específicos;
-5. agregar casos de aceptación de búsqueda y selección.
+4. agregar casos de aceptación de búsqueda y selección;
+5. mantener explícita la frontera entre almacén implementado y división no
+   demostrada.
 
-**No hacer:** construir un framework genérico antes de cerrar esos contratos.
+**No hacer:** construir un framework genérico ni CRUD antes de cerrar esos
+contratos.
 
 ### EPIC-IMPORTS-PEDIMENTS — Importación de pedimentos
 
@@ -229,7 +241,8 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
 
 ### P1
 
-- `LEGACY-008` a `LEGACY-012`: catálogos auxiliares con fuente canónica.
+- `LEGACY-008` (subcaso de división), `LEGACY-009` a `LEGACY-012`: catálogos
+  auxiliares pendientes de fuente canónica y contrato.
 - `LEGACY-019`: carga de exportaciones separada de consulta.
 - `LEGACY-023` a `LEGACY-028`: operaciones especiales.
 - `LEGACY-030` a `LEGACY-034`: dirigidos, análisis e históricos especializados.
@@ -240,7 +253,7 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
 
 ### P2
 
-- `LEGACY-005` a `LEGACY-007`: catálogos auxiliares restantes.
+- Consultas guardadas y proyecciones auxiliares sin caso de uso confirmado.
 - `LEGACY-027`, `LEGACY-041`, `LEGACY-043` a `LEGACY-048` y `LEGACY-059` a
   `LEGACY-068`: reportes, consolidados e interfaces especializadas.
 - `LEGACY-061` a `LEGACY-063`: órdenes, procesos y CTM cuando se confirme la
@@ -253,34 +266,25 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
 
 ## 5. Recomendación de siguiente feature funcional
 
-### `feature/legacy-catalogs-aux-read-v1`
+### Feature cerrada: `feature/legacy-catalogs-aux-v1`
 
-**Alcance recomendado:** cerrar e implementar únicamente consultas read-only de
-catálogos auxiliares con fuente y contrato confirmados, empezando por unidades,
-categorías y divisiones/almacenes si la empresa confirma que son necesarios para
-la operación V1. Incluir UI de selección/listado, permisos, paginación sólo si el
-volumen lo requiere y evidencia SQL `READ_ONLY`.
+**Alcance entregado:** consultas `READ_ONLY` de unidades, tipos de material,
+categorías y almacenes, con SP versionados, endpoints protegidos por
+`CATALOGOS_AUX_CONSULTAR`, UI agrupada en `/catalogos` y reconciliación LIVE
+contra las fuentes de `CALE_IMMEX`. No se implementaron CRUD ni divisiones como
+catálogo independiente.
 
-**Por qué:**
+**Resultado:** la épica pasa de `UNKNOWN` a `PARTIAL`. Los cuatro catálogos
+entregados salen del backlog de implementación; permanecen como trabajo los
+candidatos sin contrato y la división independiente.
 
-- reduce dependencias de futuras cargas de pedimentos, productos y facturación;
-- puede aprovechar el patrón hexagonal, paginación, permisos y adapters/SP ya
-  usado por Materiales y Productos;
-- no requiere ejecutar procesos de descargo ni elegir una fórmula de Saldos;
-- tiene evidencia SQL parcial (`unidad`, `CATEGORIAS`, `ALMACENKEY` y
-  `ENTIDAD(DIVISION)`), por lo que el primer entregable puede cerrar la fuente
-  antes de construir un framework genérico;
-- evita convertir Facturación, Saldos, Ajuste anual o Anexo 30 en una
-  implementación por inferencia.
+**Siguiente recomendación:** `EPIC-IMPORTS-PEDIMENTS`, comenzando por cerrar
+layout, staging, validación, errores, transacción, idempotencia y aceptación
+antes de ejecutar cualquier efecto mutable.
 
-**Dependencias:** una revisión funcional breve debe confirmar nombres, columnas,
-permisos y uso operativo. Si esa revisión descubre que el catálogo auxiliar no es
-necesario para V1, la siguiente opción es `EPIC-IMPORTS-PEDIMENTS`, pero sólo
-después de cerrar layout, transacción, idempotencia y aceptación.
-
-**Blocker de negocio:** ninguno identificado para una consulta auxiliar bien
-acotada; el contrato específico todavía debe ser confirmado. No se recomienda
-iniciar una carga write hasta obtener la aceptación del flujo.
+**Blocker de negocio:** ninguno para los cuatro contratos read-only entregados.
+Saldos, confirmación de Facturación, Dashboard, descargos, ajuste anual y Anexo
+30 permanecen fuera de alcance.
 
 ## 6. Criterio de cierre del backlog de auditoría
 
