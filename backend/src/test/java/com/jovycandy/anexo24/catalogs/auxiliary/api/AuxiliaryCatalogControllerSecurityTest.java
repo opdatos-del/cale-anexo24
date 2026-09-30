@@ -5,6 +5,9 @@ import com.jovycandy.anexo24.catalogs.auxiliary.categories.application.query.Lis
 import com.jovycandy.anexo24.catalogs.auxiliary.materialtypes.application.query.ListarTiposMaterialUseCase;
 import com.jovycandy.anexo24.catalogs.auxiliary.units.application.query.ListarUnidadesUseCase;
 import com.jovycandy.anexo24.catalogs.auxiliary.warehouses.application.query.ListarAlmacenesUseCase;
+import com.jovycandy.anexo24.catalogs.businessparties.clients.application.query.ListarClientesUseCase;
+import com.jovycandy.anexo24.catalogs.businessparties.providers.application.query.ListarProveedoresUseCase;
+import com.jovycandy.anexo24.catalogs.businessparties.customsagents.application.query.ListarAgentesAduanalesUseCase;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,10 +35,13 @@ class AuxiliaryCatalogControllerSecurityTest {
     @MockitoBean ListarTiposMaterialUseCase tiposMaterial;
     @MockitoBean ListarAlmacenesUseCase almacenes;
     @MockitoBean ListarCategoriasUseCase categorias;
+    @MockitoBean ListarClientesUseCase clientes;
+    @MockitoBean ListarProveedoresUseCase proveedores;
+    @MockitoBean ListarAgentesAduanalesUseCase agentes;
 
     @Test
     void todosLosEndpointsRequierenElPermisoAuxiliar() throws Exception {
-        for (String path : List.of("unidades", "tipos-material", "almacenes", "categorias")) {
+        for (String path : List.of("unidades", "tipos-material", "almacenes", "categorias", "clientes", "proveedores", "agentes-aduanales")) {
             mockMvc.perform(get("/api/v1/catalogos/" + path))
                     .andExpect(status().isUnauthorized());
         }
@@ -53,8 +59,11 @@ class AuxiliaryCatalogControllerSecurityTest {
         when(tiposMaterial.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         when(almacenes.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         when(categorias.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        when(clientes.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        when(proveedores.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        when(agentes.ejecutar(null, 1, 20)).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
 
-        for (String path : List.of("unidades", "tipos-material", "almacenes", "categorias")) {
+        for (String path : List.of("unidades", "tipos-material", "almacenes", "categorias", "clientes", "proveedores", "agentes-aduanales")) {
             mockMvc.perform(get("/api/v1/catalogos/" + path)
                             .with(user("consulta").authorities(new SimpleGrantedAuthority("CATALOGOS_AUX_CONSULTAR"))))
                     .andExpect(status().isOk());
