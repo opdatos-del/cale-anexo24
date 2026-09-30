@@ -33,6 +33,19 @@ class ExcelPedimentoParserTest {
     }
 
     @Test
+    void conservaOperacionExportacionSinCrearStagingParalelo() throws Exception {
+        byte[] workbook = workbook(List.of("Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion",
+                "FechaPago", "Sec", "Clave", "Descripcion", "Fraccion", "CantidadComercial", "UnidadComercial"),
+                List.of("190", "3302", "5003972", "A1", "2", "2026-05-28", "1", "PROD-1", "Producto sintético", "17019999", "12.50", "KG"));
+
+        CargaPedimentoArchivo result = parser.parsear("exportacion-sintetica.xlsx", "c".repeat(64), workbook);
+
+        assertEquals(1, result.totalFilas());
+        assertEquals("2", result.filas().getFirst().datos().get("TipoOperacion"));
+        assertTrue(result.errores().isEmpty());
+    }
+
+    @Test
     void reportaHeaderFaltanteYFechaInvalidaSinGuardarValor() throws Exception {
         byte[] workbook = workbook(List.of("Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion",
                 "FechaPago", "Sec", "Clave", "Descripcion", "Fraccion", "CantidadComercial"),
