@@ -3,7 +3,7 @@ import { Component, DestroyRef, HostListener, inject, signal } from '@angular/co
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterOutlet } from '@angular/router';
 import { AuthService } from '@core/auth/auth.service';
@@ -12,7 +12,7 @@ import { SidebarComponent } from '@layout/navigation/sidebar.component';
 
 /** Shell autenticado: navegación, encabezado y contenido de la aplicación. */
 @Component({
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatToolbarModule, RouterOutlet, SidebarComponent],
+  imports: [MatButtonModule, MatIconModule, MatToolbarModule, RouterOutlet, SidebarComponent],
   selector: 'app-main-layout',
   styleUrl: './main-layout.component.scss',
   template: `
@@ -27,7 +27,6 @@ import { SidebarComponent } from '@layout/navigation/sidebar.component';
         [mobileOpen]="mobileSidebarOpen()"
         (collapsedChange)="sidebarCollapsed.set($event)"
         (mobileClosed)="closeMobileSidebar()"
-        (dashboardRequested)="goToDashboard()"
         (logoutRequested)="logout()"
       />
 
@@ -47,23 +46,9 @@ import { SidebarComponent } from '@layout/navigation/sidebar.component';
           }
           <span class="hidden text-[13px] font-medium tracking-wide text-slate-200 sm:inline">ANEXO 24 <span class="mx-1 text-slate-500">·</span> Control de Inventarios</span>
           <span class="flex-1"></span>
-          <button type="button" [matMenuTriggerFor]="userMenu" class="inline-flex h-9.5 items-center gap-2 rounded-lg border-0 bg-transparent px-2.5 text-white transition hover:bg-white/8" aria-label="Abrir menú de usuario">
-            <span class="user-initials user-initials-toolbar" aria-hidden="true">{{ auth.initials() }}</span>
-            <span class="hidden max-w-40 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold leading-none sm:inline">{{ auth.userName() || 'Usuario' }}</span>
-            <mat-icon class="h-4 w-4 shrink-0 text-[18px] text-slate-400" aria-hidden="true">expand_more</mat-icon>
-          </button>
-          <mat-menu #userMenu="matMenu" xPosition="before">
-            <div class="user-menu-header" role="presentation">
-              <span class="user-initials user-menu-avatar" aria-hidden="true">{{ auth.initials() }}</span>
-              <div><strong>{{ auth.userName() || 'Usuario' }}</strong><span>Sesión activa</span></div>
-            </div>
-            <div class="user-menu-divider" role="presentation"></div>
-            <button mat-menu-item type="button" (click)="goToDashboard()"><mat-icon>space_dashboard</mat-icon><span>Ir al inicio</span></button>
-            <button mat-menu-item type="button" (click)="logout()"><mat-icon>logout</mat-icon><span>Cerrar sesión</span></button>
-          </mat-menu>
         </mat-toolbar>
 
-        <main class="min-w-0 max-w-full flex-1 overflow-auto"><router-outlet /></main>
+        <main class="main-content-scroll" data-testid="main-content-scroll"><router-outlet /></main>
       </section>
     </div>
   `,
@@ -97,9 +82,6 @@ export class MainLayoutComponent {
     this.mobileSidebarOpen.update((open) => !open);
   }
 
-  protected goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
-  }
 
   protected logout(): void {
     this.confirm

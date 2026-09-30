@@ -67,6 +67,37 @@ describe('SidebarComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Usuarios');
   });
 
+  it('colapsa y expande un grupo sin renderizar encabezados vacíos', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'MATERIALES_CONSULTAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.detectChanges();
+    const group = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .find((button) => button.textContent?.includes('Catálogos'))!;
+    expect(fixture.nativeElement.textContent).toContain('Materiales');
+    group.click(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Materiales');
+    expect(fixture.nativeElement.textContent).not.toContain('Administración');
+  });
+
+  it('usa mini rail con menú para grupos al estar contraído', () => {
+    auth.hasPermission.mockImplementation((permission: string) => permission === 'MATERIALES_CONSULTAR');
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.componentRef.setInput('collapsed', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.rail-group')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.app-sidebar')?.classList).toContain('sidebar-compact');
+  });
+
+  it('emite cierre al navegar en móvil', () => {
+    auth.hasPermission.mockReturnValue(false);
+    const fixture = TestBed.createComponent(SidebarComponent);
+    fixture.componentRef.setInput('isMobile', true);
+    const emit = vi.spyOn(fixture.componentInstance.mobileClosed, 'emit');
+    fixture.detectChanges();
+    (fixture.componentInstance as unknown as { navigate(): void }).navigate();
+    expect(emit).toHaveBeenCalledOnce();
+  });
+
   it('muestra Perfiles sólo con PERFILES_ADMINISTRAR', () => {
     auth.hasPermission.mockImplementation((permission: string) => permission === 'PERFILES_ADMINISTRAR');
     const fixture = TestBed.createComponent(SidebarComponent);

@@ -1,193 +1,44 @@
-
-import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, computed, inject } from '@angular/core';
-
+import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { createMorph } from 'morphicons/dom';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '@core/auth/auth.service';
+import { NAVIGATION_GROUPS, NavigationGroup, NavigationItem } from '@layout/navigation/navigation.config';
 
-interface NavItem {
-  label: string;
-  icon: string;
-  route: string;
-  permission: string | string[];
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-/** Navegación principal responsive con modo compacto y menú de usuario. */
+/** Navegación agrupada con scroll interno, mini rail y cuenta accesible. */
 @Component({
   imports: [MatIconModule, MatMenuModule, MatTooltipModule, RouterLink, RouterLinkActive],
-  selector: 'app-sidebar',
-  styleUrl: './sidebar.component.scss',
+  selector: 'app-sidebar', styleUrl: './sidebar.component.scss',
   template: `
-    <aside
-      id="main-navigation"
-      class="app-sidebar"
-      [class.sidebar-compact]="collapsed && !isMobile"
-      [class.mobile-open]="mobileOpen"
-      aria-label="Navegación principal"
-    >
-      <div class="sidebar-brand">
-        <span class="sidebar-copy brand-copy">
-          <strong class="brand-name">Anexo 24</strong>
-          <small>Control de inventarios</small>
-        </span>
-        @if (!isMobile) {
-          <button
-            type="button"
-            class="sidebar-toggle"
-            [matTooltip]="collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'"
-            [attr.aria-label]="collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'"
-            [attr.aria-expanded]="!collapsed"
-            aria-controls="main-navigation"
-            (click)="toggleSidebar()"
-          >
-            <svg class="sidebar-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path #collapsePath d="M19 12H5M12 19L5 12L12 5" />
-            </svg>
-          </button>
-        }
-      </div>
-
+    <aside id="main-navigation" class="app-sidebar" [class.sidebar-compact]="collapsed && !isMobile" [class.mobile-open]="mobileOpen" aria-label="Navegación principal">
+      <header class="sidebar-brand"><span class="sidebar-copy brand-copy"><strong>Anexo 24</strong><small>Control de inventarios</small></span>
+        @if (!isMobile) { <button type="button" class="icon-button" [attr.aria-label]="collapsed ? 'Expandir menú lateral':'Contraer menú lateral'" (click)="collapsedChange.emit(!collapsed)"><mat-icon>{{collapsed?'menu_open':'menu'}}</mat-icon></button> }
+      </header>
       <nav class="sidebar-nav" aria-label="Secciones de la aplicación">
-        <a
-          routerLink="/dashboard"
-          routerLinkActive="nav-active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          matTooltip="Inicio"
-          [matTooltipDisabled]="!collapsed || isMobile"
-          class="sidebar-nav-item"
-          (click)="closeOnMobile()"
-        >
-          <mat-icon class="nav-icon" aria-hidden="true">home</mat-icon>
-          <span class="sidebar-copy">Inicio</span>
-        </a>
-
-        @for (group of navigationGroups(); track group.label) {
-          <div class="sidebar-section-label sidebar-copy" [attr.aria-hidden]="collapsed && !isMobile ? 'true' : null">{{ group.label }}</div>
-          @for (item of group.items; track item.route) {
-            <a
-              [routerLink]="item.route"
-              routerLinkActive="nav-active"
-              [matTooltip]="item.label"
-              [matTooltipDisabled]="!collapsed || isMobile"
-              class="sidebar-nav-item"
-              (click)="closeOnMobile()"
-            >
-              <mat-icon class="nav-icon" aria-hidden="true">{{ item.icon }}</mat-icon>
-              <span class="sidebar-copy">{{ item.label }}</span>
-            </a>
+        <a routerLink="/dashboard" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}" class="nav-item root-item" matTooltip="Inicio" [matTooltipDisabled]="!collapsed||isMobile" (click)="navigate()"><mat-icon>home</mat-icon><span class="sidebar-copy">Inicio</span></a>
+        @for (group of groups(); track group.label) {
+          @if (collapsed && !isMobile) {
+            <button type="button" class="nav-item group-button rail-group" [matMenuTriggerFor]="railMenu" [matTooltip]="group.label" [attr.aria-label]="group.label"><mat-icon>{{group.icon}}</mat-icon></button>
+            <mat-menu #railMenu="matMenu" xPosition="after">@for(item of group.items; track item.route){<a mat-menu-item [routerLink]="item.route" (click)="navigate()"><mat-icon>{{item.icon}}</mat-icon><span>{{item.label}}</span></a>}</mat-menu>
+          } @else {
+            <button type="button" class="nav-item group-button" [class.group-active]="groupActive(group)" [attr.aria-expanded]="isExpanded(group.label)" (click)="toggleGroup(group.label)"><mat-icon>{{group.icon}}</mat-icon><span class="sidebar-copy">{{group.label}}</span><mat-icon class="chevron" [class.rotated]="isExpanded(group.label)">expand_more</mat-icon></button>
+            @if (isExpanded(group.label)) { <div class="group-children">@for(item of group.items; track item.route){<a [routerLink]="item.route" routerLinkActive="nav-active" class="nav-item child-item" (click)="navigate()"><mat-icon>{{item.icon}}</mat-icon><span>{{item.label}}</span></a>}</div> }
           }
         }
       </nav>
-
-      <div class="sidebar-footer">
-        <button type="button" class="sidebar-user" [matMenuTriggerFor]="userMenu" aria-label="Abrir menú de usuario">
-          <span class="user-initials sidebar-user-avatar" aria-hidden="true">{{ auth.initials() }}</span>
-          <span class="sidebar-copy sidebar-user-copy">
-            <strong>{{ auth.userName() || 'Usuario' }}</strong>
-            <small><span class="session-dot" aria-hidden="true"></span>Sesión activa</small>
-          </span>
-          <mat-icon class="sidebar-user-chevron" aria-hidden="true">more_vert</mat-icon>
-        </button>
-      </div>
+      <footer class="sidebar-footer"><button type="button" class="sidebar-user" [matMenuTriggerFor]="userMenu" aria-label="Abrir menú de usuario"><span class="avatar">{{auth.initials()}}</span><span class="sidebar-copy identity"><strong>{{auth.userName()||'Usuario'}}</strong><small>Sesión activa</small></span><mat-icon class="sidebar-copy">more_vert</mat-icon></button></footer>
     </aside>
-
-    <mat-menu #userMenu="matMenu" xPosition="after">
-      <div class="user-menu-header" role="presentation">
-        <span class="user-initials user-menu-avatar" aria-hidden="true">{{ auth.initials() }}</span>
-        <div><strong>{{ auth.userName() || 'Usuario' }}</strong><span>Sesión activa</span></div>
-      </div>
-      <div class="user-menu-divider" role="presentation"></div>
-      <button mat-menu-item type="button" (click)="dashboardRequested.emit()"><mat-icon>space_dashboard</mat-icon><span>Ir al inicio</span></button>
-      <button mat-menu-item type="button" (click)="logoutRequested.emit()"><mat-icon>logout</mat-icon><span>Cerrar sesión</span></button>
-    </mat-menu>
+    <mat-menu #userMenu="matMenu" xPosition="after"><div class="account-header"><span class="avatar">{{auth.initials()}}</span><div><strong>{{auth.userName()||'Usuario'}}</strong><small>Sesión activa</small></div></div><button mat-menu-item type="button" (click)="logoutRequested.emit()"><mat-icon>logout</mat-icon><span>Cerrar sesión</span></button></mat-menu>
   `,
 })
-export class SidebarComponent implements OnDestroy {
-  @ViewChild('collapsePath')
-  private set collapsePath(path: ElementRef<SVGPathElement> | undefined) {
-    this.collapseMorph?.destroy();
-    this.collapseMorph = path ? createMorph(path.nativeElement, this.arrowPath, { reducedMotion: 'user' }) : undefined;
-  }
-
-  @Input() collapsed = false;
-  @Input() isMobile = false;
-  @Input() mobileOpen = false;
-  @Output() readonly collapsedChange = new EventEmitter<boolean>();
-  @Output() readonly mobileClosed = new EventEmitter<void>();
-  @Output() readonly dashboardRequested = new EventEmitter<void>();
-  @Output() readonly logoutRequested = new EventEmitter<void>();
-
-  protected readonly auth = inject(AuthService);
-  protected readonly navigationGroups = computed<NavGroup[]>(() => {
-    const groups: NavGroup[] = [];
-    const catalogItems: NavItem[] = [
-      { label: 'Materiales', icon: 'inventory_2', route: '/materiales', permission: 'MATERIALES_CONSULTAR' },
-      { label: 'Productos', icon: 'category', route: '/productos', permission: 'PRODUCTOS_CONSULTAR' },
-      { label: 'Estructuras', icon: 'account_tree', route: '/estructuras', permission: 'ESTRUCTURAS_CONSULTAR' },
-      { label: 'Catálogos auxiliares', icon: 'list_alt', route: '/catalogos', permission: 'CATALOGOS_AUX_CONSULTAR' },
-      { label: 'Importar catálogos', icon: 'upload_file', route: '/catalogos/importaciones', permission: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
-    ].filter((item) => Array.isArray(item.permission)
-      ? item.permission.some((permission) => this.auth.hasPermission(permission))
-      : this.auth.hasPermission(item.permission));
-
-    if (catalogItems.length > 0) groups.push({ label: 'Catálogos', items: catalogItems });
-
-    if (this.auth.hasPermission('OPERACIONES_CONSULTAR')) {
-      groups.push({
-        label: 'Operaciones',
-        items: [
-          { label: 'Entradas', icon: 'move_to_inbox', route: '/operaciones/entradas', permission: 'OPERACIONES_CONSULTAR' },
-          { label: 'Salidas', icon: 'outbox', route: '/operaciones/salidas', permission: 'OPERACIONES_CONSULTAR' },
-          { label: 'Materiales utilizados', icon: 'layers', route: '/operaciones/materiales-utilizados', permission: 'OPERACIONES_CONSULTAR' },
-          { label: 'Activos fijos', icon: 'precision_manufacturing', route: '/operaciones/activos-fijos', permission: 'OPERACIONES_CONSULTAR' },
-          { label: 'Carga de pedimentos', icon: 'upload_file', route: '/operaciones/pedimentos', permission: 'PEDIMENTOS_CARGAR' },
-        ].filter((item) => this.auth.hasPermission(item.permission)),
-      });
-    }
-
-    const administrationItems: NavItem[] = [
-      { label: 'Usuarios', icon: 'group', route: '/usuarios', permission: 'USUARIOS_ADMINISTRAR' },
-      { label: 'Perfiles', icon: 'admin_panel_settings', route: '/perfiles', permission: 'PERFILES_ADMINISTRAR' },
-      { label: 'Bitácora', icon: 'manage_search', route: '/bitacora', permission: 'BITACORA_CONSULTAR' },
-    ].filter((item) => this.auth.hasPermission(item.permission));
-
-    if (administrationItems.length > 0) groups.push({ label: 'Administración', items: administrationItems });
-
-    if (this.auth.hasPermission('REPORTES_GENERAR')) {
-      groups.push({ label: 'Reportes', items: [{ label: 'Reportes', icon: 'assessment', route: '/reportes', permission: 'REPORTES_GENERAR' }] });
-    }
-
-    if (this.auth.hasPermission('FACTURACION_CARGAR')) {
-      groups.push({ label: 'Facturación', items: [{ label: 'Carga de facturación', icon: 'upload_file', route: '/facturacion', permission: 'FACTURACION_CARGAR' }] });
-    }
-
-    return groups;
-  });
-
-  private readonly menuPath = 'M4 6H20M4 12H20M4 18H20';
-  private readonly arrowPath = 'M19 12H5M12 19L5 12L12 5';
-  private collapseMorph?: ReturnType<typeof createMorph>;
-
-
-  ngOnDestroy(): void {
-    this.collapseMorph?.destroy();
-  }
-
-  protected toggleSidebar(): void {
-    const nextCollapsed = !this.collapsed;
-    this.collapseMorph?.morphTo(nextCollapsed ? this.menuPath : this.arrowPath, 'smooth');
-    this.collapsedChange.emit(nextCollapsed);
-  }
-
-  protected closeOnMobile(): void {
-    if (this.isMobile) this.mobileClosed.emit();
-  }
+export class SidebarComponent {
+  @Input() collapsed=false; @Input() isMobile=false; @Input() mobileOpen=false;
+  @Output() readonly collapsedChange=new EventEmitter<boolean>(); @Output() readonly mobileClosed=new EventEmitter<void>(); @Output() readonly logoutRequested=new EventEmitter<void>();
+  protected readonly auth=inject(AuthService); private readonly router=inject(Router); private readonly expanded=signal(new Set<string>(NAVIGATION_GROUPS.map(g=>g.label)));
+  protected readonly groups=computed(() => NAVIGATION_GROUPS.map(group=>({...group,items:group.items.filter(item=>this.allowed(item))})).filter(group=>group.items.length));
+  protected isExpanded(label:string):boolean{return this.expanded().has(label);} protected toggleGroup(label:string):void{this.expanded.update(current=>{const next=new Set(current);if(next.has(label)) next.delete(label); else next.add(label);return next;});}
+  protected groupActive(group:NavigationGroup):boolean{return group.items.some(item=>this.router.url===item.route||this.router.url.startsWith(item.route+'/'));}
+  protected navigate():void{if(this.isMobile)this.mobileClosed.emit();}
+  private allowed(item:NavigationItem):boolean{return item.permission?this.auth.hasPermission(item.permission):!!item.anyOfPermissions?.some(permission=>this.auth.hasPermission(permission));}
 }
