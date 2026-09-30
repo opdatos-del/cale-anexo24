@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { permissionGuard } from '@core/guards/permission.guard';
 
 export const OPERATIONS_ROUTES: Routes = [
   {
@@ -16,5 +17,11 @@ export const OPERATIONS_ROUTES: Routes = [
   {
     path: 'activos-fijos',
     loadChildren: () => import('./fixed-assets/fixed-assets.routes').then((routes) => routes.FIXED_ASSETS_ROUTES),
+  },
+  {
+    path: 'pedimentos',
+    canActivate: [permissionGuard],
+    data: { permission: 'PEDIMENTOS_CARGAR' },
+    loadChildren: () => import('./pediments/pediments.routes').then((routes) => routes.PEDIMENTS_ROUTES),
   },
 ];

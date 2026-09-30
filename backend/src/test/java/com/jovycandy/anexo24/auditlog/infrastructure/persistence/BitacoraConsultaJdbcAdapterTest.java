@@ -104,9 +104,33 @@ class BitacoraConsultaJdbcAdapterTest {
     }
 
     @Test
-    void enumIncluyeAccionesEmitidasPorFacturacion() {
+    void enumIncluyeAccionesEmitidasPorFacturacionYPedimentos() {
         assertThatCode(() -> BitacoraAccion.valueOf("CARGA_VALIDADA")).doesNotThrowAnyException();
         assertThatCode(() -> BitacoraAccion.valueOf("CARGA_CON_ERRORES")).doesNotThrowAnyException();
+        assertThatCode(() -> BitacoraAccion.valueOf("CARGA_PEDIMENTO_VALIDADA")).doesNotThrowAnyException();
+        assertThatCode(() -> BitacoraAccion.valueOf("CARGA_PEDIMENTO_CON_ERRORES")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rowMapperConvierteAccionesDePedimentosPersistidas() throws Exception {
+        when(resultSet.getObject("fecha", java.time.LocalDateTime.class))
+                .thenReturn(java.time.LocalDateTime.of(2026, 9, 22, 13, 30));
+        when(resultSet.getLong("id")).thenReturn(9L);
+        when(resultSet.getObject("usuario_id", Long.class)).thenReturn(42L);
+        when(resultSet.getString("usuario")).thenReturn("operador");
+        when(resultSet.getString("modulo")).thenReturn("OPERACIONES");
+        when(resultSet.getString("resultado")).thenReturn("EXITO", "FALLO");
+        when(resultSet.getString("correlacion_id")).thenReturn("req-789");
+        when(resultSet.getString("accion"))
+                .thenReturn("CARGA_PEDIMENTO_VALIDADA", "CARGA_PEDIMENTO_CON_ERRORES");
+
+        BitacoraRegistro validada = BitacoraConsultaJdbcAdapter.MAPPER.mapRow(resultSet, 0);
+        assertThat(validada.accion()).isEqualTo(BitacoraAccion.CARGA_PEDIMENTO_VALIDADA);
+        assertThat(validada.resultado()).isEqualTo(BitacoraResultado.EXITO);
+
+        BitacoraRegistro conErrores = BitacoraConsultaJdbcAdapter.MAPPER.mapRow(resultSet, 1);
+        assertThat(conErrores.accion()).isEqualTo(BitacoraAccion.CARGA_PEDIMENTO_CON_ERRORES);
+        assertThat(conErrores.resultado()).isEqualTo(BitacoraResultado.FALLO);
     }
 
     @Test

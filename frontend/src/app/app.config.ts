@@ -20,6 +20,8 @@ import { UsedMaterialRepository } from '@features/operations/usedmaterials/domai
 import { HttpUsedMaterialRepository } from '@features/operations/usedmaterials/infrastructure/repositories/http-used-material.repository';
 import { FixedAssetRepository } from '@features/operations/fixed-assets/domain/repositories/fixed-asset.repository';
 import { HttpFixedAssetRepository } from '@features/operations/fixed-assets/infrastructure/repositories/http-fixed-asset.repository';
+import { PedimentRepository } from '@features/operations/pediments/domain/repositories/pediment.repository';
+import { HttpPedimentRepository } from '@features/operations/pediments/infrastructure/repositories/http-pediment.repository';
 import { AuditLogRepository } from '@features/administration/audit-log/domain/repositories/audit-log.repository';
 import { HttpAuditLogRepository } from '@features/administration/audit-log/infrastructure/repositories/http-audit-log.repository';
 import { ReportRepository } from '@features/reports/domain/repositories/report.repository';
@@ -41,6 +43,7 @@ export const appConfig: ApplicationConfig = {
     { provide: ExitRepository, useClass: HttpExitRepository },
     { provide: UsedMaterialRepository, useClass: HttpUsedMaterialRepository },
     { provide: FixedAssetRepository, useClass: HttpFixedAssetRepository },
+    { provide: PedimentRepository, useClass: HttpPedimentRepository },
     { provide: AuditLogRepository, useClass: HttpAuditLogRepository },
     { provide: ReportRepository, useClass: HttpReportRepository },
     { provide: BillingRepository, useClass: HttpBillingRepository },

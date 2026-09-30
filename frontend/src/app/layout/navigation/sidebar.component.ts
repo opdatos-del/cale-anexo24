@@ -145,7 +145,8 @@ export class SidebarComponent implements OnDestroy {
           { label: 'Salidas', icon: 'outbox', route: '/operaciones/salidas', permission: 'OPERACIONES_CONSULTAR' },
           { label: 'Materiales utilizados', icon: 'layers', route: '/operaciones/materiales-utilizados', permission: 'OPERACIONES_CONSULTAR' },
           { label: 'Activos fijos', icon: 'precision_manufacturing', route: '/operaciones/activos-fijos', permission: 'OPERACIONES_CONSULTAR' },
-        ],
+          { label: 'Carga de pedimentos', icon: 'upload_file', route: '/operaciones/pedimentos', permission: 'PEDIMENTOS_CARGAR' },
+        ].filter((item) => this.auth.hasPermission(item.permission)),
       });
     }
 

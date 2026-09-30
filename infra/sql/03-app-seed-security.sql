@@ -20,6 +20,7 @@ FROM (VALUES
     ('ESTRUCTURAS_CONSULTAR',   'Consultar estructuras',   'estructuras',   'CONSULTAR'),
     ('CATALOGOS_AUX_CONSULTAR','Consultar catálogos auxiliares', 'catalogos', 'CONSULTAR'),
     ('OPERACIONES_CONSULTAR',   'Consultar operaciones',   'operaciones',     'CONSULTAR'),
+    ('PEDIMENTOS_CARGAR',       'Cargar pedimentos para previsualización', 'pedimentos', 'CARGAR'),
     ('REPORTES_GENERAR',        'Generar reportes',        'reportes',      'GENERAR'),
     ('REPORTES_EXPORTAR',       'Exportar reportes',       'reportes',      'EXPORTAR'),
     ('FACTURACION_CARGAR',      'Cargar facturación',      'facturacion',   'CARGAR'),
