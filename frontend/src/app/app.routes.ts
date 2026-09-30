@@ -42,6 +42,12 @@ export const routes: Routes = [
         loadChildren: () => import('@features/catalogs/structures/structures.routes').then((routes) => routes.STRUCTURES_ROUTES),
       },
       {
+        path: 'catalogos',
+        canActivate: [permissionGuard],
+        data: { permission: 'CATALOGOS_AUX_CONSULTAR' },
+        loadChildren: () => import('@features/catalogs/auxiliary/auxiliary.routes').then((routes) => routes.AUXILIARY_CATALOGS_ROUTES),
+      },
+      {
         path: 'operaciones',
         canActivate: [permissionGuard],
         data: { permission: 'OPERACIONES_CONSULTAR' },

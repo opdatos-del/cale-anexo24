@@ -18,7 +18,8 @@ FROM (VALUES
     ('MATERIALES_CONSULTAR',    'Consultar materiales',    'materiales',    'CONSULTAR'),
     ('PRODUCTOS_CONSULTAR',     'Consultar productos',     'productos',     'CONSULTAR'),
     ('ESTRUCTURAS_CONSULTAR',   'Consultar estructuras',   'estructuras',   'CONSULTAR'),
-    ('OPERACIONES_CONSULTAR',   'Consultar operaciones',   'operaciones',   'CONSULTAR'),
+    ('CATALOGOS_AUX_CONSULTAR','Consultar catálogos auxiliares', 'catalogos', 'CONSULTAR'),
+    ('OPERACIONES_CONSULTAR',   'Consultar operaciones',   'operaciones',     'CONSULTAR'),
     ('REPORTES_GENERAR',        'Generar reportes',        'reportes',      'GENERAR'),
     ('REPORTES_EXPORTAR',       'Exportar reportes',       'reportes',      'EXPORTAR'),
     ('FACTURACION_CARGAR',      'Cargar facturación',      'facturacion',   'CARGAR'),
@@ -53,6 +54,7 @@ JOIN app24.Actividad a ON a.clave IN (
     'MATERIALES_CONSULTAR',
     'PRODUCTOS_CONSULTAR',
     'ESTRUCTURAS_CONSULTAR',
+    'CATALOGOS_AUX_CONSULTAR',
     'OPERACIONES_CONSULTAR'
 )
 WHERE p.nombre = 'CONSULTA'

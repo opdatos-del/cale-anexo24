@@ -132,6 +132,7 @@ export class SidebarComponent implements OnDestroy {
       { label: 'Materiales', icon: 'inventory_2', route: '/materiales', permission: 'MATERIALES_CONSULTAR' },
       { label: 'Productos', icon: 'category', route: '/productos', permission: 'PRODUCTOS_CONSULTAR' },
       { label: 'Estructuras', icon: 'account_tree', route: '/estructuras', permission: 'ESTRUCTURAS_CONSULTAR' },
+      { label: 'Catálogos auxiliares', icon: 'list_alt', route: '/catalogos', permission: 'CATALOGOS_AUX_CONSULTAR' },
     ].filter((item) => this.auth.hasPermission(item.permission));
 
     if (catalogItems.length > 0) groups.push({ label: 'Catálogos', items: catalogItems });

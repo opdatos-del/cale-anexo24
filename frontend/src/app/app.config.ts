@@ -10,6 +10,8 @@ import { ProductRepository } from '@features/catalogs/products/domain/repositori
 import { HttpProductRepository } from '@features/catalogs/products/infrastructure/repositories/http-product.repository';
 import { StructureRepository } from '@features/catalogs/structures/domain/repositories/structure.repository';
 import { HttpStructureRepository } from '@features/catalogs/structures/infrastructure/repositories/http-structure.repository';
+import { AuxiliaryCatalogRepository } from '@features/catalogs/auxiliary/domain/repositories/auxiliary-catalog.repository';
+import { HttpAuxiliaryCatalogRepository } from '@features/catalogs/auxiliary/infrastructure/repositories/http-auxiliary-catalog.repository';
 import { EntryRepository } from '@features/operations/entries/domain/repositories/entry.repository';
 import { HttpEntryRepository } from '@features/operations/entries/infrastructure/repositories/http-entry.repository';
 import { ExitRepository } from '@features/operations/exits/domain/repositories/exit.repository';
@@ -34,6 +36,7 @@ export const appConfig: ApplicationConfig = {
     { provide: MaterialRepository, useClass: HttpMaterialRepository },
     { provide: ProductRepository, useClass: HttpProductRepository },
     { provide: StructureRepository, useClass: HttpStructureRepository },
+    { provide: AuxiliaryCatalogRepository, useClass: HttpAuxiliaryCatalogRepository },
     { provide: EntryRepository, useClass: HttpEntryRepository },
     { provide: ExitRepository, useClass: HttpExitRepository },
     { provide: UsedMaterialRepository, useClass: HttpUsedMaterialRepository },
