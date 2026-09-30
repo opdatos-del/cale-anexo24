@@ -65,27 +65,33 @@ contratos.
 
 ### EPIC-IMPORTS-PEDIMENTS — Importación de pedimentos
 
-**Prioridad:** P0 · **Estado:** `MISSING` y parcialmente `UNKNOWN`.
+**Prioridad:** P0 · **Estado:** `PARTIAL / V1 STAGING DONE`.
 
 **Incluye:** layout/staging de `CARGAPEDIMENTOSIE`, validación, errores,
 encabezados `IMPORTACIONES`, partidas y la rama de operación 2.
 
 **Evidencia:** `mapeo-entradas.md`, `CARGAPEDIMENTOS`, `VALIDAPEDIMENTO`,
-`VALIDA_I_DETALLENP`, `ERRORCARGA` y datos de staging documentados.
+`VALIDA_I_DETALLENP`, `ERRORCARGA`,
+`docs/03-diseno/mapeo-carga-pedimentos.md` y
+`docs/05-pruebas/pedimentos-staging-v1.md`.
 
-**Trabajo:**
+**Entregado en `feature/legacy-imports-pediments-v1`:** upload `.xls/.xlsx`,
+parser, validación estructural, hash, RBAC `PEDIMENTOS_CARGAR`, staging aislado
+en `app24`, errores, preview paginado, bitácora controlada, transacción con
+rollback verificado e idempotencia de hash. No se usa staging global legacy.
 
-1. obtener layout oficial y archivo controlado;
-2. definir lote, usuario, aislamiento y estados;
-3. separar parseo/validación de confirmación de negocio;
-4. cerrar reglas de materiales/productos faltantes, unidades, duplicados y
-   errores por fila;
-5. definir transacción, rollback e idempotencia;
-6. probar que la carga produce las filas esperadas en `IMPORTACIONES` y
-   `PARTIDAS`, sin ejecutar legacy en producción sin autorización.
+**Pendiente:**
+
+1. obtener y aprobar layout oficial y archivo controlado;
+2. cerrar reglas de materiales/productos faltantes, unidades y operación;
+3. definir la confirmación autoritativa hacia `IMPORTACIONES` y `PARTIDAS`;
+4. definir efectos, duplicados, reintentos, rollback y aceptación de la
+   confirmación operativa;
+5. ejecutar una prueba autorizada del pipeline mutable sólo después de esa
+   decisión.
 
 **Dependencias:** decisión operativa de negocio y permisos de escritura en
-ambiente controlado.
+ambiente controlado. La confirmación no forma parte de V1.
 
 ### EPIC-CATALOG-IMPORTS — Cargas de materiales y productos
 
@@ -278,9 +284,12 @@ catálogo independiente.
 entregados salen del backlog de implementación; permanecen como trabajo los
 candidatos sin contrato y la división independiente.
 
-**Siguiente recomendación:** `EPIC-IMPORTS-PEDIMENTS`, comenzando por cerrar
-layout, staging, validación, errores, transacción, idempotencia y aceptación
-antes de ejecutar cualquier efecto mutable.
+**Resultado:** `EPIC-IMPORTS-PEDIMENTS` queda en `PARTIAL / V1 STAGING DONE`.
+La confirmación autoritativa continúa separada y no implementada.
+
+**Siguiente recomendación:** `EPIC-CATALOG-IMPORTS`, comenzando por auditar y
+cerrar contratos read-only/staging de materiales y productos antes de cualquier
+escritura en `CALE_IMMEX`.
 
 **Blocker de negocio:** ninguno para los cuatro contratos read-only entregados.
 Saldos, confirmación de Facturación, Dashboard, descargos, ajuste anual y Anexo

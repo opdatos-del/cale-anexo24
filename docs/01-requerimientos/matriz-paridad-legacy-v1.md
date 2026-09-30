@@ -77,7 +77,7 @@ versionada.
 | LEGACY-013 | Catálogos y maestros | `NOT_CAPTURED` — Activo fijo | Consultar partidas marcadas como activo fijo | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | La granularidad nueva es partida, no activo individual | Operaciones / activo fijo |
 | LEGACY-014 | Catálogos y maestros | `NOT_CAPTURED` — Consultas guardadas | Guardar y reutilizar consultas o filtros | AUDIT_UI | No identificado | No | No | UNKNOWN | UNKNOWN | P3 | No existe contrato versionado | Catálogos auxiliares / consultas |
 | LEGACY-015 | Operación aduanera/inventario | `NOT_CAPTURED` — Entradas / Importaciones | Consultar entradas e importaciones por rango y filtros | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/entradas` | `EntryListPage` | `GET /api/v1/operaciones/entradas` | `dbo.APP24_Q_ENTRADAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Operaciones / entradas |
-| LEGACY-016 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de pedimentos | Cargar pedimentos desde staging | SQL_METADATA | No identificado | No | No | `CARGAPEDIMENTOS`, `CARGAPEDIMENTOSIE`, `ERRORCARGA` | MISSING | P0 | Flujo mutable, transacción e idempotencia no cerradas | Importaciones |
+| LEGACY-016 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de pedimentos | Cargar pedimentos desde staging | SQL_METADATA, CODE, RUNTIME | `/operaciones/pedimentos` — staging y preview V1 | `PedimentUploadPage` | `POST/GET /api/v1/operaciones/pedimentos/cargas` | `app24.APP24_C_PEDIMENTO_CARGA_CREAR`, `APP24_Q_PEDIMENTO_CARGA_POR_HASH`, `APP24_Q_PEDIMENTO_CARGA_OBTENER`, `APP24_Q_PEDIMENTO_CARGA_ERRORES` | PARTIAL | P0 | Confirmación hacia `IMPORTACIONES`/`PARTIDAS` y pipeline legacy fuera de alcance | Importaciones / staging seguro |
 | LEGACY-017 | Operación aduanera/inventario | `NOT_CAPTURED` — Validación de pedimentos | Validar pedimentos antes de procesar | SQL_METADATA | No identificado | No | No | `VALIDAPEDIMENTO`, `VALIDA_I_DETALLENP` | MISSING | P0 | Reglas y resultado de aceptación no cerrados | Importaciones |
 | LEGACY-018 | Operación aduanera/inventario | `NOT_CAPTURED` — Salidas / Exportaciones | Consultar salidas y líneas por rango y filtros | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/salidas` | `ExitListPage` | `GET /api/v1/operaciones/salidas` | `dbo.APP24_Q_SALIDAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Operaciones / salidas |
 | LEGACY-019 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de exportaciones | Cargar o procesar operaciones de salida | SQL_METADATA | No identificado | No | No | `CARGAPEDIMENTOS` también procesa `TIPOOPERACION = 2`; otros procesos legacy | MISSING | P1 | Flujo mutable y contrato de archivo no cerrados | Importaciones y operaciones |
@@ -147,14 +147,14 @@ versionada.
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Catálogos y maestros | 14 | 3 | 4 | 1 | 1 | 0 | 0 | 5 |
-| Operación aduanera/inventario | 14 | 2 | 2 | 0 | 7 | 1 | 0 | 2 |
+| Operación aduanera/inventario | 14 | 2 | 2 | 1 | 6 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
 | Reportes y consolidados | 18 | 0 | 5 | 0 | 0 | 2 | 5 | 6 |
 | Interfaces/importación | 10 | 0 | 0 | 1 | 5 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **17** | **4** | **13** | **5** | **6** | **29** |
+| **Total** | **79** | **5** | **17** | **5** | **12** | **5** | **6** | **29** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -162,12 +162,18 @@ contiene todavía un contrato funcional o una fuente SQL suficiente. `LEGACY-008
 es `PARTIAL`: el subcaso de almacenes tiene contrato read-only y el catálogo
 independiente de divisiones continúa sin fuente canónica demostrada.
 
+`LEGACY-016` es `PARTIAL`: la carga segura, validación estructural, errores,
+preview, hash, RBAC y staging durable están implementados; la confirmación hacia
+`IMPORTACIONES`/`PARTIDAS` permanece fuera de alcance. `LEGACY-017` sigue en
+`MISSING` porque las reglas autoritativas de validación legacy antes del proceso
+operativo no están cerradas.
+
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 17`
-- `PARTIAL = 4`
-- `MISSING = 13`
+- `PARTIAL = 5`
+- `MISSING = 12`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
 - `UNKNOWN = 29`
