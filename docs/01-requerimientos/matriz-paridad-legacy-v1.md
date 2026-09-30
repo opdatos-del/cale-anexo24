@@ -115,8 +115,8 @@ versionada.
 | LEGACY-051 | Reportes y consolidados | `NOT_CAPTURED` — Rectificaciones | Consultar o reportar rectificaciones | SQL_METADATA | No identificado | No | No | Referencias `INSERTAPEDIMENTO`/campos rectificados | UNKNOWN | P2 | Falta alcance funcional | Reportes / cumplimiento |
 | LEGACY-052 | Reportes y consolidados | `NOT_CAPTURED` — Activo fijo | Reportar activos fijos | AUDIT_UI, CODE | Consulta de operaciones de activo fijo y reportes comunes | `/operaciones/activos-fijos`, `/reportes` | Operaciones/reportes; sin reporte especializado | `APP24_Q_ACTIVOS_FIJOS_LISTAR` | CONSOLIDATE | P1 | No se modela activo individual | Operaciones / reportes |
 | LEGACY-053 | Reportes y consolidados | `NOT_CAPTURED` — Exportación de resultados | Descargar resultados en XLSX | AUDIT_UI, CODE, RUNTIME | Exportación común de Reportes V1 | `/reportes` | Cuatro endpoints `*/exportacion` | `ExportadorXlsxReportes`; consultas read-only | IMPLEMENTED_REDESIGNED | P1 | No se replican formatos legacy no comprobados | Reportes / exportación |
-| LEGACY-054 | Interfaces/importación | `NOT_CAPTURED` — Materiales | Importar materiales desde archivo | SQL_METADATA | No identificado | No | No | `CARGA_MATERIALES`, staging y errores | MISSING | P1 | Layout, validación e idempotencia no cerrados | Importaciones / catálogos |
-| LEGACY-055 | Interfaces/importación | `NOT_CAPTURED` — Productos | Importar productos desde archivo | SQL_METADATA | No identificado | No | No | `CARGA_PRODUCTOS`, `tmpproductos`, `ECargaProducto` | MISSING | P1 | Layout y efectos mutables no cerrados | Importaciones / catálogos |
+| LEGACY-054 | Interfaces/importación | `NOT_CAPTURED` — Materiales | Importar materiales desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/materiales`, errores | `app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.MATERIAL` y `FactoresMP` no implementada | Importaciones / catálogos / staging seguro |
+| LEGACY-055 | Interfaces/importación | `NOT_CAPTURED` — Productos | Importar productos desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/productos`, errores | `app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.PRODUCTOS` no implementada | Importaciones / catálogos / staging seguro |
 | LEGACY-056 | Interfaces/importación | `NOT_CAPTURED` — Clientes/proveedores | Importar o actualizar clientes y proveedores | SQL_METADATA | No identificado | No | No | `CARGA_FACTURAS` y catálogos legacy | MISSING | P1 | Efectos compartidos e idempotencia pendientes | Importaciones / catálogos |
 | LEGACY-057 | Interfaces/importación | `NOT_CAPTURED` — Pedimentos | Importar pedimentos | AUDIT_UI, SQL_METADATA | No identificado | No | No | `CARGAPEDIMENTOS`, `CARGAPEDIMENTOSIE`, `ERRORCARGA` | MISSING | P0 | Flujo autoritativo y rollback pendientes | Importaciones / pedimentos |
 | LEGACY-058 | Interfaces/importación | `NOT_CAPTURED` — Facturación | Cargar archivo, validar, previsualizar y confirmar efectos operativos | AUDIT_UI, EXCEL, SQL_METADATA, CODE | `/facturacion` cubre carga, validación, preview, errores, hash y staging durable | `BillingUploadPage` | `POST /api/v1/facturacion/cargas`, `GET /cargas/{id}`, plantilla | `app24.CargaFacturacion`, `ErrorCarga`; confirmación legacy no integrada | PARTIAL | P0 | Pipeline autoritativo y side effects pendientes de negocio | Facturación / confirmación |
@@ -150,11 +150,11 @@ versionada.
 | Operación aduanera/inventario | 14 | 2 | 2 | 1 | 6 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
 | Reportes y consolidados | 18 | 0 | 5 | 0 | 0 | 2 | 5 | 6 |
-| Interfaces/importación | 10 | 0 | 0 | 1 | 5 | 0 | 0 | 4 |
+| Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **17** | **5** | **12** | **5** | **6** | **29** |
+| **Total** | **79** | **5** | **17** | **7** | **10** | **5** | **6** | **29** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -168,12 +168,18 @@ preview, hash, RBAC y staging durable están implementados; la confirmación hac
 `MISSING` porque las reglas autoritativas de validación legacy antes del proceso
 operativo no están cerradas.
 
+`LEGACY-054` y `LEGACY-055` son `PARTIAL`: materiales y productos cuentan con
+parser `.xls/.xlsx`, validación estructural, hash, errores, preview, RBAC y
+staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
+`CARGA_PRODUCTOS` ni escrituras de confirmación a `MATERIAL`, `FactoresMP`,
+`PRODUCTOS` o sus stages legacy.
+
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 17`
-- `PARTIAL = 5`
-- `MISSING = 12`
+- `PARTIAL = 7`
+- `MISSING = 10`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
 - `UNKNOWN = 29`

@@ -95,18 +95,25 @@ ambiente controlado. La confirmación no forma parte de V1.
 
 ### EPIC-CATALOG-IMPORTS — Cargas de materiales y productos
 
-**Prioridad:** P1 · **Estado:** `MISSING`.
+**Prioridad:** P1 · **Estado:** `PARTIAL / V1 STAGING DONE`.
 
 **Incluye:** `CARGA_MATERIALES`, `CARGA_PRODUCTOS`, staging, validación y tablas
 de error.
 
-**Evidencia:** `tmpproductos`, `ECargaProducto`, `CARGA_MATERIALES`,
-`CARGA_PRODUCTOS` y mapeo de Productos.
+**Evidencia legacy:** `CargaMaterial`, `ECargaMaterial`, `FactoresMP`, `material`,
+`tmpproductos`, `ECargaProducto`, `productos`, `CARGA_MATERIALES` y
+`CARGA_PRODUCTOS`. Ambos SP legacy son `MIXED` y no se ejecutan desde V1.
 
-**Trabajo:** reutilizar el patrón de staging, hash, preview y errores de
-Facturación como candidato; no reutilizar automáticamente reglas de negocio ni
-procedimientos mutables. El caso de aceptación debe demostrar altas válidas,
-rechazos y repetición segura.
+**Entregado en `feature/legacy-catalog-imports-v1`:** upload `.xls/.xlsx`, parser
+explícito por contrato de stage, validación estructural, hash, errores, RBAC
+`MATERIALES_CARGAR`/`PRODUCTOS_CARGAR`, staging aislado en `app24`, preview
+paginado y bitácora controlada. `LEGACY-054` y `LEGACY-055` pasan de `MISSING` a
+`PARTIAL`.
+
+**Pendiente:** cerrar layout oficial y reglas completas de catálogo; diseñar y
+autorizar una confirmación separada hacia `dbo.MATERIAL`/`FactoresMP` y
+`dbo.PRODUCTOS`. No escribir `CARGAMATERIAL`, `tmpproductos` ni tablas legacy
+durante preview.
 
 ### EPIC-SPECIAL-OPERATIONS — Operaciones especiales
 
@@ -287,13 +294,17 @@ candidatos sin contrato y la división independiente.
 **Resultado:** `EPIC-IMPORTS-PEDIMENTS` queda en `PARTIAL / V1 STAGING DONE`.
 La confirmación autoritativa continúa separada y no implementada.
 
-**Siguiente recomendación:** `EPIC-CATALOG-IMPORTS`, comenzando por auditar y
-cerrar contratos read-only/staging de materiales y productos antes de cualquier
-escritura en `CALE_IMMEX`.
+**Resultado:** `EPIC-CATALOG-IMPORTS` queda en `PARTIAL / V1 STAGING DONE`.
+La confirmación autoritativa de materiales y productos continúa separada y no
+implementada.
 
-**Blocker de negocio:** ninguno para los cuatro contratos read-only entregados.
-Saldos, confirmación de Facturación, Dashboard, descargos, ajuste anual y Anexo
-30 permanecen fuera de alcance.
+**Siguiente recomendación:** auditar y aprobar el contrato de confirmación de
+materiales/productos con casos sintéticos antes de permitir cualquier escritura
+en `CALE_IMMEX`.
+
+**Blocker de negocio:** la confirmación autoritativa y las reglas completas de
+catálogo siguen pendientes. Saldos, confirmación de Facturación, Dashboard,
+descargos, ajuste anual y Anexo 30 permanecen fuera de alcance.
 
 ## 6. Criterio de cierre del backlog de auditoría
 
