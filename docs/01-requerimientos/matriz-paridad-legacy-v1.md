@@ -108,7 +108,7 @@ versionada.
 | LEGACY-044 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de productos | Consolidar productos | SQL_METADATA, CODE | Catálogo y reportes operativos separados | `/productos`, `/reportes` | Catálogo/reportes existentes | `PRODUCTOS` y reportes; consolidado específico no cerrado | CONSOLIDATE | P2 | Definir campos y propósito | Reportes / consolidados |
 | LEGACY-045 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de estructuras | Consolidar estructuras/BOM | SQL_METADATA, CODE | Catálogo de estructuras; sin reporte separado | `/estructuras` | `GET /api/v1/catalogos/estructuras` | `APP24_Q_ESTRUCTURAS_LISTAR` | CONSOLIDATE | P2 | Dataset BOM actual vacío | Reportes / consolidados |
 | LEGACY-046 | Reportes y consolidados | `NOT_CAPTURED` — Vencimientos | Consultar vencimientos | SQL_METADATA | No identificado | No | No | `PFECHAVENCE` y referencias en informes; contrato no cerrado | UNKNOWN | P1 | Falta fuente y regla de vencimiento | Reportes / cumplimiento |
-| LEGACY-047 | Reportes y consolidados | `NOT_CAPTURED` — Compulsa | Ejecutar o consultar compulsa | SQL_METADATA | No identificado | No | No | Fuente exacta no localizada en contratos versionados | UNKNOWN | P2 | Evidencia insuficiente | Reportes / cumplimiento |
+| LEGACY-047 | Reportes y consolidados | `NOT_CAPTURED` — Compulsa | Ejecutar o consultar compulsa | SQL_METADATA, CODE | `/reportes` — Compulsa | `ReportListPage` | `GET /api/v1/reportes/compulsa` | `dbo.v_compulsa_gen`, `dbo.APP24_Q_COMPULSA_LISTAR` | PARTIAL | P2 | Consulta resumida read-only implementada; detalle, generación y reconciliación mutable fuera de alcance | Reportes / cumplimiento |
 | LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | UNKNOWN | P2 | Semántica y fuente canónica pendientes | Reportes / cumplimiento |
 | LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA | No identificado | No | No | `DIRIGIDO`, `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` | UNKNOWN | P1 | Flujo especializado pendiente | Reportes / cumplimiento |
 | LEGACY-050 | Reportes y consolidados | `NOT_CAPTURED` — Permisos | Reportar permisos o actividades | CODE | Administración de perfiles y actividades | `/perfiles` | `/api/v1/administracion/perfiles` y `/actividades` | `app24.PerfilApp`, `Actividad`, `PerfilActividad` | CONSOLIDATE | P1 | No se justificó reporte separado | Administración |
@@ -149,12 +149,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 1 | 6 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
-| Reportes y consolidados | 18 | 0 | 5 | 0 | 0 | 2 | 5 | 6 |
+| Reportes y consolidados | 18 | 0 | 5 | 1 | 0 | 2 | 5 | 5 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **20** | **7** | **10** | **5** | **6** | **26** |
+| **Total** | **79** | **5** | **20** | **8** | **10** | **5** | **6** | **25** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -178,11 +178,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 20`
-- `PARTIAL = 7`
+- `PARTIAL = 8`
 - `MISSING = 10`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 26`
+- `UNKNOWN = 25`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -190,7 +190,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 26 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 25 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.

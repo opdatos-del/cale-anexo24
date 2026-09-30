@@ -165,9 +165,16 @@ las variantes `SALDOS*` y `DESCARGATSALIDA*`.
 superficie `/reportes`, con paginación y exportación XLSX; las consultas y
 exports reales están en `ReportesController`.
 
-**Pendiente:** concentrados de materiales/productos/estructuras, vencimientos,
-compulsa, scrap, dirigidos, CTM/F4/HDE, rectificaciones y otros informes sólo
-cuando exista una proyección aprobada. No se debe copiar el número de columnas
+**Implementado en `feature/legacy-reports-extended-v1`:** consulta resumen
+read-only de Compulsa dentro de `/reportes`, con filtro textual y paginación
+estable basada en las columnas proyectadas de `v_compulsa_gen`. `READ SUMMARY V1 = DONE`.
+
+**Pendiente:** detalle de `v_compulsa`, generación/reconciliación legacy, XLSX
+específico, concentrados de materiales/productos/estructuras, vencimientos,
+scrap, dirigidos, CTM/F4/HDE, rectificaciones y otros informes sólo cuando
+exista una proyección aprobada. El detalle y generación de Compulsa son
+`PENDING CONTRACT / OUT OF V1`. CTM/F4/HDE permanece `UNKNOWN`, no
+`BLOCKED_BUSINESS`, hasta contar con decisión de negocio explícita. No se debe copiar el número de columnas
 legacy por defecto.
 
 **Reutilización:** filtros, paginación, permisos y `ExportadorXlsxReportes`.
