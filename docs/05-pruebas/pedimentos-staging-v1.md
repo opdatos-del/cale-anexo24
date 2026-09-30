@@ -164,10 +164,13 @@ de negocio completos ni detalles internos de SQL.
 ```text
 ./gradlew.bat clean test
 PASS
-425 tests
-425 passed
+446 tests
+446 passed
 0 failed
+0 errors
 0 skipped
+./gradlew.bat build
+PASS
 ```
 
 La cobertura específica incluye:
@@ -182,11 +185,22 @@ La cobertura específica incluye:
 - mapper de `CARGA_PEDIMENTO_VALIDADA`;
 - mapper de `CARGA_PEDIMENTO_CON_ERRORES`;
 - correlación del handler de upload;
+- reglas `PED-001` a `PED-004` en lote;
+- lote vacío sin consulta ni errores;
+- deduplicación por hoja, fila, columna y código;
+- serialización XML segura con `&`, `<`, `>`, `\"` y `'`;
 - `401`, `403` y autorización con `PEDIMENTOS_CARGAR`.
 
+La revalidación explícita de una carga existente no está implementada. La
+idempotencia observada en esta V1 es la deduplicación de errores del resultado y
+la guardia SHA-256 de cargas duplicadas.
+
 ```text
-./gradlew.bat build
-PASS
+VALIDATION_ERROR_DEDUPLICATION = PASS
+DUPLICATE_UPLOAD_HASH_GUARD = PASS
+REVALIDATION = NOT_IMPLEMENTED
+PEDIMENT_XML_ESCAPING = PASS
+BATCH_EMPTY = PASS
 ```
 
 ### Frontend
@@ -221,7 +235,7 @@ preexistentes del proyecto; no alteran el resultado de los gates ejecutados.
 |---|---:|
 | Escrituras de datos en `CALE_IMMEX` | 0 |
 | DDL de tablas legacy en `CALE_IMMEX` | 0 |
-| DDL de SP read-only en `CALE_IMMEX` | 0 en esta feature |
+| DDL de SP read-only en `CALE_IMMEX` | `APP24_Q_PEDIMENTO_VALIDAR_REGLAS` aplicado |
 | Ejecuciones de SP legacy mutables | 0 |
 | DDL de aplicación en `ANEXO24_DEV` | migración 09 aplicada |
 | DML de aplicación por runtime | 0 registros de carga; la migración sólo sembró permiso/asignación idempotente |
@@ -235,6 +249,16 @@ rollback quedaron 0 cargas, 0 filas, 0 errores y 0 eventos. La prueba adicional
 de hash duplicado produjo conflicto y también dejó 0 datos persistentes.
 
 `STRUCTURAL_MATCH = PASS` entre los cuatro SP versionados y sus objetos LIVE.
+También se comparó `dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS` LIVE con
+`infra/sql/procedures/queries/APP24_Q_PEDIMENTO_VALIDAR_REGLAS.sql`:
+`STRUCTURAL_MATCH = PASS`. El SP recibe `@FilasXml XML`, conserva caracteres
+especiales mediante serialización DOM/Transformer y evalúa `TipoOperacion = 1`
+para `PED-003` y `TipoOperacion = 2` para `PED-004`; otros valores no generan
+reglas de catálogo en este SP.
+
+`ISVALIDUNIT_READ_CONTRACT = PASS`: función read-only, consulta unidad por clave
+o alias y devuelve cero sin coincidencia; no se observaron side effects.
+
 `PEDIMENT_COMMAND_SP_TRANSACTION_SAFE = YES`: sólo escribe `app24`, no referencia
 `CALE_IMMEX` ni SP legacy, y el rollback exterior revierte el commit anidado.
 
@@ -249,18 +273,23 @@ Queda pendiente para una siguiente ejecución autorizada:
 - upload de un XLSX sintético;
 - consulta de preview mediante API;
 - recuperación después de reinicio;
-- validaciones de catálogo contra SP read-only de `CALE_IMMEX`, sólo si el
-  mapping funcional las confirma;
+- upload HTTP autenticado y consulta de preview;
+- recuperación después de reinicio;
 - decisión de negocio sobre layout oficial y reglas de confirmación.
+
+La validación batch read-only confirmada queda documentada en
+`docs/03-diseno/mapeo-validacion-pedimentos.md`. El SP LIVE se probó con filas
+sintéticas y devolvió códigos `PED-001` a `PED-004`; no se escribieron datos.
 
 ## 9. Paridad
 
 En el cierre/publicación de esta feature, `LEGACY-016` cambia de `MISSING` a
 `PARTIAL`: upload, validación estructural, errores, preview, hash, RBAC y staging
-durable están implementados. `LEGACY-017` permanece `MISSING` porque las reglas
-autoritativas de validación legacy antes del proceso operativo aún no están
-cerradas. No debe marcarse `IMPLEMENTED_REDESIGNED` mientras la confirmación
-operativa que se decida conservar siga sin contrato.
+durable están implementados. `LEGACY-017` pasa a `PARTIAL`: cuatro reglas
+read-only confirmadas se ejecutan automáticamente durante el staging; las reglas
+de inventario, duplicado operativo y confirmación autoritativa permanecen fuera
+de alcance. No debe marcarse `IMPLEMENTED_REDESIGNED` mientras la cobertura
+completa y la confirmación operativa sigan sin contrato.
 
 ## 10. Decisión
 
@@ -273,7 +302,10 @@ PEDIMENT_AUDITLOG_ENUM_COMPATIBILITY = PASS
 SP_VERSIONED_LIVE_MATCH = PASS
 DUPLICATE_HASH_BEHAVIOR = PASS
 PEDIMENT_STAGING_TRANSACTIONAL_SMOKE = PASS
+PEDIMENT_VALIDATION_BATCH = PASS
+PEDIMENT_VALIDATION_RULES = PED-001,PED-002,PED-003,PED-004
 PERSISTENT_TEST_DATA = 0
 PEDIMENT_CONFIRMATION = NOT_IMPLEMENTED
+LEGACY-017 = PARTIAL
 AUTHENTICATED_RUNTIME_SMOKE = NOT_EXECUTED
 ```
