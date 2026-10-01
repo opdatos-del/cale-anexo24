@@ -179,6 +179,63 @@ lock test = 1 caso cada uno; reglas PED cerradas = `PED-007` (implementada),
 matriz staging→target; diagrama transaccional; diagrama PRECHECK→RECHECK; prueba de
 concurrencia `MAX+1`; lista `PED-001..007`.
 
+---
+
+## Fase — Confirmación autoritativa de pedimentos (backend)
+
+**Fecha / fase:** `feature/pediment-authoritative-confirmation-v1`, backend expuesto tras SQL gate verde.
+
+**Problema técnico abordado:** faltaba la operación autoritativa posterior al preview:
+convertir el staging validado en `IMPORTACIONES`/`PARTIDAS` o `SALIDAS`/`PSALIDAS` con
+atomicidad, idempotencia y coordinación con el motor legacy.
+
+**Método utilizado:** command SQL único (`dbo.APP24_C_PEDIMENTO_CONFIRMAR`) que lee el
+staging por nombre de 3 partes y concentra locks, recheck, asignación de claves, writes,
+estado y bitácora en una sola transacción; backend hexagonal que sólo invoca el SP;
+tests de integración SQL en contenedor efímero aplicando el DDL versionado real.
+
+**Resultado:**
+
+- endpoint `POST /api/v1/operaciones/pedimentos/cargas/{id}/confirmacion` con permiso `PEDIMENTOS_CONFIRMAR`;
+- cargas mixtas (import + export) en una única transacción, con conteos acumulados
+  (`OperacionesProcesadas` = headers, `PartidasProcesadas` = líneas);
+- idempotencia: mismo `CargaId` → `ALREADY_CONFIRMED` (200); otra carga con el mismo
+  documento → `DUPLICATE_OPERATION` (409);
+- rollback total ante fallo forzado, sin escrituras parciales;
+- coordinación con legacy mediante `TABLOCKX + HOLDLOCK` y `sp_getapplock` para same-load;
+- auditoría de éxito dentro de la transacción (`APP24_C_BITACORA_REGISTRAR`), auditoría
+  de fallo fuera del rollback con infraestructura existente.
+
+**Pruebas / evidencias (CI real, commit `4bd8776`):**
+
+```text
+sp-first-gate = SUCCESS · backend = SUCCESS · frontend = SUCCESS
+PedimentoConfirmacionSqlIT = 15 PASSED / 0 skipped / 0 failed
+PedimentKeyAllocationConcurrencyTest = 2 PASSED
+endpoint: 401 / 403 / 200 CONFIRMED / 200 ALREADY_CONFIRMED / 404 / 409 / 422
+SP-FIRST: violations = 0 · INLINE_BUSINESS_SQL_JAVA = 0
+```
+
+**Limitaciones:** el comando se validó en contenedor efímero con funciones `FACTOR`/
+`VALIDUNIT` de prueba; el despliegue LIVE del command y las migrations sigue pendiente;
+no se ejecutó el command sobre datos empresariales.
+
+**Artefactos producidos:** `APP24_C_PEDIMENTO_CONFIRMAR.sql`, migration
+`12-pedimento-confirmada-state.sql`, adapter/puerto/caso de uso/DTO/endpoint, tests de
+adaptador, caso de uso y seguridad, `PedimentoConfirmacionSqlIT`.
+
+### Métricas para el reporte (backend)
+
+tests nuevos = 3 clases (adaptador, caso de uso, seguridad) + 15 casos SQL;
+mapeo de errores SQL = 12 códigos controlados; endpoints = 1; permisos nuevos = 1
+(`PEDIMENTOS_CONFIRMAR`, 0 asignaciones a perfiles);
+`LIVE command executions = 0` y `business writes = 0`.
+
+### Anexos candidatos (backend)
+
+diagrama de la transacción del command; matriz de errores SQL → HTTP; matriz
+401/403/200/404/409/422; captura de la futura UI de confirmación.
+
 ### CI en feature branches
 
 Se habilitó validación pre-integración para ramas `feature/**`
