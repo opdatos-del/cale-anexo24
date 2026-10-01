@@ -93,9 +93,9 @@ versionada.
 | LEGACY-029 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo automático | Generar o reprocesar descargos | SQL_METADATA | No identificado | No | No | `DESCARGATSALIDA*`, `DESCARGASALIDAPEPS`, `SALDOS*` | BLOCKED_BUSINESS | P0 | Algoritmo, autorización, rollback e idempotencia pendientes | Descargos / motor controlado |
 | LEGACY-030 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo dirigido | Generar descargo dirigido | SQL_METADATA | No identificado | No | No | `DESCDIRIGIDA`, `SALDOSDIRIGIDOS`, `DIRIGIDO` | BLOCKED_BUSINESS | P1 | Regla dirigida y separación de funciones pendientes | Descargos / dirigidos |
 | LEGACY-031 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo bloqueado | Consultar o resolver operaciones bloqueadas | SQL_METADATA | No identificado | No | No | `bloqueado`, `DIRIGIDO` y procesos relacionados; semántica no cerrada | UNKNOWN | P1 | Falta definición funcional de bloqueado | Descargos / excepciones |
-| LEGACY-032 | Descargos y trazabilidad | `NOT_CAPTURED` — Análisis de descarga | Analizar faltantes, trazo y resultado de descarga | SQL_METADATA | No identificado | No | No | `TRAZO`, `Trazo_report`, `V_INFORMEDESCARGAS` | UNKNOWN | P1 | No se aprobó fuente read-only ni semántica | Descargos / análisis |
-| LEGACY-033 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por importación | Consultar historial de asignaciones por entrada | AUDIT_UI, SQL_METADATA, CODE | Filtros de Materiales Utilizados; sin pantalla separada | `/operaciones/materiales-utilizados` | `GET /api/v1/operaciones/materiales-utilizados` | `DESCARGA` vía `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | PARTIAL | P1 | Falta vista/contrato especializado por importación | Descargos / consultas |
-| LEGACY-034 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por exportación | Consultar historial de asignaciones por salida | AUDIT_UI, SQL_METADATA, CODE | Filtros de Materiales Utilizados; sin pantalla separada | `/operaciones/materiales-utilizados` | `GET /api/v1/operaciones/materiales-utilizados` | `DESCARGA` vía `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | PARTIAL | P1 | Falta vista/contrato especializado por exportación | Descargos / consultas |
+| LEGACY-032 | Descargos y trazabilidad | `NOT_CAPTURED` — Análisis de descarga | Analizar faltantes, trazo y resultado de descarga | SQL_METADATA, CODE, RUNTIME | `/reportes` — análisis read-only parcial de relaciones históricas | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | PARTIAL | P1 | Sólo relación importación → descarga → salida; faltantes, trazo, saldos fiscales y motor fuera de alcance | Descargos / análisis |
+| LEGACY-033 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por importación | Consultar historial de asignaciones por entrada | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/reportes` — superficie consolidada con filtro textual de importación y relaciones entrada → descarga → salida | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | IMPLEMENTED_REDESIGNED | P1 | No requiere pantalla separada; faltantes/trazo/saldos fiscales siguen fuera | Descargos / consultas |
+| LEGACY-034 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por exportación | Consultar historial de asignaciones por salida | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/reportes` — superficie consolidada con filtro textual de salida y relaciones salida → descarga → entrada | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | IMPLEMENTED_REDESIGNED | P1 | No requiere pantalla separada; faltantes/trazo/saldos fiscales siguen fuera | Descargos / consultas |
 | LEGACY-035 | Descargos y trazabilidad | `NOT_CAPTURED` — Consulta de descargos persistidos | Consultar filas físicas de `DESCARGA` sin mutar | SQL_METADATA, CODE, RUNTIME | Materiales Utilizados es la superficie moderna | `/operaciones/materiales-utilizados` | `GET /api/v1/operaciones/materiales-utilizados` | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | IMPLEMENTED_REDESIGNED | P0 | No equivale a generar descargos | Operaciones / trazabilidad |
 | LEGACY-036 | Reportes y consolidados | `NOT_CAPTURED` — Entradas | Generar y exportar reporte de entradas | AUDIT_UI, CODE | `/reportes`, opción Entradas | `/reportes` | `GET /api/v1/reportes/entradas` y `/entradas/exportacion` | Reutiliza consulta de entradas | IMPLEMENTED_REDESIGNED | P1 | Proyección nueva no replica las 76 columnas legacy | Reportes / operativos |
 | LEGACY-037 | Reportes y consolidados | `NOT_CAPTURED` — Salidas | Generar y exportar reporte de salidas | AUDIT_UI, CODE | `/reportes`, opción Salidas | `/reportes` | `GET /api/v1/reportes/salidas` y `/salidas/exportacion` | Reutiliza consulta de salidas | IMPLEMENTED_REDESIGNED | P1 | Proyección nueva no replica las 49 columnas legacy | Reportes / operativos |
@@ -148,13 +148,13 @@ versionada.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
-| Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
+| Descargos y trazabilidad | 7 | 0 | 3 | 1 | 0 | 2 | 0 | 1 |
 | Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **20** | **13** | **8** | **5** | **6** | **22** |
+| **Total** | **79** | **5** | **22** | **12** | **8** | **5** | **6** | **21** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -178,12 +178,12 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 20`
-- `PARTIAL = 13`
+- `IMPLEMENTED_REDESIGNED = 22`
+- `PARTIAL = 12`
 - `MISSING = 8`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 22`
+- `UNKNOWN = 21`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.

@@ -47,7 +47,10 @@ merma y desperdicio.
 recrean datos, actualizan `PARTIDAS.Saldo` y escriben trazabilidad.
 
 **DECISIÓN V1:** “Descargos” no equivale a un CRUD ni a un `GET` que active esos
-procesos. La consulta histórica ya está cubierta por Materiales Utilizados.
+procesos. La consulta histórica base está cubierta por Materiales Utilizados; el
+análisis read-only enriquecido de relaciones importación → descarga → salida se
+expone separadamente como capacidad parcial, sin recalcular saldos ni ejecutar el
+motor.
 
 ## 3. Diferencia con Materiales Utilizados
 
@@ -60,9 +63,12 @@ procesos. La consulta histórica ya está cubierta por Materiales Utilizados.
 | Fecha propia de ejecución | **PENDIENTE / no encontrada:** `DESCARGA` no documenta fecha de proceso; `SALIDAS.FECHADESCARGA` fue nula en 660/660 filas del snapshot. |
 | Status / vínculo G5-G6 / tipo fiscal superior | **PENDIENTE:** existen reportes y subsistemas especializados, no una entidad canónica demostrada para V1. |
 | Valor nuevo para GET Descargos | **No demostrado.** Repetir `DESCARGA` duplicaría `GET /api/v1/operaciones/materiales-utilizados`. |
+| Valor nuevo para análisis | **Parcialmente demostrado:** `V_INFORMEDESCARGAS` agrega relación de entrada/salida, fechas y campos de contexto sobre las mismas 3,866 asignaciones; no aporta faltantes/trazo ni contrato de saldos. |
 
-**DECISIÓN V1:** no crear `GET /api/v1/operaciones/descargos`. Materiales
-Utilizados sigue siendo única consulta paginada del resultado persistido.
+**DECISIÓN V1:** no crear `GET /api/v1/operaciones/descargos` genérico. Materiales
+Utilizados sigue siendo la consulta base de filas físicas; el análisis parcial
+se expone en `GET /api/v1/reportes/analisis-descargas` con una proyección propia
+estable por `DESCARGA.Descargakey`.
 
 ## 4. Tablas y relaciones
 
@@ -249,10 +255,123 @@ dependencia directa con `DIRIGIDO`;
 - el objeto fuente común para detalle histórico sigue siendo `DESCARGA`, ya
 expuesto en Materiales Utilizados.
 
-**PENDIENTE:** seleccionar una fuente para un reporte genérico de descargos.
-En esta fase sí se auditó `V_STATUS_DESCARGAS` y `V_INFORMEDESCARGAS` mediante
-conteos/definiciones; sólo `V_STATUS_DESCARGAS` se aprobó para la consulta
-acotada de Dirigidos.
+**DECISIÓN V1:** `V_INFORMEDESCARGAS` se aprueba como evidencia read-only
+parcial para análisis, no como contrato total del motor. La implementación usa
+los mismos joins demostrados por la view sobre `DESCARGA`, `PARTIDAS`,
+`IMPORTACIONES`, `PSALIDAS`, `SALIDAS` y `CATEGORIAS`, conservando
+`DESCARGA.Descargakey` como identificador/tie-breaker técnico.
+
+- Fuente auditada: `dbo.V_INFORMEDESCARGAS`, 3,866 filas.
+- Grano demostrado: una fila física `DESCARGA`; 3,866 IDs distintos, 3,643
+  grupos de links y 223 duplicados legítimos de links.
+- Links: 3,866/3,866 filas son unibles a importación, partida, salida y partida
+  de salida.
+- Filtros V1: texto sobre importación, exportación, material y producto.
+- Orden: `SALIDAS.Fecha DESC`, `SALIDAS.SalidaKey DESC`,
+  `PSALIDAS.Psalidakey DESC`, `DESCARGA.Descargakey DESC`.
+- `SaldoActual` se audita pero no se expone: proviene de `PARTIDAS.Saldo` y su
+  semántica fiscal permanece fuera de esta capacidad.
+- `TRAZO` tiene 0 filas; `Trazo_report` es WRITE/MIXED y no se ejecuta.
+
+#### Gate de equivalencia de proyección
+
+La equivalencia se verificó agrupando ambos datasets por la proyección común y
+comparando la multiplicidad de cada grupo. `Descargakey` se excluyó porque la
+view no lo expone y sólo cumple identidad técnica/tie-breaker en la consulta
+nueva.
+
+```text
+ANALYSIS_COMMON_PROJECTION =
+(Pedimentoimportacion, SecuenciaImp, PedimentoExportacion,
+ ProductoExp, FechaPagoExp, FechaVencimiento, CantidadUMCImportada,
+ CantUMCExportada, NoParte)
+SOURCE_GROUPS = 3643
+SP_SOURCE_GROUPS = 3643
+SOURCE_ONLY_GROUPS = 0
+SP_ONLY_GROUPS = 0
+MULTIPLICITY_MISMATCH_GROUPS = 0
+DISCHARGE_PROJECTION_EQUIVALENCE = PASS
+```
+
+La expresión de `PedimentoExportacion` conserva la regla de la view para clave
+`ct`; no se comparó únicamente por nombre de columna. El SP conserva además
+campos de análisis derivados de `DESCARGA` que no forman parte de la proyección
+común de la view.
+
+`DESCARGA.Descargakey` es identidad técnica única: `DESCARGA` tiene 3,866 filas
+y 3,866 IDs distintos, por lo que `DESCARGAKEY_UNIQUE = PASS`. El orden
+`SALIDAS.Fecha DESC, SALIDAS.SalidaKey DESC, PSALIDAS.Psalidakey DESC,
+DESCARGA.Descargakey DESC` queda justificado como
+`DISCHARGE_ANALYSIS_STABLE_ORDERING = PASS`; los tres primeros campos preservan
+el orden funcional observado y el ID único resuelve empates.
+
+`SaldoActual` se audita pero no se expone: `SALDO_ACTUAL_SOURCE_FIELD =
+NOT_EXPOSED`, porque su presencia en una view analítica no cierra el contrato
+fiscal de Saldos. Asimismo, `CantUMCDescargada` fue `NULL` en 3,866/3,866 filas
+y queda como `CANT_UMC_DESCARGADA = NOT_EXPOSED_DATASET_NULL`; no se deriva un
+total alternativo en Java, SQL de aplicación ni UI.
+
+`DISCHARGE_ANALYSIS_SECURITY = PASS`: el endpoint responde 401 sin token, 403
+sin `REPORTES_GENERAR` y 200 con dicho permiso en las pruebas focalizadas.
+
+### Reconciliación de historiales 033/034
+
+| Legacy ID | Requirement | Modern surface | Coverage | Gap |
+|---|---|---|---|---|
+| LEGACY-033 | Historial por importación | `/reportes` → Análisis de descargas; filtro de importación | FULL | Faltantes, trazo y saldos fiscales no forman parte de la V1 |
+| LEGACY-034 | Historial por exportación | `/reportes` → Análisis de descargas; filtro de salida | FULL | Faltantes, trazo y saldos fiscales no forman parte de la V1 |
+
+La superficie consolidada permite identificar y filtrar la entrada o salida,
+observar la relación histórica, material y cantidades, paginar y consultar sin
+mutar. No se exige una pantalla legacy separada para declarar la cobertura
+funcional rediseñada.
+
+SP versionado: `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`.
+API: `GET /api/v1/reportes/analisis-descargas`.
+Permiso: `REPORTES_GENERAR`.
+UI: opción `Análisis de descargas` dentro de `/reportes`, sin sidebar nuevo.
+XLSX: `NOT_IMPLEMENTED`.
+
+### 9.1 Clasificación de columnas de `V_INFORMEDESCARGAS`
+
+La metadata LIVE registró tipo, longitud y nullable para las 42 columnas. La
+clasificación semántica usada para la proyección V1 es:
+
+- `CONFIRMED_MEANING`: `PatenteImp`, `AduanaSeccImp`, `Pedimentoimportacion`,
+  `Fecha de Pago`, `Clave Pedimento`, `FacturaImp`, `FechaFacturaImp`, `NoParte`,
+  `SecuenciaImp`, `FraccionImp`, `DescripcionImp`, `CantidadUMCImportada`,
+  `UMCImp`, `CantUMTImportada`, `UMTImp`, `ValorAduana`, `Pais_Origen`,
+  `FechaVencimiento` (fórmula SQL explícita), `PatenteExp`, `AduanaSeccExp`,
+  `PedimentoExportacion`, `FechaPagoExp`, `ClaveExp`, `FacturaExp`,
+  `FechaFacturaExp`, `SecuenciaExp`, `ProductoExp`, `FraccionExp`,
+  `DescripcionExp`, `CantUMTExportada`, `UMTExp`, `CantUMCExportada`, `UMCExp`,
+  `ValorComercialExp` y `Pais_Destino`.
+- `TECHNICAL_OR_DERIVED`: `FolioPedimentoImp`, `FolioPedimentoExp`,
+  `ValorUnit_AduMN`, `ValorUnitExp` y `CantUMCDescargada`. Los folios son
+  substrings; los valores unitarios son divisiones SQL; `CantUMCDescargada` es
+  suma SQL de `CantUtil + Merma + Desperdicio` y resultó NULL en 3,866/3,866
+  filas por propagación de NULL, por lo que no se expone en V1.
+- `UNKNOWN_MEANING_FOR_V1`: `SaldoActual` y `ValorAgregado`. `SaldoActual`
+  proviene de `PARTIDAS.Saldo`, pero no se afirma que sea el contrato fiscal de
+  Saldos; `ValorAgregado` se conserva auditado, no se proyecta hasta contar con
+  significado funcional aprobado.
+
+Las columnas del SP V1 se limitan a identificadores de relación, material,
+producto, fechas demostradas, cantidades de `DESCARGA` y unidad. No se expone
+`SaldoActual`, no se inventan faltantes y no se deriva un estado operativo.
+
+### 9.2 `TRAZO` y proceso de análisis
+
+`dbo.TRAZO` es tabla `READ SOURCE / MUTABLE PROCESS RESULT`, con 0 filas LIVE y
+PK `trazokey bigint NOT NULL`. Sus columnas auditadas son: `psalidakey bigint`
+nullable, `producto varchar(50)` nullable, `cantidad float` nullable,
+`linea bigint` nullable, `descargo float` nullable, `falto float` nullable,
+`padre varchar(50)` nullable, `salidakey bigint` nullable,
+`observacion varchar(100)` nullable, `PRODMATKEY bigint` nullable,
+`PRODMATKEYT bigint` nullable y `CLAVEORIGINAL varchar(50)` nullable. La
+procedure `SALDOSDIRIGIDOS` inserta filas en `TRAZO`; `Trazo_report` no lee esta
+tabla como consulta pura: trunca `ANALISIS_MATERIALES`, inserta resultados y
+actualiza acumulados. Ninguno se ejecutó.
 
 ## 10. Pantalla legacy
 
@@ -264,12 +383,11 @@ confirmar labels, filtros, acciones peligrosas y si UI presenta entidad distinta
 
 ## 11. Decisión arquitectónica
 
-**DECISIÓN V1 — opción C:** consulta histórica relevante ya queda cubierta por
-`GET /api/v1/operaciones/materiales-utilizados`. Crear
-`GET /api/v1/operaciones/descargos` hoy duplicaría fuente, granularidad, 3,866
-filas y fecha de salida, sin aporte funcional demostrado.
-
-No existe contrato HTTP Descargos V1, SP propio ni frontend Descargos.
+**DECISIÓN ARQUITECTÓNICA V1:** no crear un GET genérico de Descargos que
+repita Materiales Utilizados. Sí existe un contrato parcial de análisis histórico
+enriquecido, con `GET /api/v1/reportes/analisis-descargas` y
+`dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; no incluye trazo, faltantes, saldos
+fiscales, reproceso ni generación.
 
 ## 12. Command futuro
 

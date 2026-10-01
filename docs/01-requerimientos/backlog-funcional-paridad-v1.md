@@ -175,10 +175,11 @@ CTM/F4/HDE, estados/procesamiento de rectificaciones y otros informes sólo
 cuando exista una proyección aprobada. El resumen read-only de rectificaciones
 está implementado en `GET /api/v1/reportes/rectificaciones`; el subconjunto
 read-only de vencimientos de desperdicio está implementado en
-`GET /api/v1/reportes/vencimientos`; y la consulta read-only parcial de líneas
-marcadas como dirigidas está implementada en `GET /api/v1/reportes/dirigidos`.
-El detalle permanece sin datos, los estados operativos y la aplicación no forman
-parte de V1. El detalle y generación de Compulsa son
+`GET /api/v1/reportes/vencimientos`; la consulta read-only parcial de líneas
+marcadas como dirigidas está implementada en `GET /api/v1/reportes/dirigidos`; y
+el análisis read-only parcial de relaciones históricas está implementado en
+`GET /api/v1/reportes/analisis-descargas`. El detalle permanece sin datos, los
+estados operativos, faltantes, trazo y la aplicación no forman parte de V1. El detalle y generación de Compulsa son
 `PENDING CONTRACT / OUT OF V1`. CTM/F4/HDE permanece `UNKNOWN`, no
 `BLOCKED_BUSINESS`, hasta contar con decisión de negocio explícita. No se debe copiar el número de columnas
 legacy por defecto.
@@ -275,7 +276,10 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
   auxiliares pendientes de fuente canónica y contrato.
 - `LEGACY-019`: carga de exportaciones separada de consulta.
 - `LEGACY-023` a `LEGACY-028`: operaciones especiales.
-- `LEGACY-030` a `LEGACY-034`: dirigidos, análisis e históricos especializados.
+- `LEGACY-030` y `LEGACY-031`: generación dirigida y operaciones bloqueadas
+  pendientes; el subconjunto analítico read-only de `LEGACY-032` está implementado
+  como PARTIAL y `LEGACY-033`/`LEGACY-034` están cubiertos como
+  `IMPLEMENTED_REDESIGNED` por la superficie consolidada.
 - `LEGACY-041`, `LEGACY-046`, `LEGACY-049`, `LEGACY-051`: cumplimiento y reportes
   operativos especializados.
 - `LEGACY-060`, `LEGACY-064`, `LEGACY-065`, `LEGACY-069` a `LEGACY-073`:

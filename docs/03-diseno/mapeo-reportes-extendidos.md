@@ -11,7 +11,8 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 | Vencimientos | `vDESPERDICIOS.VENCIMIENTO` y `VReporteAplicaciondesperdicios.VENCIMIENTO`; ambas views tienen 0 filas; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | Implementar consulta read-only del subconjunto de desperdicios; saldos, descargos y estados quedan fuera de V1 |
 | Compulsa | `v_compulsa_gen` (8 columnas, 662 filas) y `v_compulsa` (33 columnas, 3394 filas) comparan glosa contra Anexo 24 | PARTIAL | Implementar sólo consulta resumen paginada desde `v_compulsa_gen`; detalle y generación quedan pendientes |
 | Scrap / desperdicios | `vDESPERDICIOS`, `VReporteAplicaciondesperdicios`, `vDesperdiciosDetalleAplicacion`, `DESCARGA_DESPERDICIO`, `PED_DESPERDICIOS` y `DescargaDesp`; todos los datasets auditados tienen 0 filas | PARTIAL | Reutilizar sólo el agregado de desperdicio ya expuesto por Vencimientos; no afirmar equivalencia con aplicación, detalle, descargo o pendientes; `LEGACY-048` permanece UNKNOWN |
-| Dirigidos | `V_STATUS_DESCARGAS` expone flag read-only `DIRIGIDO`; `DIRIGIDO` está vacío; `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` y `Trazo_report` son mutables | PARTIAL | Exponer sólo consulta paginada de líneas marcadas como dirigidas; no generar descargos ni calcular saldos |
+| Dirigidos | `V_STATUS_DESCARGAS` expone flag read-only `DIRIGIDO`; `DIRIGIDO` está vacío; `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` y `Trazo_report` son mutables | PARTIAL | Exponer sólo consulta paginada de líneas marcadas como dirigidas; no generar descargos ni calcular saldos |<!--  -->
+| Análisis de descargas | `V_INFORMEDESCARGAS` tiene 3866 filas y depende de `DESCARGA`, `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS` y `SALIDAS`; `TRAZO` está vacío y `Trazo_report` es WRITE/MIXED | PARTIAL | Exponer relaciones históricas enriquecidas importación → descarga → salida; no exponer saldos fiscales, faltantes, trazo ni motor |<!--  -->
 | Rectificaciones | `v_rectificaciones` tiene detalle explícito pero 0 filas; `v_total_rectificaciones` tiene 662 agregados | PARTIAL | Implementar resumen read-only paginado desde `v_total_rectificaciones`; detalle y procesamiento quedan fuera de V1 |
 | Activo fijo especializado | Consulta operativa `APP24_Q_ACTIVOS_FIJOS_LISTAR` ya implementada | CONSOLIDATE | No duplicar dentro de Reportes |
 | Consolidado materiales | Sin contrato independiente confirmado | UNKNOWN | No implementar |
@@ -98,6 +99,56 @@ actual y no cambia el contrato de consulta.
   `partidas`, `psalidas` y `salidas`. Las tablas de operación no se modifican.
 - `RECTIFICATIONS_SUMMARY_CONTRACT = CONFIRMED`.
 - `RECTIFICATIONS_DETAIL_CONTRACT = NOT_IMPLEMENTED / DATASET_EMPTY`.
+
+## Análisis de descargas V1
+
+El contrato es parcial: `V_INFORMEDESCARGAS` representa una relación histórica
+por fila física de `DESCARGA`, no un resultado del motor de análisis completo.
+La medición LIVE demostró 3,866 filas de `DESCARGA`, 3,866 `Descargakey` distintos,
+3,643 grupos de links y 223 duplicados legítimos de links; las 3,866 filas son
+unibles a importación, partida, salida y partida de salida. La view proyecta
+campos de entrada/salida, materiales, fechas, cantidades y `SaldoActual`; este
+último proviene de `PARTIDAS.Saldo` y no se expone por no tener contrato fiscal
+cerrado. `TRAZO` tiene 0 filas y `Trazo_report` trunca/escribe resultados, por lo
+que no se ejecuta ni se usa como fuente.
+
+- `DISCHARGE_ANALYSIS_GRAIN = DESCARGA_ROW`.
+- `DISCHARGE_ANALYSIS_OVERLAP = PARTIAL` con Materiales Utilizados: comparte la
+  asignación histórica persistida, pero añade contexto de entrada/salida y fechas;
+  no se duplica la consulta base ni se declara cobertura de faltantes/trazo.
+- `DISCHARGE_ANALYSIS_CONTRACT = PARTIAL`.
+- SP: `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`.
+- API: `GET /api/v1/reportes/analisis-descargas`.
+- UI: opción `Análisis de descargas` dentro de `/reportes`; sin sidebar nuevo.
+- Filtros: texto sobre pedimento de importación, pedimento de salida, material y
+  producto; no se agrega filtro de fecha por costumbre.
+- Proyección: identificadores de descarga/entrada/salida, material, producto,
+  fechas de importación/salida/vencimiento, cantidades persistidas y unidad.
+- Orden determinístico: `SALIDAS.Fecha DESC`, `SALIDAS.SalidaKey DESC`,
+  `PSALIDAS.Psalidakey DESC`, `DESCARGA.Descargakey DESC`; el último es PK
+  observable de la fila física.
+- `SaldoActual`, faltantes derivados y estado operativo: `NOT_IMPLEMENTED`.
+- XLSX: `NOT_IMPLEMENTED`.
+
+Reconciliación LIVE del SP, sin imprimir filas:
+
+```text
+source V_INFORMEDESCARGAS = 3866
+SP total = 3866
+page 1 rows = 20
+empty synthetic filter = total 0, rows 0
+extreme page = total 3866, rows 0
+STRUCTURAL_MATCH = PASS
+stable ordering = PASS
+mutable SP executed = 0
+CALE_IMMEX business writes = 0
+inline Java SQL = 0
+```
+
+`LEGACY-032` pasa de `UNKNOWN` a `PARTIAL` únicamente para esta consulta
+analítica read-only. La superficie consolidada permite consultar por entrada y
+por salida; `LEGACY-033` y `LEGACY-034` quedan cubiertos como
+`IMPLEMENTED_REDESIGNED`, sin exigir pantallas separadas ni ejecutar mutaciones.
 
 ## Controles
 
