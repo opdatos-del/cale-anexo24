@@ -235,15 +235,24 @@ SALIDAS / PSALIDAS
 `V_INFORMEDESCARGAS`, `INFORMEDESCARGOS`, `V_STATUS_DESCARGAS`,
 `DESCARGA_CTMA`, `DESCARGA_DESPERDICIO`, `v_saldos` y `v_saldosdesp`.
 
-**DECISIÓN V1:** ninguna se reutiliza como API:
+**DECISIÓN V1:** para un reporte genérico de descargos, ninguna de estas views
+se reutiliza como API porque mezclan saldo actual, conciliación, valores fiscales
+o subtipos y no prueban una entidad superior de descargo.
 
-- mezclan saldo actual, conciliación, valores fiscales o subtipos;
-- no prueban entidad superior de descargo;
-- no ofrecen contrato paginado/filtros/orden estable;
-- su objeto fuente común para detalle histórico es `DESCARGA`, ya expuesto.
+**Excepción documentada:** `V_STATUS_DESCARGAS` sí se reutiliza únicamente para
+`GET /api/v1/reportes/dirigidos`, filtrando su flag calculado `DIRIGIDO = 'SI'`.
+Esto no crea un GET genérico de descargos ni desbloquea generación dirigida.
 
-**PENDIENTE:** seleccionar/examinar controladamente views actuales sólo con acceso
-read-only restablecido. No se ejecutó ninguna view en esta fase.
+- `V_INFORMEDESCARGAS` permanece fuera del contrato Dirigidos: no tiene flag ni
+dependencia directa con `DIRIGIDO`;
+- `TRAZO` y `Trazo_report` permanecen fuera por ser resultados/procesos mutables;
+- el objeto fuente común para detalle histórico sigue siendo `DESCARGA`, ya
+expuesto en Materiales Utilizados.
+
+**PENDIENTE:** seleccionar una fuente para un reporte genérico de descargos.
+En esta fase sí se auditó `V_STATUS_DESCARGAS` y `V_INFORMEDESCARGAS` mediante
+conteos/definiciones; sólo `V_STATUS_DESCARGAS` se aprobó para la consulta
+acotada de Dirigidos.
 
 ## 10. Pantalla legacy
 

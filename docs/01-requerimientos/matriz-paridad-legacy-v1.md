@@ -110,7 +110,7 @@ versionada.
 | LEGACY-046 | Reportes y consolidados | `NOT_CAPTURED` — Vencimientos | Consultar vencimientos | SQL_METADATA, CODE, RUNTIME | `/reportes` — vencimientos read-only de desperdicio | `ReportListPage` | `GET /api/v1/reportes/vencimientos` | `dbo.vDESPERDICIOS`, `dbo.APP24_Q_VENCIMIENTOS_LISTAR`; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | P1 | Sólo subconjunto de desperdicio; saldos, descargos y estados fuera de alcance | Reportes / cumplimiento |
 | LEGACY-047 | Reportes y consolidados | `NOT_CAPTURED` — Compulsa | Ejecutar o consultar compulsa | SQL_METADATA, CODE | `/reportes` — Compulsa | `ReportListPage` | `GET /api/v1/reportes/compulsa` | `dbo.v_compulsa_gen`, `dbo.APP24_Q_COMPULSA_LISTAR` | PARTIAL | P2 | Consulta resumida read-only implementada; detalle, generación y reconciliación mutable fuera de alcance | Reportes / cumplimiento |
 | LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | UNKNOWN | P2 | Semántica y fuente canónica pendientes | Reportes / cumplimiento |
-| LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA | No identificado | No | No | `DIRIGIDO`, `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` | UNKNOWN | P1 | Flujo especializado pendiente | Reportes / cumplimiento |
+| LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA, CODE, RUNTIME | `/reportes` — consulta read-only del subconjunto marcado como dirigido | `ReportListPage` | `GET /api/v1/reportes/dirigidos` | `dbo.V_STATUS_DESCARGAS`, `dbo.APP24_Q_DIRIGIDOS_LISTAR`; filtro estructural `DIRIGIDO = 'SI'` | PARTIAL | P1 | Sólo consulta de líneas marcadas; generación, PEPS, saldos y descargo dirigido permanecen fuera de alcance | Reportes / cumplimiento |
 | LEGACY-050 | Reportes y consolidados | `NOT_CAPTURED` — Permisos | Reportar permisos o actividades | CODE | Administración de perfiles y actividades | `/perfiles` | `/api/v1/administracion/perfiles` y `/actividades` | `app24.PerfilApp`, `Actividad`, `PerfilActividad` | CONSOLIDATE | P1 | No se justificó reporte separado | Administración |
 | LEGACY-051 | Reportes y consolidados | `NOT_CAPTURED` — Rectificaciones | Consultar o reportar rectificaciones | SQL_METADATA, CODE, RUNTIME | `/reportes` — resumen read-only de rectificaciones | `ReportListPage` | `GET /api/v1/reportes/rectificaciones` | `dbo.v_total_rectificaciones`, `dbo.APP24_Q_RECTIFICACIONES_LISTAR`; `dbo.v_rectificaciones` auditada y vacía | PARTIAL | P2 | Sólo resumen agregado; detalle y procesamiento fuera de alcance | Reportes / cumplimiento |
 | LEGACY-052 | Reportes y consolidados | `NOT_CAPTURED` — Activo fijo | Reportar activos fijos | AUDIT_UI, CODE | Consulta de operaciones de activo fijo y reportes comunes | `/operaciones/activos-fijos`, `/reportes` | Operaciones/reportes; sin reporte especializado | `APP24_Q_ACTIVOS_FIJOS_LISTAR` | CONSOLIDATE | P1 | No se modela activo individual | Operaciones / reportes |
@@ -149,12 +149,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
-| Reportes y consolidados | 18 | 0 | 5 | 3 | 0 | 2 | 5 | 3 |
+| Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **20** | **12** | **8** | **5** | **6** | **23** |
+| **Total** | **79** | **5** | **20** | **13** | **8** | **5** | **6** | **22** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -179,11 +179,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 20`
-- `PARTIAL = 12`
+- `PARTIAL = 13`
 - `MISSING = 8`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 23`
+- `UNKNOWN = 22`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
