@@ -358,7 +358,7 @@ BEGIN
             SELECT @BaseDirigido + ROW_NUMBER() OVER (ORDER BY ps.PSALIDAKEY),
                    ps.DESCARGADIRIGIDA, ps.CLAVE, ps.CANTIDAD, 0, 0, ps.SALIDALINK, ps.PSALIDAKEY
             FROM dbo.PSALIDAS ps
-            WHERE ps.SALIDAKEY >= @BaseSalida + 1
+            WHERE ps.SALIDALINK >= @BaseSalida + 1
               AND ISNULL(ps.DESCARGADIRIGIDA, '') <> '';
         END
 
