@@ -378,6 +378,11 @@ class PedimentoConfirmacionSqlIT {
         }
         try (Connection app = conectar(APP)) {
             aplicarArchivo(app, raizRepo().resolve("02-app-schema.sql"));
+            // El DDL versionado otorga EXECUTE al rol runtime; en el fixture se crea el rol.
+            try (Statement s = app.createStatement()) {
+                s.execute("IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'app24_runtime' AND type = 'R') "
+                        + "CREATE ROLE app24_runtime");
+            }
             aplicarArchivo(app, raizRepo().resolve("migrations/09-pedimentos-staging-v1.sql"));
             aplicarArchivo(app, raizRepo().resolve("migrations/11-pedimentos-confirmar-permission.sql"));
             aplicarArchivo(app, raizRepo().resolve("migrations/12-pedimento-confirmada-state.sql"));
