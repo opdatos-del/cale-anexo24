@@ -3,6 +3,7 @@ package com.jovycandy.anexo24.reports.api.controller;
 import com.jovycandy.anexo24.Anexo24Application;
 import com.jovycandy.anexo24.operations.entries.api.dto.EntradaLineaDto;
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
@@ -48,6 +49,9 @@ class ReportesControllerTest {
     private ConsultarReportesUseCase consultarReportesUseCase;
 
     @MockitoBean
+    private ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase;
+
+    @MockitoBean
     private ListarCompulsaUseCase listarCompulsaUseCase;
 
     @MockitoBean
@@ -58,6 +62,31 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarVencimientosUseCase listarVencimientosUseCase;
+
+    @Test
+    void listarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listarAnalisisDescargasExigePermisoDeReportes() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listarAnalisisDescargasRespondePaginaConPermiso() throws Exception {
+        when(listarAnalisisDescargasUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas")
+                        .param("filtro", "190-1562")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
 
     @Test
     void listarVencimientosExigePermisoDeReportes() throws Exception {
