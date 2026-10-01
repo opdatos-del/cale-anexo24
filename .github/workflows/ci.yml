@@ -8,6 +8,24 @@ on:
 
 jobs:
 
+  sp-first-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Test del gate SP-FIRST
+        run: python scripts/tests/check_inline_sql_test.py
+
+      - name: Gate SP-FIRST (SQL inline prohibido)
+        run: python scripts/check-inline-sql.py
+
   backend:
     runs-on: ubuntu-latest
 
