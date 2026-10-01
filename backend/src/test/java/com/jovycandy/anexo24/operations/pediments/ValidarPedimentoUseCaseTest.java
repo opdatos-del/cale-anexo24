@@ -32,6 +32,22 @@ class ValidarPedimentoUseCaseTest {
     }
 
     @Test
+    void agregaDuplicadoOperativoPed007() {
+        PedimentoReglasRepository repository = mock(PedimentoReglasRepository.class);
+        ValidarPedimentoUseCase useCase = new ValidarPedimentoUseCase(repository);
+        PedimentoFila fila = new PedimentoFila("Hoja1", 3, Map.of("NumeroPedimento", "5003971", "TipoOperacion", "1"));
+        CargaPedimentoArchivo archivo = new CargaPedimentoArchivo("a.xlsx", "h", "V1", List.of(), List.of(fila),
+                List.of(), false);
+        when(repository.validar(List.of(fila))).thenReturn(List.of(new PedimentoError(
+                "Hoja1", 3, "NumeroPedimento", "no almacenado", "PED-007", "El pedimento ya existe en las operaciones de importacion.")));
+
+        CargaPedimentoArchivo resultado = useCase.ejecutar(archivo);
+
+        assertEquals(1, resultado.errores().size());
+        assertEquals("PED-007", resultado.errores().get(0).codigo());
+    }
+
+    @Test
     void noConsultaSiNoHayFilas() {
         PedimentoReglasRepository repository = mock(PedimentoReglasRepository.class);
         ValidarPedimentoUseCase useCase = new ValidarPedimentoUseCase(repository);

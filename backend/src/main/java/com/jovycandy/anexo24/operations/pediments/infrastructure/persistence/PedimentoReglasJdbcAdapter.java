@@ -72,6 +72,7 @@ public class PedimentoReglasJdbcAdapter implements PedimentoReglasRepository {
                 append(document, datos, "UnidadTarifa", fila.datos().get("UnidadTarifa"));
                 append(document, datos, "TipoOperacion", fila.datos().get("TipoOperacion"));
                 append(document, datos, "Clave", fila.datos().get("Clave"));
+                append(document, datos, "NumeroPedimento", fila.datos().get("NumeroPedimento"));
                 filaElement.appendChild(datos);
                 root.appendChild(filaElement);
             }
