@@ -216,12 +216,17 @@ Se creó un gate automático (ya no es audit-only):
 ```text
 scanner = scripts/check-inline-sql.py
 scanner tests = scripts/tests/check_inline_sql_test.py (+ fixtures pass/fail)
-CI gate = job sp-first-gate en .github/workflows/ci.yml (antes de backend)
+CI gate = job sp-first-gate en .github/workflows/ci.yml
+SP_FIRST_GATE_MODE = SEPARATE_JOB
+SP_FIRST_CI_JOB_DEPENDENCY = PASS (backend has needs: sp-first-gate)
+CI_PROTECTED_BRANCHES = main, dev
+SP_FIRST_GATE_RUNTIME_DEPENDENCIES = STANDARD_LIBRARY_ONLY
 INLINE_SQL_CI_GATE = PASS
 allowlist =
   backend/.../shared/api/SystemStatusController.java
+    método: checkDatabase
     INLINE_SQL: "SELECT 1" (exacto)
-    DIRECT_JDBC: permitido (health-check)
+    DIRECT_JDBC: permitido sólo dentro de checkDatabase
 ```
 
 El scanner:
@@ -233,11 +238,46 @@ El scanner:
   `update(`, `batchUpdate(`, `execute(`, `createStatement(`, `prepareStatement(`;
 - NO marca `connection.prepareCall("{call ...}")` ni `jdbcTemplate.call(...)`;
 - NO marca `.query(PreparedStatementCreator, mapper)` cuando el sitio usa
-  `prepareCall` (invocación de SP).
+  `prepareCall` (invocación de SP);
+- allowlist por archivo + método + literal: estar en el archivo allowlisted NO
+  habilita SQL arbitrario.
 
 Resultado real: `SP_FIRST_GATE|PASS|violations=0`. Los tests de fixtures validan
-PASS (`prepareCall` SP, `SELECT 1` allowlisted) y FAIL (`SELECT FROM`,
-`UPDATE`, `query`, `StringBuilder` SQL).
+PASS (`prepareCall` SP, `SELECT 1` allowlisted) y FAIL (`SELECT`, `INSERT`,
+`UPDATE`, `DELETE`, `MERGE`, vista, text block, `query`, `StringBuilder`, y
+allowlist bypass con `SELECT 1` + `SELECT COUNT(*) FROM`).
+
+### Capas de enforcement
+
+1. checker local `scripts/check-inline-sql.py`;
+2. self-tests del checker `scripts/tests/check_inline_sql_test.py`;
+3. GitHub Actions gate (`sp-first-gate`, bloquea `backend`);
+4. revisión manual SP-first antes de crear un SP nuevo.
+
+### Alcance real del gate
+
+```text
+CI_ENFORCEMENT = POST_PUSH_DETECTION_FOR_DIRECT_PUSH
+LOCAL_PRE_INTEGRATION_GATE = REQUIRED_BY_PROJECT_PROCESS
+```
+
+El proyecto integra con push directo a `dev`, por lo que CI **detecta** la
+violación después del push; no impide físicamente el push salvo que exista branch
+protection, que aquí **no** se asume ni se declara. El gate local previo a la
+integración es obligatorio por proceso del proyecto.
+
+### Mejora futura (no implementada)
+
+Integrar el scanner en `./gradlew check` para que el gate forme parte del flujo
+backend estándar, sin introducir dependencia Python problemática dentro de
+Gradle. No es obligatorio en esta fase.
+
+### Limitaciones conocidas del scanner
+
+- No reconstruye SQL concatenado entre literales (`"SEL" + "ECT ..."`).
+- No resuelve variables ni constantes referenciadas.
+- Es defensa adicional; la auditoría manual de adapters sigue siendo la fuente
+  principal.
 
 ### TECHNICAL_SQL_EXCEPTION_001
 
@@ -263,6 +303,11 @@ SP_USAGE_ACCOUNTING = PASS
 PEDIMENTO_VALIDAR_REGLAS_RECONCILED = PASS
 SP_FIRST_AUDIT_COMPLETE = YES
 SP_FIRST_COMPLIANT = YES
+SP_FIRST_CI_DEV_TRIGGER = PASS
+SP_FIRST_CI_JOB_DEPENDENCY = PASS
+SCANNER_SELF_TEST_IN_CI = PASS
+EXACT_ALLOWLIST_TEST = PASS
+CI_PROTECTED_BRANCHES = main, dev
 LEGACY_SP_EXECUTED = 0
 CALE_IMMEX_WRITES = 0
 ```

@@ -10,7 +10,13 @@ Uso:
     # root por defecto: backend/src/main/java
 
 Sale con código 1 si encuentra violaciones; 0 si todo está limpio.
-No requiere dependencias externas.
+Sólo usa la librería estándar (STANDARD_LIBRARY_ONLY).
+
+Limitaciones conocidas (documentadas en docs/04-arquitectura/auditoria-sp-first.md):
+- No reconstruye SQL concatenado entre literales ("SEL" + "ECT ...").
+- No interpreta variables ni constantes referenciadas.
+- Las invocaciones de SP con `prepareCall` / `jdbcTemplate.call` se consideran
+  legítimas y no se marcan.
 """
 
 from __future__ import annotations
@@ -28,9 +34,18 @@ JDBC_DIRECT = re.compile(
 )
 JDBC_STATEMENT = re.compile(r"\.\s*(createStatement|prepareStatement)\s*\(")
 
-# Una invocación de SP con JdbcTemplate.query(PreparedStatementCreator, mapper) es
-# legítima: no es SQL funcional inline.
+# Invocación legítima de SP a través de JdbcTemplate.query(PreparedStatementCreator, mapper).
 SP_CALL_HINT = re.compile(r"prepareCall")
+
+# Allowlist mínima, explícita y por método: nombre de archivo -> métodos -> reglas.
+# Un archivo allowlisted NO habilita SQL arbitrario; sólo el método y literal exactos.
+ALLOWLIST: dict[str, dict[str, dict[str, object]]] = {
+    "SystemStatusController.java": {
+        "checkDatabase": {"sql": {"SELECT 1"}, "jdbc": True},
+    },
+}
+
+DEFAULT_ROOT = "backend/src/main/java"
 
 
 def looks_like_sql(literal: str) -> bool:
@@ -42,38 +57,36 @@ def looks_like_sql(literal: str) -> bool:
     # es SQL. Se exige más de un token o un operador/paréntesis.
     return len(s.split()) >= 2 or bool(re.search(r"[;,()=*]", s))
 
-# Allowlist mínima y explícita: por nombre de archivo.
-# - sql: literales exactos permitidos.
-# - jdbc: permite acceso JDBC directo en ese archivo.
-ALLOWLIST: dict[str, dict[str, object]] = {
-    "SystemStatusController.java": {"sql": {"SELECT 1"}, "jdbc": True},
-}
 
-DEFAULT_ROOT = "backend/src/main/java"
+def analyze(text: str) -> tuple[str, list[tuple[str, int]]]:
+    """Devuelve (código con strings/comentarios en blanco, literales con offset).
 
-
-def analyze(text: str) -> tuple[str, list[str]]:
-    """Devuelve (código sin strings ni comentarios, lista de literales de texto)."""
+    `code` conserva la misma longitud que `text` para que los índices de los
+    matches coincidan con los del archivo original.
+    """
     code: list[str] = []
-    literals: list[str] = []
+    literals: list[tuple[str, int]] = []
     i, n = 0, len(text)
     while i < n:
         c = text[i]
         if c == "/" and i + 1 < n and text[i + 1] == "/":
             j = text.find("\n", i)
-            i = n if j == -1 else j
-            code.append(" ")
+            end = n if j == -1 else j
+            code.append(" " * (end - i))
+            i = end
             continue
         if c == "/" and i + 1 < n and text[i + 1] == "*":
             j = text.find("*/", i + 2)
-            i = n if j == -1 else j + 2
-            code.append(" ")
+            end = n if j == -1 else j + 2
+            code.append(" " * (end - i))
+            i = end
             continue
         if text.startswith('"""', i):
             j = text.find('"""', i + 3)
-            literals.append(text[i + 3 : j if j != -1 else n])
-            code.append(' "" ')
-            i = n if j == -1 else j + 3
+            end = n if j == -1 else j + 3
+            literals.append((text[i + 3 : j if j != -1 else n], i + 3))
+            code.append(" " * (end - i))
+            i = end
             continue
         if c == '"':
             j, buf = i + 1, []
@@ -87,9 +100,10 @@ def analyze(text: str) -> tuple[str, list[str]]:
                     break
                 buf.append(text[j])
                 j += 1
-            literals.append("".join(buf))
-            code.append(' "" ')
-            i = j + 1
+            end = j + 1
+            literals.append(("".join(buf), i + 1))
+            code.append(" " * (end - i))
+            i = end
             continue
         if c == "'":
             j = i + 1
@@ -97,38 +111,77 @@ def analyze(text: str) -> tuple[str, list[str]]:
                 if text[j] == "\\":
                     j += 1
                 j += 1
-            i = j + 1
-            code.append(" ")
+            end = j + 1
+            code.append(" " * (end - i))
+            i = end
             continue
         code.append(c)
         i += 1
     return "".join(code), literals
 
 
+def method_span(code: str, name: str) -> tuple[int, int] | None:
+    """Devuelve el rango [inicio, fin) del cuerpo del método `name`, o None."""
+    match = re.search(r"\b" + re.escape(name) + r"\s*\(", code)
+    if not match:
+        return None
+    brace = code.find("{", match.end())
+    if brace == -1:
+        return None
+    depth = 0
+    for idx in range(brace, len(code)):
+        if code[idx] == "{":
+            depth += 1
+        elif code[idx] == "}":
+            depth -= 1
+            if depth == 0:
+                return (match.start(), idx + 1)
+    return (match.start(), len(code))
+
+
+def in_span(pos: int, span: tuple[int, int] | None) -> bool:
+    return span is not None and span[0] <= pos < span[1]
+
+
 def check_file(path: Path) -> list[tuple[str, str]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     code, literals = analyze(text)
     rules = ALLOWLIST.get(path.name, {})
-    allowed_sql = set(rules.get("sql", set()))  # type: ignore[arg-type]
-    allow_jdbc = bool(rules.get("jdbc"))
+    spans = {name: method_span(code, name) for name in rules}
     violations: list[tuple[str, str]] = []
 
-    for literal in literals:
+    def allowed_sql(literal: str, pos: int) -> bool:
+        for name, rule in rules.items():
+            if literal in set(rule.get("sql", set())) and in_span(pos, spans.get(name)):
+                return True
+        return False
+
+    def allowed_jdbc(pos: int) -> bool:
+        for name, rule in rules.items():
+            if rule.get("jdbc") and in_span(pos, spans.get(name)):
+                return True
+        return False
+
+    for literal, pos in literals:
         stripped = literal.strip()
         if not looks_like_sql(stripped):
             continue
-        if stripped in allowed_sql:
+        if allowed_sql(stripped, pos):
             continue
         violations.append(("INLINE_SQL", stripped[:120]))
 
-    if not allow_jdbc:
-        for match in JDBC_DIRECT.finditer(code):
-            window = code[match.start() : match.start() + 400].split(";", 1)[0]
-            if SP_CALL_HINT.search(window):
-                continue
-            violations.append(("DIRECT_JDBC", match.group(0).strip()))
-        for match in JDBC_STATEMENT.finditer(code):
-            violations.append(("DIRECT_JDBC", match.group(0).strip()))
+    for match in JDBC_DIRECT.finditer(code):
+        if allowed_jdbc(match.start()):
+            continue
+        window = code[match.start() : match.start() + 400].split(";", 1)[0]
+        if SP_CALL_HINT.search(window):
+            continue
+        violations.append(("DIRECT_JDBC", match.group(0).strip()))
+
+    for match in JDBC_STATEMENT.finditer(code):
+        if allowed_jdbc(match.start()):
+            continue
+        violations.append(("DIRECT_JDBC", match.group(0).strip()))
 
     return violations
 
@@ -148,9 +201,9 @@ def main(argv: list[str]) -> int:
         for kind, snippet in check_file(path):
             total += 1
             try:
-                rel = path.relative_to(Path.cwd())
+                rel = path.relative_to(Path.cwd()).as_posix()
             except ValueError:
-                rel = path
+                rel = path.as_posix()
             print(f"VIOLATION|{kind}|{rel}|{snippet}")
 
     if total:

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
 
@@ -21,13 +21,14 @@ jobs:
           python-version: "3.13"
 
       - name: Test del gate SP-FIRST
-        run: python scripts/tests/check_inline_sql_test.py
+        run: python3 scripts/tests/check_inline_sql_test.py
 
       - name: Gate SP-FIRST (SQL inline prohibido)
-        run: python scripts/check-inline-sql.py
+        run: python3 scripts/check-inline-sql.py
 
   backend:
     runs-on: ubuntu-latest
+    needs: sp-first-gate
 
     defaults:
       run:

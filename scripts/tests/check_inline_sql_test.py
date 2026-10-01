@@ -2,10 +2,10 @@
 """Pruebas del gate SP-FIRST.
 
 Ejecuta scripts/check-inline-sql.py contra fixtures PASS y FAIL y valida el
-resultado. Sin dependencias externas.
+resultado. Sin dependencias externas (STANDARD_LIBRARY_ONLY).
 
 Uso:
-    python scripts/tests/check_inline_sql_test.py
+    python3 scripts/tests/check_inline_sql_test.py
 """
 
 from __future__ import annotations
@@ -18,6 +18,20 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]  # raíz del repo
 SCANNER = ROOT / "scripts" / "check-inline-sql.py"
 FIXTURES = HERE / "inline_sql" / "fixtures"
+
+EXPECTED_FAIL_FILES = {
+    "SelectFromTable.java",
+    "InlineUpdate.java",
+    "JdbcOnly.java",
+    "StringBuilderSql.java",
+    "MergeStatement.java",
+    "InsertStatement.java",
+    "DeleteStatement.java",
+    "ViewSelect.java",
+    "TextBlockSql.java",
+    # Allowlist bypass: archivo allowlisted con SQL arbitrario adicional.
+    "allowlist/SystemStatusController.java",
+}
 
 
 def run(root: Path) -> tuple[int, str]:
@@ -39,13 +53,7 @@ def main() -> int:
     rc_fail, out_fail = run(FIXTURES / "fail")
     if rc_fail != 1:
         failures.append(f"FAIL esperado pero rc={rc_fail}\n{out_fail}")
-    expected = {
-        "SelectFromTable.java",
-        "InlineUpdate.java",
-        "JdbcOnly.java",
-        "StringBuilderSql.java",
-    }
-    for name in expected:
+    for name in EXPECTED_FAIL_FILES:
         if name not in out_fail:
             failures.append(f"Falta violación para {name}")
 
