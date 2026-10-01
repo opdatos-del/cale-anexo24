@@ -1,9 +1,11 @@
 package com.jovycandy.anexo24.operations.pediments.api;
 
 import com.jovycandy.anexo24.operations.pediments.api.dto.CargaPedimentoResponse;
+import com.jovycandy.anexo24.operations.pediments.api.dto.ConfirmacionPedimentoResponse;
 import com.jovycandy.anexo24.operations.pediments.api.dto.PedimentoErrorsResponse;
 import com.jovycandy.anexo24.operations.pediments.application.command.ExcelPedimentoParser;
 import com.jovycandy.anexo24.operations.pediments.application.usecase.CargarPedimentosUseCase;
+import com.jovycandy.anexo24.operations.pediments.application.usecase.ConfirmarCargaPedimentoUseCase;
 import com.jovycandy.anexo24.operations.pediments.domain.model.CargaPedimentoArchivo;
 import com.jovycandy.anexo24.operations.pediments.domain.port.CargaPedimentoRepository;
 import com.jovycandy.anexo24.security.AuthenticatedUserPrincipal;
@@ -35,12 +37,15 @@ public class PedimentoController {
     private static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
     private final ExcelPedimentoParser parser;
     private final CargarPedimentosUseCase useCase;
+    private final ConfirmarCargaPedimentoUseCase confirmarUseCase;
     private final CargaPedimentoRepository repository;
 
     public PedimentoController(ExcelPedimentoParser parser, CargarPedimentosUseCase useCase,
+                               ConfirmarCargaPedimentoUseCase confirmarUseCase,
                                CargaPedimentoRepository repository) {
         this.parser = parser;
         this.useCase = useCase;
+        this.confirmarUseCase = confirmarUseCase;
         this.repository = repository;
     }
 
@@ -80,6 +85,22 @@ public class PedimentoController {
         validarPaginacion(id, pagina, tamano);
         return ResponseEntity.ok(PedimentoErrorsResponse.from(id, pagina, tamano,
                 repository.findErrors(id, pagina, tamano)));
+    }
+
+    /**
+     * Confirma de forma autoritativa e idempotente una carga previsualizada.
+     *
+     * @param id      identificador de la carga
+     * @param request solicitud HTTP para correlación
+     * @return resumen de la confirmación
+     */
+    @PostMapping("/cargas/{id}/confirmacion")
+    @PreAuthorize("hasAuthority('PEDIMENTOS_CONFIRMAR')")
+    public ResponseEntity<ConfirmacionPedimentoResponse> confirmar(@PathVariable long id,
+                                                                   HttpServletRequest request) {
+        if (id < 1) throw new PedimentoUploadExceptionHandler.PedimentoArchivoInvalidoException("La carga indicada no es válida.");
+        return ResponseEntity.ok(ConfirmacionPedimentoResponse.from(
+                confirmarUseCase.ejecutar(id, correlationId(request))));
     }
 
     private byte[] readAndValidate(MultipartFile file) {

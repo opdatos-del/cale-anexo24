@@ -1,6 +1,7 @@
 package com.jovycandy.anexo24.shared.api;
 
 import com.jovycandy.anexo24.security.CredencialesInvalidasException;
+import com.jovycandy.anexo24.shared.exception.ConfirmacionNoProcesableException;
 import com.jovycandy.anexo24.shared.exception.EstadoIncompatibleException;
 import com.jovycandy.anexo24.shared.exception.RecursoDuplicadoException;
 import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
@@ -150,6 +151,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleEstadoIncompatible(EstadoIncompatibleException ex,
                                                               HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "ESTADO_INCOMPATIBLE",
+                ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ConfirmacionNoProcesableException.class)
+    public ResponseEntity<ApiError> handleConfirmacionNoProcesable(ConfirmacionNoProcesableException ex,
+                                                                   HttpServletRequest request) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, "CONFIRMACION_NO_PROCESABLE",
                 ex.getMessage(), request);
     }
 
