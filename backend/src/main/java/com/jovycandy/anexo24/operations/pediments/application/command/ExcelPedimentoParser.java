@@ -62,6 +62,8 @@ public class ExcelPedimentoParser {
             "IGIE", "IVA", "DTA", "PREV");
     private static final Set<String> ENTEROS = Set.of("TipoOperacion", "TipoPedimento", "Sec", "FPIGIE", "FPIVA");
     private static final Set<String> FECHAS = Set.of("FechaPago", "FechaFactura", "FECHAENTRADA");
+    // Campos fiscales V2: blank/celda vacía se traduce a null (propiedad omitida), nunca "" ni 0.
+    private static final Set<String> FISCALES_NULABLES = Set.of("IGIE", "IVA", "DTA", "PREV", "TIPOTASAIGIE");
 
     static {
         ZipSecureFile.setMinInflateRatio(0.01d);
@@ -137,7 +139,11 @@ public class ExcelPedimentoParser {
                     Cell cell = index == null || row == null ? null : row.getCell(index);
                     String value = cell == null ? "" : formatter.formatCellValue(cell).trim();
                     String canonical = canonical(field, cell, value);
-                    values.put(field, canonical);
+                    if (FISCALES_NULABLES.contains(field) && value.isBlank()) {
+                        // blank -> null: se omite la propiedad (JSON sin la clave).
+                    } else {
+                        values.put(field, canonical);
+                    }
                     blank &= canonical.isBlank();
                     if (cell != null && cell.getCellType() == CellType.FORMULA) {
                         rowHasError = true;

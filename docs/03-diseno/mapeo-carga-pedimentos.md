@@ -110,11 +110,14 @@ legacy que antes no se capturaban (ver `mapeo-importacion-pedimentos-autoritativ
 
 | Campo | Tipo | Obligatorio | Regla V1/V2 |
 |---|---|---|---|
-| `IGIE` | decimal | No | decimal nullable; blank → vacío |
-| `IVA` | decimal | No | decimal nullable; blank → vacío |
-| `DTA` | decimal | No | decimal nullable; blank → vacío |
-| `PREV` | decimal | No | decimal nullable; blank → vacío |
-| `TIPOTASAIGIE` | texto | No | texto nullable con trim |
+| `IGIE` | decimal | No | decimal nullable; blank/celda vacía → `null` |
+| `IVA` | decimal | No | decimal nullable; blank/celda vacía → `null` |
+| `DTA` | decimal | No | decimal nullable; blank/celda vacía → `null` |
+| `PREV` | decimal | No | decimal nullable; blank/celda vacía → `null` |
+| `TIPOTASAIGIE` | texto | No | texto nullable con trim; blank → `null` |
+
+`FISCAL_BLANK_VALUE_CONTRACT = NULL`: celda vacía, propiedad ausente y `null`
+explícito equivalen a `null`; `"0"` se conserva como cero.
 
 En V2 el conteo de campos confirmados pasa a 61. Las cargas V1 almacenadas siguen
 siendo legibles (`datos_json` no tiene columnas físicas por campo), por lo que

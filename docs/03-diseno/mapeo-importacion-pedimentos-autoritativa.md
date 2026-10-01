@@ -697,11 +697,19 @@ requiere `ALTER TABLE`):
 
 | Campo | Tipo moderno | Regla |
 |---|---|---|
-| `IGIE` | `BigDecimal` | decimal nullable; blank → vacío |
-| `IVA` | `BigDecimal` | decimal nullable; blank → vacío |
-| `DTA` | `BigDecimal` | decimal nullable; blank → vacío |
-| `PREV` | `BigDecimal` | decimal nullable; blank → vacío |
-| `TIPOTASAIGIE` | texto | trim; nullable |
+| `IGIE` | `BigDecimal` | decimal nullable; blank/celda vacía → `null` |
+| `IVA` | `BigDecimal` | decimal nullable; blank/celda vacía → `null` |
+| `DTA` | `BigDecimal` | decimal nullable; blank/celda vacía → `null` |
+| `PREV` | `BigDecimal` | decimal nullable; blank/celda vacía → `null` |
+| `TIPOTASAIGIE` | texto | trim; blank/celda vacía → `null` |
+
+Contrato de valor nulo: celda vacía, propiedad ausente en el JSON y `null`
+explícito se interpretan todos como `null`; `"0"` se conserva como
+`BigDecimal.ZERO`. Nunca `blank → ""` ni `blank → 0`.
+
+```text
+FISCAL_BLANK_VALUE_CONTRACT = NULL
+```
 
 ```text
 STAGING_V1_BACKWARD_COMPATIBILITY = PASS (JSON sin columnas físicas; cargas V1 siguen legibles)

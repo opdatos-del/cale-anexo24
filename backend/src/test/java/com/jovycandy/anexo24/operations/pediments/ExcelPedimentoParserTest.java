@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Pruebas de parser sin documentos empresariales ni base real. */
@@ -90,12 +91,25 @@ class ExcelPedimentoParserTest {
         CargaPedimentoArchivo result = parser.parsear("fiscal-v2-invalido.xlsx", "e".repeat(64), workbook);
 
         assertEquals(0, result.filasValidas());
-        // Blank fiscal queda vacío, no cero.
-        assertEquals("", result.filas().getFirst().datos().get("IGIE"));
-        assertEquals("", result.filas().getFirst().datos().get("IVA"));
-        assertEquals("", result.filas().getFirst().datos().get("PREV"));
-        assertEquals("", result.filas().getFirst().datos().get("TIPOTASAIGIE"));
+        // Blank fiscal queda null (propiedad omitida), no cero ni cadena vacía.
+        assertNull(result.filas().getFirst().datos().get("IGIE"));
+        assertNull(result.filas().getFirst().datos().get("IVA"));
+        assertNull(result.filas().getFirst().datos().get("PREV"));
+        assertNull(result.filas().getFirst().datos().get("TIPOTASAIGIE"));
         assertTrue(result.errores().stream().anyMatch(error -> "DTA".equals(error.columna())));
+    }
+
+    @Test
+    void cargaV1SinCamposFiscalesSigueSiendoLegible() throws Exception {
+        byte[] workbook = workbook(List.of("Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion",
+                "FechaPago", "Sec", "Clave", "Descripcion", "Fraccion", "CantidadComercial", "UnidadComercial"),
+                List.of("190", "3302", "5003971", "A1", "1", "2026-05-28", "1", "MAT-1", "Material", "17019999", "12.50", "KG"));
+
+        CargaPedimentoArchivo result = parser.parsear("v1.xlsx", "f".repeat(64), workbook);
+
+        assertEquals(1, result.filasValidas());
+        assertTrue(result.errores().isEmpty());
+        assertNull(result.filas().getFirst().datos().get("IGIE"));
     }
 
     private byte[] workbook(List<String> headers, List<String> values) throws Exception {
