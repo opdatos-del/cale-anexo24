@@ -1,5 +1,5 @@
 /** Reportes disponibles en el contrato V1. */
-export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora' | 'compulsa' | 'rectificaciones' | 'vencimientos';
+export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora' | 'compulsa' | 'rectificaciones' | 'vencimientos' | 'dirigidos';
 
 /** Filtros comunes y específicos admitidos por los reportes V1. */
 export interface ReportSearchCriteria {
