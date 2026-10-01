@@ -31,13 +31,13 @@ export class ReportApiService {
     let params = new HttpParams()
       .set('pagina', criteria.page)
       .set('tamano', pageSize);
-    if (criteria.type !== 'compulsa') {
+    if (criteria.type !== 'compulsa' && criteria.type !== 'rectificaciones') {
       params = params
         .set('desde', criteria.type === 'bitacora' ? this.startOfDayInstant(criteria.from) : criteria.from)
         .set('hasta', criteria.type === 'bitacora' ? this.endOfDayInstant(criteria.to) : criteria.to);
     }
 
-    const optional = criteria.type === 'compulsa'
+    const optional = criteria.type === 'compulsa' || criteria.type === 'rectificaciones'
       ? { filtro: criteria.filter }
       : criteria.type === 'materiales-utilizados'
       ? { material: criteria.material, producto: criteria.product, pedimentoSalida: criteria.customsDocument, clavePedimentoSalida: criteria.customsCode }

@@ -8,8 +8,11 @@ import com.jovycandy.anexo24.operations.exits.api.dto.SalidaLineaDto;
 import com.jovycandy.anexo24.operations.usedmaterials.api.dto.MaterialUtilizadoDto;
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.api.dto.CompulsaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.Compulsa;
+import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
 import com.jovycandy.anexo24.reports.infrastructure.export.ExportadorXlsxReportes;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -40,13 +43,16 @@ public class ReportesController {
     private final ConsultarReportesUseCase consultarReportesUseCase;
     private final ExportadorXlsxReportes exportadorXlsxReportes;
     private final ListarCompulsaUseCase listarCompulsaUseCase;
+    private final ListarRectificacionesUseCase listarRectificacionesUseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
             ExportadorXlsxReportes exportadorXlsxReportes,
-            ListarCompulsaUseCase listarCompulsaUseCase) {
+            ListarCompulsaUseCase listarCompulsaUseCase,
+            ListarRectificacionesUseCase listarRectificacionesUseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
         this.listarCompulsaUseCase = listarCompulsaUseCase;
+        this.listarRectificacionesUseCase = listarRectificacionesUseCase;
     }
 
     @GetMapping("/entradas")
@@ -107,6 +113,17 @@ public class ReportesController {
             @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Compulsa> resultado = listarCompulsaUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(CompulsaDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/rectificaciones")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<RectificacionDto>> rectificaciones(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Rectificacion> resultado = listarRectificacionesUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(RectificacionDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 

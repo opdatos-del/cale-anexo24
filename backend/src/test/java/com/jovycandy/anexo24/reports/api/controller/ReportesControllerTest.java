@@ -4,6 +4,7 @@ import com.jovycandy.anexo24.Anexo24Application;
 import com.jovycandy.anexo24.operations.entries.api.dto.EntradaLineaDto;
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -46,6 +47,28 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarCompulsaUseCase listarCompulsaUseCase;
+
+    @MockitoBean
+    private ListarRectificacionesUseCase listarRectificacionesUseCase;
+
+    @Test
+    void listarRectificacionesExigePermisoDeReportes() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/rectificaciones")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listarRectificacionesRespondePaginaConPermiso() throws Exception {
+        when(listarRectificacionesUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/rectificaciones")
+                        .param("filtro", "26")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
 
     @Test
     void listarCompulsaExigePermisoDeReportes() throws Exception {

@@ -35,6 +35,7 @@ const REPORTS: ReportOption[] = [
   { type: 'materiales-utilizados', label: 'Materiales utilizados', icon: 'layers', available: true },
   { type: 'bitacora', label: 'Bitácora', icon: 'manage_search', available: true },
   { type: 'compulsa', label: 'Compulsa', icon: 'compare_arrows', available: true },
+  { type: 'rectificaciones', label: 'Rectificaciones', icon: 'rule', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: false },
 ];
 
@@ -69,6 +70,9 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'claveGlosa', label: 'Clave glosa' }, { key: 'claveAnexo24', label: 'Clave Anexo 24' },
     { key: 'fraccionGlosa', label: 'Fracción glosa' }, { key: 'fraccionAnexo24', label: 'Fracción Anexo 24' },
   ],
+  rectificaciones: [
+    { key: 'pedimento', label: 'Pedimento' }, { key: 'total', label: 'Rectificaciones', format: 'quantity' },
+  ],
 };
 
 /** Genera reportes V1 paginados para el periodo obligatorio seleccionado. */
@@ -95,17 +99,19 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
-            @if (selectedType() !== 'compulsa') {
+            @if (!isTextReport()) {
               <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
               @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
             } @else {
-              <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento, clave o fracción</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
+              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
             }
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
             @if (selectedType() === 'compulsa') {
               <p class="m-0 text-xs text-slate-500">Compara registros generales de glosa contra Anexo 24.</p>
+            } @else if (selectedType() === 'rectificaciones') {
+              <p class="m-0 text-xs text-slate-500">Resume pedimentos con relaciones de rectificación observadas.</p>
             } @else if (isOperationalReport()) {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento</span><input matInput name="customsDocument" [(ngModel)]="customsDocument" maxlength="50" class="report-input" /></label>
@@ -149,7 +155,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
         } @else if (error()) {
           <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"><app-alert kind="error" title="No pudimos generar el reporte" [message]="error()!" actionLabel="Reintentar" (action)="generate()" /></section>
         } @else if (!hasGenerated()) {
-          <section class="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center"><mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">assessment</mat-icon><p class="m-0 text-sm font-medium text-slate-600">Configura y genera un reporte</p><span class="mt-1 text-xs text-slate-400">El periodo inicial y final son obligatorios.</span></section>
+          <section class="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center"><mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">assessment</mat-icon><p class="m-0 text-sm font-medium text-slate-600">Configura y genera un reporte</p><span class="mt-1 text-xs text-slate-400">{{ isTextReport() ? 'El filtro por pedimento es opcional.' : 'El periodo inicial y final son obligatorios.' }}</span></section>
         } @else {
           <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm" aria-label="Resultados del reporte">
             @if (items().length) {
@@ -214,9 +220,10 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isOperationalReport(): boolean { return this.selectedType() !== 'bitacora'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones'; }
+  protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
-    if (this.selectedType() === 'compulsa') return null;
+    if (this.isTextReport()) return null;
     if (!this.fromDate || !this.toDate) return 'Selecciona fecha inicial y fecha final para generar el reporte.';
     return this.fromDate.getTime() > this.toDate.getTime() ? 'La fecha inicial no puede ser posterior a la final.' : null;
   }
@@ -224,7 +231,7 @@ export class ReportListPage {
   protected columns(): ReportColumn[] { return COLUMNS[this.selectedType()]; }
   protected displayedColumns(): string[] { return this.columns().map((column) => column.key); }
   protected formatTotal(): string { return new Intl.NumberFormat('es-MX').format(this.totalItems()); }
-  protected canExport(): boolean { return this.selectedType() !== 'compulsa' && this.auth.hasPermission('REPORTES_EXPORTAR') && this.hasGenerated() && this.items().length > 0; }
+  protected canExport(): boolean { return !this.isTextReport() && this.auth.hasPermission('REPORTES_EXPORTAR') && this.hasGenerated() && this.items().length > 0; }
 
   protected generate(): void {
     if (!this.canGenerate()) return;
