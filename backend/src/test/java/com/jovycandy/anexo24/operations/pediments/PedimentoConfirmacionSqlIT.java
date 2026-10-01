@@ -95,13 +95,15 @@ class PedimentoConfirmacionSqlIT {
         Map<String, String> r = confirmar(carga);
 
         assertEquals("CONFIRMED", r.get("Resultado"));
-        assertEquals("CONFIRMADA", r.get("Estado"));
+        assertEquals("1", r.get("OperacionesProcesadas"));
+        assertEquals("2", r.get("PartidasProcesadas"));
         assertNotNull(r.get("FechaConfirmacion"));
         assertEquals(1, contar(CALE, "dbo.IMPORTACIONES"));
         assertEquals(2, contar(CALE, "dbo.PARTIDAS"));
         assertEquals("CONFIRMADA", estadoCarga(carga));
         assertEquals(1, contar(APP, "app24.BitacoraEvento"));
         assertEquals("PEDIMENTO_CONFIRMADO", valor(APP, "SELECT TOP 1 accion FROM app24.BitacoraEvento"));
+        assertTrue(valor(APP, "SELECT TOP 1 detalle FROM app24.BitacoraEvento").contains("operaciones=1;partidas=2"));
         transaccionLimpia();
     }
 
@@ -115,6 +117,8 @@ class PedimentoConfirmacionSqlIT {
         Map<String, String> r = confirmar(carga);
 
         assertEquals("CONFIRMED", r.get("Resultado"));
+        assertEquals("1", r.get("OperacionesProcesadas"));
+        assertEquals("2", r.get("PartidasProcesadas"));
         assertEquals(1, contar(CALE, "dbo.SALIDAS"));
         assertEquals(2, contar(CALE, "dbo.PSALIDAS"));
         // Sólo la línea con DescargaDirigida no vacía genera DIRIGIDO.
@@ -135,11 +139,16 @@ class PedimentoConfirmacionSqlIT {
 
         assertEquals("CONFIRMED", r.get("Resultado"));
         assertNull(r.get("TipoOperacion")); // carga mixta
+        // Los conteos deben ACUMULAR ambos flujos (regresión de contrato).
+        assertEquals("2", r.get("OperacionesProcesadas"), "headers import + headers export");
+        assertEquals("2", r.get("PartidasProcesadas"), "partidas + psalidas");
         assertEquals(1, contar(CALE, "dbo.IMPORTACIONES"));
         assertEquals(1, contar(CALE, "dbo.PARTIDAS"));
         assertEquals(1, contar(CALE, "dbo.SALIDAS"));
         assertEquals(1, contar(CALE, "dbo.PSALIDAS"));
         assertEquals(1, contar(APP, "app24.BitacoraEvento"));
+        assertTrue(valor(APP, "SELECT TOP 1 detalle FROM app24.BitacoraEvento").contains("operaciones=2;partidas=2"));
+        assertEquals("CONFIRMADA", estadoCarga(carga));
         transaccionLimpia();
     }
 

@@ -251,7 +251,7 @@ BEGIN
             JOIN Pedimentos p ON p.numero_pedimento = f.numero_pedimento AND f.tipo_operacion = 1
             GROUP BY p.numero_pedimento, p.rn;
 
-            SET @Operaciones = @@ROWCOUNT;
+            SET @Operaciones = @Operaciones + @@ROWCOUNT;
 
             INSERT INTO dbo.PARTIDAS
                 (PARTIDAKEY, CLAVE, DESCRIPCION, FRACCION, CANTIDAD, UNIDAD, VAL_ADUANAL, VAL_DOLARES,
@@ -274,7 +274,7 @@ BEGIN
             FROM #filas f
             WHERE f.tipo_operacion = 1;
 
-            SET @Partidas = @@ROWCOUNT;
+            SET @Partidas = @Partidas + @@ROWCOUNT;
         END
 
         IF @TieneExport = 1
@@ -315,7 +315,7 @@ BEGIN
             JOIN Pedimentos p ON p.numero_pedimento = f.numero_pedimento AND f.tipo_operacion = 2
             GROUP BY p.numero_pedimento, p.rn;
 
-            SET @Operaciones = @@ROWCOUNT;
+            SET @Operaciones = @Operaciones + @@ROWCOUNT;
 
             -- Clasificación de tipo de operación según clave de pedimento (rama activa).
             UPDATE dbo.SALIDAS SET TIPO_OPERACION = 'CAMBIO DE REGIMEN'
@@ -350,7 +350,7 @@ BEGIN
             FROM #filas f
             WHERE f.tipo_operacion = 2;
 
-            SET @Partidas = @@ROWCOUNT;
+            SET @Partidas = @Partidas + @@ROWCOUNT;
 
             -- DIRIGIDO sólo cuando el contrato legacy lo exige (DESCARGADIRIGIDA <> '').
             INSERT INTO dbo.DIRIGIDO
