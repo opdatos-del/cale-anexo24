@@ -58,6 +58,8 @@ futura confirmación (ver `mapeo-importacion-pedimentos-autoritativa.md`).
 - `TipoOperacion = 2`: error si `EXISTS (SELECT 1 FROM dbo.SALIDAS WHERE DOCUMENTO = @numero)`.
 
 Sin mutación; `NOT EXISTS`/`EXISTS` NULL-safe (no se copia el `NOT IN` legacy).
+`PED-007` es validación **preventiva** de duplicado observado; **no** es garantía
+de idempotencia transaccional de la futura confirmación.
 
 ## Implementación
 

@@ -79,19 +79,19 @@ existen en `CALE_IMMEX` (`PEDIMENTOS`, `INVENTARIO`, `NP`). Sólo el flujo **(A)
 (`CARGAPEDIMENTOS`) apunta a un conjunto completo de tablas presentes. Esto
 delimita la fuente candidata real a `CARGAPEDIMENTOSIE → CARGAPEDIMENTOS`.
 
-Clasificación de estas dependencias ausentes (cierre en Parte B; no se concluye
-"legacy roto"):
+Clasificación de estas dependencias ausentes (cierre en Parte B):
 
-| Objeto | Estado LIVE (todos los esquemas) | Sinónimo | Linked server | Referencia cross-db | Clasificación |
-|---|---|---|---|---|---|
-| `PEDIMENTOS` | ABSENT | no | no | no | MISSING_DEPLOYMENT_OBJECT / DEAD_LEGACY_BRANCH |
-| `NP` | ABSENT | no | no | no | MISSING_DEPLOYMENT_OBJECT / DEAD_LEGACY_BRANCH |
-| `INVENTARIO` | ABSENT | no | no | no | MISSING_DEPLOYMENT_OBJECT / DEAD_LEGACY_BRANCH |
+| Objeto | OBJECT_STATUS | Sinónimo | Linked server | Referencia cross-db |
+|---|---|---|---|---|
+| `PEDIMENTOS` | NOT_PRESENT_LIVE | no | no | no |
+| `NP` | NOT_PRESENT_LIVE | no | no | no |
+| `INVENTARIO` | NOT_PRESENT_LIVE | no | no | no |
 
 No existen `sys.synonyms`, no hay linked servers (`sys.servers.is_linked = 0`) y
 `sys.sql_expression_dependencies` no registra referencias cross-database para
-estos objetos; por tanto no son dependencias externas sino objetos no desplegados
-en la instancia actual.
+estos objetos; por tanto no son dependencias externas sino objetos no presentes
+en la instancia actual. El estado por flujo se registra por separado
+(`FLOW_STATUS = BROKEN_IN_CURRENT_SCHEMA`, ver sección 15).
 
 ## 4. Call graph (SP → SP)
 
@@ -420,23 +420,46 @@ Dependencias de runtime verificadas por objeto (existen/ausentes en LIVE):
 | `VALIDA_I_DETALLENP` | `NP` (a través de `V_I_PEDIMENTOS`) | BROKEN |
 | `INDICAOPERACION` | ninguna (`A31_ENTRADAS` existe) | COMPLETE |
 
-| Flow | Source | Missing deps | Target | Status |
+| Flow | Source | Missing deps | Target | FLOW_STATUS |
 |---|---|---|---|---|
 | A `CARGAPEDIMENTOS` | `CARGAPEDIMENTOSIE` | — | `IMPORTACIONES`/`PARTIDAS`/`SALIDAS`/`PSALIDAS`/`DIRIGIDO` | **ACTIVE** |
-| B `INSERTAPEDIMENTO` | `PEDIMENTOS` | `PEDIMENTOS`, `INVENTARIO` | `IMPORTACIONES`/`PARTIDAS`/`SALIDAS`/`PSALIDAS`/`DESCARGA` | **DEAD** |
-| C `CARGA_ENCABEZADOS`/`VALIDA_I_DETALLENP` | `NP`/`I_PEDIMENTO` | `NP`, `INVENTARIO` | `IMPORTACIONES`/`SALIDAS`/`I_DETALLENP` | **DEAD** |
-| D `INDICAOPERACION` | `A31_ENTRADAS` | — | `A31_ENTRADAS.OPERACION` | **ACTIVE** |
+| B `INSERTAPEDIMENTO` | `PEDIMENTOS` | `PEDIMENTOS`, `INVENTARIO` | `IMPORTACIONES`/`PARTIDAS`/`SALIDAS`/`PSALIDAS`/`DESCARGA` | **BROKEN_IN_CURRENT_SCHEMA** |
+| C `CARGA_ENCABEZADOS`/`VALIDA_I_DETALLENP` | `NP`/`I_PEDIMENTO` | `NP`, `INVENTARIO` | `IMPORTACIONES`/`SALIDAS`/`I_DETALLENP` | **BROKEN_IN_CURRENT_SCHEMA** |
+| D `INDICAOPERACION` | `A31_ENTRADAS` | — | `A31_ENTRADAS.OPERACION` | **ACTIVE** (sólo alcanzable desde `INSERTAFALTANTESA31`, que no tiene llamadores) |
+
+Cada objeto ausente se registra con `OBJECT_STATUS` y cada flujo con `FLOW_STATUS`
+(son conceptos distintos; no se usa la doble etiqueta
+`MISSING_DEPLOYMENT_OBJECT / DEAD_LEGACY_BRANCH`):
+
+| Objeto | OBJECT_STATUS | Evidencia |
+|---|---|---|
+| `PEDIMENTOS` | `NOT_PRESENT_LIVE` | ausente en todos los esquemas; sin synonym; sin linked server; sin ref cross-db |
+| `NP` | `NOT_PRESENT_LIVE` | idem |
+| `INVENTARIO` | `NOT_PRESENT_LIVE` | idem |
+
+Call graph de llamadores (metadata):
 
 ```text
-PEDIMENTOS_DEPENDENCY_LOCATION = MISSING_DEPLOYMENT_OBJECT (no synonym / no linked / no cross-db)
-NP_DEPENDENCY_LOCATION = MISSING_DEPLOYMENT_OBJECT (no synonym / no linked / no cross-db)
-INVENTARIO_DEPENDENCY_LOCATION = MISSING_DEPLOYMENT_OBJECT (no synonym / no linked / no cross-db)
-ACTIVE_PEDIMENT_PIPELINE = (A) CARGAPEDIMENTOSIE -> CARGAPEDIMENTOS -> tablas operativas
+INSERTAPEDIMENTO   <- NONE
+CARGA_ENCABEZADOS  <- NONE
+VALIDA_I_DETALLENP <- NONE
+VALIDAPEDIMENTO    <- INSERTAPEDIMENTO
+INSERTERROR        <- VALIDAPEDIMENTO
+INDICAOPERACION    <- INSERTAFALTANTESA31 <- NONE
+CARGAPEDIMENTOS    <- NONE
 ```
 
-Conclusión: la única rama ejecutable contra los objetos actuales es la **(A)**. Las
-ramas (B) y (C) son ramas legacy muertas en este despliegue (objetos no
-desplegados, sin sinónimos ni linked servers).
+Ningún adapter Java, endpoint o SQL versionado invoca estas ramas. Aun así, la
+taxonomía se mantiene conservadora: se registra `BROKEN_IN_CURRENT_SCHEMA` y **no**
+`DEAD_CONFIRMED`, porque la ausencia del objeto por sí sola no basta y no se
+revisó la totalidad de entrypoints legacy externos no versionados.
+
+```text
+PEDIMENTOS_DEPENDENCY_LOCATION = NOT_PRESENT_LIVE (no synonym / no linked / no cross-db)
+NP_DEPENDENCY_LOCATION = NOT_PRESENT_LIVE (no synonym / no linked / no cross-db)
+INVENTARIO_DEPENDENCY_LOCATION = NOT_PRESENT_LIVE (no synonym / no linked / no cross-db)
+ACTIVE_PEDIMENT_PIPELINE = (A) CARGAPEDIMENTOSIE -> CARGAPEDIMENTOS -> tablas operativas
+```
 
 ## 16. Cierre V2 — cobertura staging moderno → operación
 
@@ -461,18 +484,59 @@ faltantes `DTA`, `PREV`.
 `PSALIDAS` (28 columnas no-clave): cubiertas 24; derivadas `SALIDALINK`; default
 `BLOQUEADO=0`, `CORTE(Lote)`; faltante `montoiva(IVA)`.
 
+`IMPORT_FIELD_COVERAGE` (base = columnas de destino no-clave de los INSERT legacy):
+
+| Categoría | IMPORTACIONES | PARTIDAS | Total |
+|---|---:|---:|---:|
+| STORED | 13 | 34 | 47 |
+| DERIVED | 2 | 3 | 5 |
+| CATALOG_LOOKUP | 0 | 1 | 1 |
+| DEFAULT_CONFIRMED | 0 | 1 | 1 |
+| MISSING_FROM_STAGING | 4 | 3 | 7 |
+| NOT_APPLICABLE | 0 | 0 | 0 |
+| UNKNOWN | 0 | 0 | 0 |
+| **TOTAL** | **19** | **42** | **61** |
+
+`EXPORT_FIELD_COVERAGE`:
+
+| Categoría | SALIDAS | PSALIDAS | Total |
+|---|---:|---:|---:|
+| STORED | 13 | 22 | 35 |
+| DERIVED | 2 | 4 | 6 |
+| CATALOG_LOOKUP | 0 | 0 | 0 |
+| DEFAULT_CONFIRMED | 0 | 1 | 1 |
+| MISSING_FROM_STAGING | 2 | 1 | 3 |
+| NOT_APPLICABLE | 0 | 0 | 0 |
+| UNKNOWN | 0 | 0 | 0 |
+| **TOTAL** | **17** | **28** | **45** |
+
+Definición de "covered" (= STORED + DERIVED + DEFAULT_CONFIRMED +
+CATALOG_LOOKUP + NOT_APPLICABLE):
+
 ```text
+FIELD_COVERAGE_ACCOUNTING = PASS
 IMPORT_FIELD_COVERAGE = PARTIAL (54 / 61)
 EXPORT_FIELD_COVERAGE = PARTIAL (42 / 45)
 ```
 
-Campos obligatorios no disponibles y su clasificación (sin inventar derivaciones):
+Campos faltantes por flujo (todos `MISSING_FROM_STAGING`, ninguno derivable):
 
-| Campo | Clasificación |
-|---|---|
-| `IGIE`, `IVA`, `DTA`, `PREV`, `TIPOTASAIGIE` | **C** — viene del archivo legacy pero hoy no se almacena |
+```text
+IMPORT_MISSING_FIELDS = [IVA, DTA, PREVALIDACION(<-PREV), ADVALOREM(<-IGIE), MONTOIGI(<-IGIE), MONTOIVA(<-IVA), TIPOTASAIGIE]
+EXPORT_MISSING_FIELDS = [DTA, PREV, montoiva(<-IVA)]
+```
 
-Ninguno es derivable técnicamente ni proviene de catálogo; no se propone default.
+Columnas legacy sin equivalente moderno y su uso/target (metadata
+`dbo.CargaPedimentosIE`, sin imprimir valores): todas `float(8) NULL` salvo
+`TIPOTASAIGIE varchar(50) NULL`:
+
+| Campo legacy | Tipo | Target |
+|---|---|---|
+| `IGIE` | float NULL | `IMPORTACIONES.ADVALOREM` (SUM), `PARTIDAS.MONTOIGI` |
+| `IVA` | float NULL | `IMPORTACIONES.IVA` (SUM), `PARTIDAS.MONTOIVA`, `PSALIDAS.montoiva` |
+| `DTA` | float NULL | `IMPORTACIONES.DTA`, `SALIDAS.DTA` (MAX) |
+| `PREV` | float NULL | `IMPORTACIONES.PREVALIDACION`, `SALIDAS.PREV` (MAX) |
+| `TIPOTASAIGIE` | varchar(50) NULL | `PARTIDAS.tipotasaigie` |
 
 ## 17. Cierre V2 — identidad operacional
 
@@ -486,15 +550,19 @@ Agregados LIVE (sin imprimir valores):
 ```text
 IMPORT_OPERATIONAL_IDENTITY = {NumeroPedimento}
 EXPORT_OPERATIONAL_IDENTITY = {NumeroPedimento}
-OPERATIONAL_IDENTITY_CONTRACT = PARTIAL
+LEGACY_DUPLICATE_IDENTITY = SINGLE_DOCUMENT_NUMBER
+LEGACY_DUPLICATE_IDENTITY_CONTRACT = CONFIRMED
+MODERN_OPERATIONAL_IDENTITY_CONTRACT = PARTIAL
 ```
 
-La identidad de una sola columna replica la guardia legacy
-(`NUMEROPEDIMENTO` vs `IMPORTACIONES.NUMERO_PED` / `SALIDAS.DOCUMENTO`) y los datos
-actuales no muestran duplicados ni nulos. Queda `PARTIAL` porque el dataset es
-pequeño y no existe constraint DDL que garantice unicidad global. El número de
-pedimento ya incluye aduana/patente/consecutivo/dígito, lo que respalda la
-identidad de una sola columna.
+La guardia legacy compara directamente el número de documento
+(`NUMEROPEDIMENTO` vs `IMPORTACIONES.NUMERO_PED` / `SALIDAS.DOCUMENTO`), lo que
+confirma `LEGACY_DUPLICATE_IDENTITY = SINGLE_DOCUMENT_NUMBER`. Los datos actuales
+no muestran duplicados ni nulos. Sin embargo, esto **no** demuestra una restricción
+universal fiscal ni una garantía transaccional moderna; por eso
+`MODERN_OPERATIONAL_IDENTITY_CONTRACT = PARTIAL` hasta crear una protección
+transaccional propia (índice único en `app24` + revalidación dentro de la
+transacción).
 
 ## 18. Cierre V2 — PED-007 implementado
 
@@ -509,19 +577,44 @@ Mensajes sin datos sensibles. `PedimentoReglasJdbcAdapter` añade `NumeroPedimen
 al XML lote. Ver [[mapeo-validacion-pedimentos]].
 
 ```text
-PED_007_IMPLEMENTED = YES (read-only)
+PED_007_IMPLEMENTED = YES (validación preventiva read-only)
+PED_007_SCOPE = compatibilidad/duplicado operativo observado
+PED_007_IS_NOT = garantía de idempotencia de confirmación
+PED_007_SP_REUSE = PASS (extensión de APP24_Q_PEDIMENTO_VALIDAR_REGLAS; sin SP nuevo)
 PED_007_SP = dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS
 PED_007_LIVE_SMOKE = PASS (import existente, export existente, no existente, blank)
 ```
+
+`PED-007` es validación preventiva de duplicado observado; reutiliza el SP
+read-only existente y no crea uno redundante. No sustituye la idempotencia
+transaccional de la futura confirmación (ver sección 17).
 
 ## 19. Cierre V2 — frontera transaccional
 
 ```text
 DATABASES_SAME_INSTANCE = YES (ANEXO24_DEV y CALE_IMMEX en SERVERSAPBO\SERVERSAPBO_DEV)
 CROSS_DB_ATOMIC_COMMAND_FEASIBLE = YES (misma instancia; transacción local con nombres de 3 partes, sin MSDTC)
-AUTHORITATIVE_RUNTIME_PERMISSION = INSUFFICIENT (no existe command; runtime EXECUTE-only en ANEXO24_DEV sin ruta de escritura a CALE_IMMEX)
+RUNTIME_IDENTITY_CONTRACT = CONFIRMED
+CURRENT_RUNTIME_LOGIN = opdatos
+MODULE_C_LOGIN = opdatos
+MODULE_C_DB_USER = dbo
+APP_DB_LOGIN = opdatos
+APP_DB_USER = dbo
+CURRENT_RUNTIME_PERMISSION = SUFFICIENT
+TARGET_LEAST_PRIVILEGE_LOGIN = anexo24_app (objetivo futuro)
+TARGET_LEAST_PRIVILEGE_MIGRATION = PENDING
 AUTHORITATIVE_COMMAND_DATABASE = UNKNOWN (sin decidir)
 ```
+
+Identidad efectiva verificada con `SUSER_SNAME()` / `USER_NAME()` en las dos
+conexiones reales: `opdatos` / `dbo` en `CALE_IMMEX` y en `ANEXO24_DEV`. El
+principal real tiene `SELECT/INSERT/UPDATE/DELETE` sobre `IMPORTACIONES`,
+`PARTIDAS`, `SALIDAS`, `PSALIDAS`, `DIRIGIDO` y sobre
+`app24.CargaPedimento`/`CargaPedimentoFila`/`ErrorCargaPedimento`, por lo que
+`CURRENT_RUNTIME_PERMISSION = SUFFICIENT` **para el runtime actual**. Esto **no**
+valida a `anexo24_app` (EXECUTE-only), que permanece documentado como objetivo
+futuro de hardening (`TARGET_LEAST_PRIVILEGE_MIGRATION = PENDING`); no se mezclan
+ambos conceptos.
 
 Criterios de ubicación pendientes: atomicidad (misma instancia la permite),
 ownership/versionado (los objetos `APP24_*` viven hoy en `CALE_IMMEX.dbo` y los

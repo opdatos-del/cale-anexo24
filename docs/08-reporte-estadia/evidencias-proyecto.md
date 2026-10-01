@@ -99,6 +99,26 @@ objetos LIVE ausentes; 61 columnas de destino analizadas (import) y 45 (export);
 5 campos sin cobertura; 1 regla `PED-007` implementada; 2 tests nuevos;
 1 smoke LIVE sintético; política SP-FIRST revalidada (`violations=0`).
 
+### Cierre V3 — precisión metodológica
+
+- Se distinguió **objeto ausente** (`OBJECT_STATUS = NOT_PRESENT_LIVE`) de
+  **flujo muerto** (`FLOW_STATUS = BROKEN_IN_CURRENT_SCHEMA`); no se usó la doble
+  etiqueta ni se afirmó `DEAD_CONFIRMED` sin probar ausencia de entrypoints.
+- Se verificó la **identidad efectiva del runtime** con `SUSER_SNAME()`/`USER_NAME()`:
+  `opdatos`/`dbo` en ambos datasources; `CURRENT_RUNTIME_PERMISSION = SUFFICIENT`
+  para el runtime actual, con `anexo24_app` como objetivo de hardening pendiente.
+- Se reconciliaron **61 campos de importación** y **45 de exportación** por
+  categoría (`STORED/DERIVED/CATALOG_LOOKUP/DEFAULT_CONFIRMED/MISSING_FROM_STAGING`),
+  sumando exactamente el total y explicitando `FIELD_COVERAGE_ACCOUNTING = PASS`.
+- Se implementó `PED-007` **reutilizando** el SP read-only existente
+  (`PED_007_SP_REUSE = PASS`), sin crear SP redundante.
+- Se mantuvo la separación entre **validación preventiva** (`PED-007`) e
+  **idempotencia transaccional** futura (`MODERN_OPERATIONAL_IDENTITY_CONTRACT = PARTIAL`).
+
+Métricas V3: 3 objetos ausentes reclasificados con status separado; 2 datasources
+identificados; 106 columnas de destino categorizadas (61 + 45); 1 contrato de
+runtime confirmado; 0 cambios de paridad.
+
 ### Contexto para el capítulo 3 (métodos y técnicas)
 
 Auditoría funcional legacy; análisis de procedimientos almacenados y call graph;
