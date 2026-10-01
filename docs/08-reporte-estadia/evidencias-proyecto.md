@@ -74,6 +74,31 @@ pipeline.
 **Artefactos producidos:** `docs/03-diseno/mapeo-importacion-pedimentos-autoritativa.md`;
 este registro.
 
+### Cierre V2 — contrato, cobertura y enforcement
+
+- Dependencias legacy ausentes clasificadas como `MISSING_DEPLOYMENT_OBJECT` /
+  `DEAD_LEGACY_BRANCH` (`PEDIMENTOS`, `NP`, `INVENTARIO`): no hay synonyms, linked
+  servers ni referencias cross-database.
+- Única rama legacy ejecutable: `CARGAPEDIMENTOSIE → CARGAPEDIMENTOS`
+  (`ACTIVE_PEDIMENT_PIPELINE`). Las ramas (B) y (C) son ramas muertas.
+- Cobertura staging moderno → operación: `IMPORT_FIELD_COVERAGE = PARTIAL (54/61)`,
+  `EXPORT_FIELD_COVERAGE = PARTIAL (42/45)`; faltan `IGIE`, `IVA`, `DTA`, `PREV`,
+  `TIPOTASAIGIE` (clase C: vienen del archivo legacy, hoy no se almacenan).
+- Identidad operacional de una columna (`NUMERO_PED` / `DOCUMENTO`),
+  `OPERATIONAL_IDENTITY_CONTRACT = PARTIAL` (0 duplicados / 0 nulos LIVE, sin
+  constraint DDL).
+- `PED-007` implementado read-only en `APP24_Q_PEDIMENTO_VALIDAR_REGLAS`
+  (extensión, no SP nuevo), con `EXISTS` NULL-safe; smoke LIVE sintético `PASS`.
+- `DATABASES_SAME_INSTANCE = YES`; `CROSS_DB_ATOMIC_COMMAND_FEASIBLE = YES`;
+  `AUTHORITATIVE_RUNTIME_PERMISSION = INSUFFICIENT`; `AUTHORITATIVE_COMMAND_DATABASE = UNKNOWN`.
+- Sin auto-creación de catálogo (`UNKNOWN_CATALOG_ITEM_POLICY = REJECT`, propuesta).
+- Permiso de confirmación propuesto `PEDIMENTOS_CONFIRMAR` (no implementado).
+
+Métricas V2 para el reporte: 4 SP re-auditados por dependencia de runtime; 3
+objetos LIVE ausentes; 61 columnas de destino analizadas (import) y 45 (export);
+5 campos sin cobertura; 1 regla `PED-007` implementada; 2 tests nuevos;
+1 smoke LIVE sintético; política SP-FIRST revalidada (`violations=0`).
+
 ### Contexto para el capítulo 3 (métodos y técnicas)
 
 Auditoría funcional legacy; análisis de procedimientos almacenados y call graph;

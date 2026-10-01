@@ -37,7 +37,7 @@ estables y no contienen valores completos de negocio.
 | PED-004 | `Clave` | operación 2 requiere existencia en `PRODUCTOS` | `VALIDA_I_DETALLENP`, `CARGAPEDIMENTOS` | SP batch read-only | CONFIRMED |
 | PED-005 | cantidades | suma de inventario vs pedimento con tolerancia 1 | `VALIDAPEDIMENTO` | No implementada: staging V1 no contiene inventario normalizado | PARTIAL |
 | PED-006 | valor dólares | suma de inventario vs pedimento con tolerancia 3 | `VALIDAPEDIMENTO` | No implementada: staging V1 no contiene inventario normalizado | PARTIAL |
-| PED-007 | duplicado operativo | omisión silenciosa si el pedimento ya existe en la operación destino | `CARGAPEDIMENTOS` | No implementada; requiere contrato de confirmación | LEGACY_RULE_CONFIRMED / MODERN_KEY_UNKNOWN |
+| PED-007 | duplicado operativo | pedimento ya existente en la operación destino | `CARGAPEDIMENTOS` | SP batch read-only (extensión de reglas) | IMPLEMENTED (read-only) |
 
 Regla exacta de `PED-007` confirmada en `CARGAPEDIMENTOS` (ver
 `mapeo-importacion-pedimentos-autoritativa.md`): la fila no se inserta y **no se
@@ -48,12 +48,20 @@ reporta error** cuando el documento ya existe.
 - `TIPOOPERACION = 2`:
   `NUMEROPEDIMENTO NOT IN (SELECT DOCUMENTO FROM SALIDAS WHERE DOCUMENTO IS NOT NULL)`.
 
-`PED_007_LEGACY_RULE = CONFIRMED`, pero `PED_007_MODERN_IDEMPOTENCY_KEY = UNKNOWN`:
-la combinación legacy no se declara suficiente como clave de idempotencia moderna.
+`PED_007_LEGACY_RULE = CONFIRMED` y ahora también `PED_007_IMPLEMENTED = YES`
+dentro de `dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS` (lectura), emitiendo error
+explícito en lugar de omitir la fila. La identidad de una sola columna replica la
+regla legacy; `PED_007_MODERN_IDEMPOTENCY_KEY` sigue `UNKNOWN` para el diseño de la
+futura confirmación (ver `mapeo-importacion-pedimentos-autoritativa.md`).
+
+- `TipoOperacion = 1`: error si `EXISTS (SELECT 1 FROM dbo.IMPORTACIONES WHERE NUMERO_PED = @numero)`.
+- `TipoOperacion = 2`: error si `EXISTS (SELECT 1 FROM dbo.SALIDAS WHERE DOCUMENTO = @numero)`.
+
+Sin mutación; `NOT EXISTS`/`EXISTS` NULL-safe (no se copia el `NOT IN` legacy).
 
 ## Implementación
 
-- SP: `dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS`.
+- SP: `dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS` (incluye `PED-007` desde la fase de cierre V2).
 - Entrada batch: XML temporal, no persistido.
 - Fuente: `MATERIAL`, `PRODUCTOS` y `ISVALIDUNIT` en `CALE_IMMEX`.
 - Transporte: XML porque el servidor LIVE no tiene `OPENJSON` disponible.
