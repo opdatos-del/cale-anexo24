@@ -37,7 +37,19 @@ estables y no contienen valores completos de negocio.
 | PED-004 | `Clave` | operación 2 requiere existencia en `PRODUCTOS` | `VALIDA_I_DETALLENP`, `CARGAPEDIMENTOS` | SP batch read-only | CONFIRMED |
 | PED-005 | cantidades | suma de inventario vs pedimento con tolerancia 1 | `VALIDAPEDIMENTO` | No implementada: staging V1 no contiene inventario normalizado | PARTIAL |
 | PED-006 | valor dólares | suma de inventario vs pedimento con tolerancia 3 | `VALIDAPEDIMENTO` | No implementada: staging V1 no contiene inventario normalizado | PARTIAL |
-| PED-007 | duplicado operativo | existencia previa en tablas operativas | `CARGAPEDIMENTOS` | No implementada; requiere contrato de confirmación | UNKNOWN |
+| PED-007 | duplicado operativo | omisión silenciosa si el pedimento ya existe en la operación destino | `CARGAPEDIMENTOS` | No implementada; requiere contrato de confirmación | LEGACY_RULE_CONFIRMED / MODERN_KEY_UNKNOWN |
+
+Regla exacta de `PED-007` confirmada en `CARGAPEDIMENTOS` (ver
+`mapeo-importacion-pedimentos-autoritativa.md`): la fila no se inserta y **no se
+reporta error** cuando el documento ya existe.
+
+- `TIPOOPERACION = 1`:
+  `NUMEROPEDIMENTO NOT IN (SELECT NUMERO_PED FROM IMPORTACIONES WHERE NUMERO_PED IS NOT NULL)`.
+- `TIPOOPERACION = 2`:
+  `NUMEROPEDIMENTO NOT IN (SELECT DOCUMENTO FROM SALIDAS WHERE DOCUMENTO IS NOT NULL)`.
+
+`PED_007_LEGACY_RULE = CONFIRMED`, pero `PED_007_MODERN_IDEMPOTENCY_KEY = UNKNOWN`:
+la combinación legacy no se declara suficiente como clave de idempotencia moderna.
 
 ## Implementación
 
