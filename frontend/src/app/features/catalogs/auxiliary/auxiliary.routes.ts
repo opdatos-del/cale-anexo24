@@ -5,6 +5,12 @@ import { permissionGuard } from '@core/guards/permission.guard';
 export const AUXILIARY_CATALOGS_ROUTES: Routes = [
   { path: '', canActivate: [permissionGuard], data: { permission: 'CATALOGOS_AUX_CONSULTAR' }, component: AuxiliaryCatalogsPage },
   {
+    path: 'datos-generales',
+    canActivate: [permissionGuard],
+    data: { permission: 'CATALOGOS_AUX_CONSULTAR' },
+    loadChildren: () => import('@features/catalogs/general-data/general-data.routes').then((routes) => routes.GENERAL_DATA_ROUTES),
+  },
+  {
     path: 'socios-comerciales',
     canActivate: [permissionGuard],
     data: { permission: 'CATALOGOS_AUX_CONSULTAR' },

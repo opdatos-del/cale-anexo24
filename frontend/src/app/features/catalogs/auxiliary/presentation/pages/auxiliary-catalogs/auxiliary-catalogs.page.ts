@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { NotificationService } from '@core/notifications/notification.service';
@@ -25,7 +26,7 @@ interface CatalogOption {
 
 /** Superficie agrupada para los catálogos auxiliares read-only confirmados. */
 @Component({
-  imports: [AppAlertComponent, FormsModule, MatButtonModule, MatIconModule, MatInputModule, MatPaginatorModule, MatTableModule],
+  imports: [AppAlertComponent, FormsModule, MatButtonModule, MatIconModule, MatInputModule, MatPaginatorModule, MatTableModule, RouterLink],
   selector: 'app-auxiliary-catalogs',
   template: `
     <div class="min-h-full bg-[#f4f7fb] text-slate-800">
@@ -34,6 +35,7 @@ interface CatalogOption {
           <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Catálogos</p>
           <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Catálogos auxiliares</h1>
           <p class="mt-2 text-sm text-slate-500">Consulta de unidades, tipos de material, almacenes y categorías.</p>
+          <a routerLink="/catalogos/datos-generales" class="mt-3 inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-900"><mat-icon class="text-base!">business</mat-icon>Ver datos generales de la empresa</a>
         </div>
 
         <section class="mb-6 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-label="Seleccionar catálogo auxiliar">
