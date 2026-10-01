@@ -138,6 +138,7 @@ CALE_IMMEX_WRITES = 0
 ## División / almacenes
 
 El fallback de División no fue necesario: el contrato de Datos Generales quedó
-confirmado. `LEGACY-008` conserva su estado `PARTIAL`; Almacenes está cubierto y
-la fuente canónica independiente de División sigue pendiente, sin cambios en
-esta feature.
+confirmado. La auditoría posterior `feature/legacy-divisions-read-v1` demostró
+que División se resuelve contra `dbo.almacen` (`dbo.ENTIDAD(@DIVISION)` devuelve
+`ALMACENKEY`), por lo que `LEGACY-008` quedó `IMPLEMENTED_REDESIGNED` cubierto por
+`/catalogos/almacenes`, sin cambios en esta feature.

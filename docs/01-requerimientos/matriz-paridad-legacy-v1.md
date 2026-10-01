@@ -69,11 +69,11 @@ versionada.
 | LEGACY-005 | Catálogos y maestros | `NOT_CAPTURED` — Tipos de material | Consultar catálogo de tipos de material | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Tipos de material | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/tipos-material` | `dbo.TipoMaterial`, `dbo.APP24_Q_TIPOS_MATERIAL_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
 | LEGACY-006 | Catálogos y maestros | `NOT_CAPTURED` — Unidades | Consultar catálogo de unidades | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Unidades | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/unidades` | `dbo.unidad`, `dbo.APP24_Q_UNIDADES_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
 | LEGACY-007 | Catálogos y maestros | `NOT_CAPTURED` — Categorías | Consultar categorías y temporalidad | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Categorías | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/categorias` | `dbo.categorias`, `dbo.APP24_Q_CATEGORIAS_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; no CRUD | Catálogos auxiliares |
-| LEGACY-008 | Catálogos y maestros | `NOT_CAPTURED` — Divisiones/almacenes | Consultar divisiones o almacenes | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Almacenes; división independiente no identificada | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/almacenes` | `dbo.almacen`, `dbo.APP24_Q_ALMACENES_LISTAR`; `DIVISION`/`ENTIDAD` sin fuente canónica | PARTIAL | P1 | Almacenes implementados; falta contrato independiente de división | Catálogos auxiliares |
+| LEGACY-008 | Catálogos y maestros | `NOT_CAPTURED` — Divisiones/almacenes | Consultar divisiones o almacenes | SQL_METADATA, CODE, RUNTIME | `/catalogos` — Almacenes (División resuelta a almacén, sin catálogo separado) | `AuxiliaryCatalogPage` | `GET /api/v1/catalogos/almacenes` | `dbo.almacen`, `dbo.APP24_Q_ALMACENES_LISTAR`; `dbo.ENTIDAD(@DIVISION)` → `ALMACENKEY` | IMPLEMENTED_REDESIGNED | P1 | Semántica División = Almacén demostrada; sin CRUD | Catálogos auxiliares |
 | LEGACY-009 | Catálogos y maestros | `NOT_CAPTURED` — Proveedores | Consultar proveedores | AUDIT_UI, SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Proveedores | `BusinessPartiesPage` | `GET /api/v1/catalogos/proveedores` | `dbo.Proveedores`, `dbo.APP24_Q_PROVEEDORES_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | Sólo lectura V1; importación/confirmación fuera de alcance | Catálogos / socios comerciales |
 | LEGACY-010 | Catálogos y maestros | `NOT_CAPTURED` — Clientes | Consultar clientes | SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Clientes | `BusinessPartiesPage` | `GET /api/v1/catalogos/clientes` | `dbo.clientes`, `dbo.APP24_Q_CLIENTES_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | Sólo lectura V1; importación/confirmación fuera de alcance | Catálogos / socios comerciales |
 | LEGACY-011 | Catálogos y maestros | `NOT_CAPTURED` — Agentes aduanales | Consultar agentes aduanales | AUDIT_UI, SQL_METADATA, CODE | `/catalogos/socios-comerciales` — Agentes aduanales | `BusinessPartiesPage` | `GET /api/v1/catalogos/agentes-aduanales` | `dbo.agentes`, `dbo.APP24_Q_AGENTES_ADUANALES_LISTAR` | IMPLEMENTED_REDESIGNED | P2 | Sólo lectura V1; importación fuera de alcance | Catálogos / socios comerciales |
-| LEGACY-012 | Catálogos y maestros | `NOT_CAPTURED` — Submaquilas | Consultar submaquilas | SQL_METADATA | No identificado | No | No | `CARGA_SUBMAQUILA` y referencias CTM; contrato no cerrado | UNKNOWN | P2 | Falta alcance funcional | Catálogos auxiliares |
+| LEGACY-012 | Catálogos y maestros | `NOT_CAPTURED` — Submaquilas | Consultar submaquilas | SQL_METADATA | No identificado | No | No | `RelacionSubmaquila`, `Encabezadotransubmaquila`, `Detalletransubmaquila`, `TMPSUBMAQUILA` (0 filas), `CARGA_SUBMAQUILA` no ejecutado; `SUBMAQUILA_CATALOG_CONTRACT = NOT_A_MASTER_CATALOG` | UNKNOWN | P2 | Sólo transacciones/transferencia; no hay maestro canónico | Catálogos auxiliares |
 | LEGACY-013 | Catálogos y maestros | `NOT_CAPTURED` — Activo fijo | Consultar partidas marcadas como activo fijo | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | La granularidad nueva es partida, no activo individual | Operaciones / activo fijo |
 | LEGACY-014 | Catálogos y maestros | `NOT_CAPTURED` — Consultas guardadas | Guardar y reutilizar consultas o filtros | AUDIT_UI | No identificado | No | No | UNKNOWN | UNKNOWN | P3 | No existe contrato versionado | Catálogos auxiliares / consultas |
 | LEGACY-015 | Operación aduanera/inventario | `NOT_CAPTURED` — Entradas / Importaciones | Consultar entradas e importaciones por rango y filtros | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/entradas` | `EntryListPage` | `GET /api/v1/operaciones/entradas` | `dbo.APP24_Q_ENTRADAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Operaciones / entradas |
@@ -146,7 +146,7 @@ versionada.
 
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Catálogos y maestros | 14 | 3 | 7 | 2 | 0 | 0 | 0 | 2 |
+| Catálogos y maestros | 14 | 3 | 8 | 1 | 0 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
 | Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
@@ -154,15 +154,19 @@ versionada.
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **22** | **14** | **7** | **5** | **6** | **20** |
+| **Total** | **79** | **5** | **23** | **13** | **7** | **5** | **6** | **20** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
 contiene todavía un contrato funcional o una fuente SQL suficiente. `LEGACY-001`
 es `PARTIAL`: la ficha read-only tiene fuente, cardinalidad y mapeo confirmados;
-la edición/mantenimiento legacy continúa fuera de V1. `LEGACY-008` es `PARTIAL`:
-el subcaso de almacenes tiene contrato read-only y el catálogo
-independiente de divisiones continúa sin fuente canónica demostrada.
+la edición/mantenimiento legacy continúa fuera de V1. `LEGACY-008` es
+`IMPLEMENTED_REDESIGNED`: la auditoría de `dbo.ENTIDAD(@DIVISION)` demuestra que
+División se resuelve contra `dbo.almacen.ALMACEN` y devuelve `ALMACENKEY`, por lo
+que no existe un catálogo independiente y la consulta `/catalogos/almacenes` ya
+cubre la capacidad. `LEGACY-012` conserva `UNKNOWN`: la evidencia sólo muestra
+tablas y un procedimiento transaccional de transferencia, no un maestro de
+submaquiladores.
 
 `LEGACY-016` es `PARTIAL`: la carga segura, validación estructural, errores,
 preview, hash, RBAC y staging durable están implementados; la confirmación hacia
@@ -180,8 +184,8 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 22`
-- `PARTIAL = 14`
+- `IMPLEMENTED_REDESIGNED = 23`
+- `PARTIAL = 13`
 - `MISSING = 7`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`

@@ -39,7 +39,10 @@ proveedores, clientes, agentes aduanales, submaquilas y consultas guardadas.
 **Implementado en `feature/legacy-catalogs-aux-v1`:** Unidades, Tipos de
 material, Categorías y Almacenes como consultas `READ_ONLY`, cada uno con fuente
 SQL, procedimiento versionado, endpoint, permiso común y superficie agrupada en
-`/catalogos`. La capacidad de División independiente permanece `UNKNOWN`.
+`/catalogos`. La auditoría `feature/legacy-divisions-read-v1` demostró que
+División se resuelve contra `dbo.almacen` (`dbo.ENTIDAD(@DIVISION)` devuelve
+`ALMACENKEY`), por lo que `LEGACY-008` queda `IMPLEMENTED_REDESIGNED` sin
+catálogo, endpoint ni pantalla adicionales.
 
 **Implementado en `feature/legacy-company-general-data-read-v1`:** Datos generales
 como consulta `READ_ONLY` de la única fila actual de `dbo.DatosGenerales`, con
@@ -50,14 +53,17 @@ edición/mantenimiento legacy permanece fuera de V1.
 Agentes aduanales como consultas `READ_ONLY`, paginadas y agrupadas en
 `/catalogos/socios-comerciales`. Reutilizan `CATALOGOS_AUX_CONSULTAR`.
 
-**Pendiente:** submaquilas, edición de datos generales y consultas guardadas;
-también confirmar si existe un catálogo canónico independiente de divisiones. El staging
-de importación de socios queda pendiente por falta de layout aislado y contrato
-de validación suficiente.
+**Pendiente:** submaquilas, edición de datos generales y consultas guardadas. El
+staging de importación de socios queda pendiente por falta de layout aislado y
+contrato de validación suficiente.
 
 **Evidencia:** los catálogos foundation y los maestros `dbo.clientes`,
 `dbo.Proveedores` y `dbo.agentes` tienen fuentes y contratos read-only cerrados.
-`ENTIDAD(DIVISION)` y submaquila permanecen sin maestro canónico suficiente.
+División no es un catálogo separado: `dbo.ENTIDAD(@DIVISION)` traduce el valor a
+`dbo.almacen.ALMACEN` → `ALMACENKEY`. Para submaquila sólo se observaron tablas y
+un procedimiento de transferencia (0 filas), sin maestro; por eso
+`SUBMAQUILA_CATALOG_CONTRACT = NOT_A_MASTER_CATALOG` y `LEGACY-012` conserva
+`UNKNOWN` sin inventar catálogo.
 
 **Trabajo restante:**
 
@@ -66,8 +72,8 @@ de validación suficiente.
 3. decidir si se consolidan en una superficie configurable o en endpoints
    específicos;
 4. agregar casos de aceptación de búsqueda y selección;
-5. mantener explícita la frontera entre almacén implementado y división no
-   demostrada.
+5. mantener explícita la equivalencia División = Almacén y no reabrir un catálogo
+   separado sin nueva evidencia.
 
 **No hacer:** construir un framework genérico ni CRUD antes de cerrar esos
 contratos.
@@ -277,8 +283,9 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
 
 ### P1
 
-- `LEGACY-008` (subcaso de división), `LEGACY-009` a `LEGACY-012`: catálogos
-  auxiliares pendientes de fuente canónica y contrato.
+- `LEGACY-012`: submaquila sin maestro canónico; sólo transferencia
+  transaccional. `LEGACY-008` cerró como `IMPLEMENTED_REDESIGNED` por equivalencia
+  División = Almacén.
 - `LEGACY-019`: carga de exportaciones separada de consulta.
 - `LEGACY-023` a `LEGACY-028`: operaciones especiales.
 - `LEGACY-030`: generación dirigida pendiente; `LEGACY-031` tiene una consulta
@@ -316,7 +323,8 @@ catálogo independiente.
 
 **Resultado:** la épica pasa de `UNKNOWN` a `PARTIAL`. Los cuatro catálogos
 entregados salen del backlog de implementación; permanecen como trabajo los
-candidatos sin contrato y la división independiente.
+candidatos sin contrato. La división independiente se cerró por evidencia:
+`LEGACY-008` quedó `IMPLEMENTED_REDESIGNED` porque División = Almacén.
 
 **Resultado:** `EPIC-IMPORTS-PEDIMENTS` queda en `PARTIAL / V1 STAGING DONE`.
 La confirmación autoritativa continúa separada y no implementada.
