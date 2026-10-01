@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { PedimentLoad } from '@features/operations/pediments/domain/models/pediment-upload.model';
+import { PedimentConfirmation, PedimentLoad } from '@features/operations/pediments/domain/models/pediment-upload.model';
 import { PedimentRepository } from '@features/operations/pediments/domain/repositories/pediment.repository';
 import { PedimentApiService } from '@features/operations/pediments/infrastructure/api/pediment-api.service';
 
@@ -14,5 +14,9 @@ export class HttpPedimentRepository implements PedimentRepository {
 
   get(id: number, page: number, pageSize: number): Observable<PedimentLoad> {
     return this.api.get(id, page, pageSize);
+  }
+
+  confirm(id: number): Observable<PedimentConfirmation> {
+    return this.api.confirm(id);
   }
 }

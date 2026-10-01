@@ -15,11 +15,13 @@ export interface PedimentPreview {
   totalFilas: number;
 }
 
+export type PedimentLoadState = 'PREVISUALIZADA' | 'CON_ERRORES' | 'CONFIRMADA';
+
 export interface PedimentLoad {
   id: number;
   archivo: string;
   hash: string;
-  estado: 'PREVISUALIZADA' | 'CON_ERRORES';
+  estado: PedimentLoadState;
   totalFilas: number;
   filasValidas: number;
   filasInvalidas: number;
@@ -27,4 +29,15 @@ export interface PedimentLoad {
   correlationId: string;
   preview: PedimentPreview;
   errores: PedimentError[];
+}
+
+/** Resultado de la confirmación autoritativa de una carga. */
+export interface PedimentConfirmation {
+  cargaId: number;
+  estado: 'CONFIRMADA';
+  resultado: 'CONFIRMED' | 'ALREADY_CONFIRMED';
+  tipoOperacion: number | null;
+  operacionesProcesadas: number;
+  partidasProcesadas: number;
+  fechaConfirmacion: string;
 }
