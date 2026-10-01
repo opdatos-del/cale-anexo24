@@ -36,6 +36,7 @@ const REPORTS: ReportOption[] = [
   { type: 'bitacora', label: 'Bitácora', icon: 'manage_search', available: true },
   { type: 'compulsa', label: 'Compulsa', icon: 'compare_arrows', available: true },
   { type: 'rectificaciones', label: 'Rectificaciones', icon: 'rule', available: true },
+  { type: 'vencimientos', label: 'Vencimientos de desperdicio', icon: 'event_busy', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: false },
 ];
 
@@ -73,6 +74,13 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
   rectificaciones: [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'total', label: 'Rectificaciones', format: 'quantity' },
   ],
+  vencimientos: [
+    { key: 'pedimento', label: 'Pedimento' }, { key: 'fechaBase', label: 'Fecha base', format: 'date' },
+    { key: 'clavePedimento', label: 'Clave pedimento' }, { key: 'clave', label: 'Clave' },
+    { key: 'desperdicio', label: 'Desperdicio', format: 'quantity' },
+    { key: 'aplicado', label: 'Aplicado', format: 'quantity' },
+    { key: 'factura', label: 'Factura' }, { key: 'vencimiento', label: 'Vencimiento', format: 'date' },
+  ],
 };
 
 /** Genera reportes V1 paginados para el periodo obligatorio seleccionado. */
@@ -103,7 +111,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
               @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
             } @else {
-              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
+              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : selectedType() === 'vencimientos' ? 'Pedimento, clave o factura' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
             }
           </div>
 
@@ -112,6 +120,8 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <p class="m-0 text-xs text-slate-500">Compara registros generales de glosa contra Anexo 24.</p>
             } @else if (selectedType() === 'rectificaciones') {
               <p class="m-0 text-xs text-slate-500">Resume pedimentos con relaciones de rectificación observadas.</p>
+            } @else if (selectedType() === 'vencimientos') {
+              <p class="m-0 text-xs text-slate-500">Consulta de fechas de vencimiento asociadas a desperdicios de importación.</p>
             } @else if (isOperationalReport()) {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento</span><input matInput name="customsDocument" [(ngModel)]="customsDocument" maxlength="50" class="report-input" /></label>
@@ -161,7 +171,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
             @if (items().length) {
               <div class="overflow-x-auto"><table mat-table [dataSource]="items()" class="w-full min-w-240">@for (column of columns(); track column.key) { <ng-container [matColumnDef]="column.key"><th mat-header-cell *matHeaderCellDef>{{ column.label }}</th><td mat-cell *matCellDef="let row" [class.text-right]="column.format === 'quantity'" [class.tabular-nums]="column.format === 'quantity'">{{ formatCell(row, column) }}</td></ng-container> }<tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr></table></div>
             } @else {
-              <div class="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center"><mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">search_off</mat-icon><p class="m-0 text-sm font-medium text-slate-600">No se encontraron resultados</p><span class="mt-1 text-xs text-slate-400">No hay registros para el periodo y filtros seleccionados.</span></div>
+              <div class="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center"><mat-icon class="mb-3 h-10 w-10 text-[40px]! text-slate-300" aria-hidden="true">search_off</mat-icon><p class="m-0 text-sm font-medium text-slate-600">No se encontraron resultados</p><span class="mt-1 text-xs text-slate-400">{{ selectedType() === 'vencimientos' ? 'No hay vencimientos de desperdicio para los filtros seleccionados.' : 'No hay registros para el periodo y filtros seleccionados.' }}</span></div>
             }
             <mat-paginator [length]="totalItems()" [pageIndex]="currentPage - 1" [pageSize]="pageSize" [pageSizeOptions]="pageSizeOptions" (page)="changePage($event)" showFirstLastButtons aria-label="Paginación del reporte" />
           </section>
@@ -220,7 +230,7 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;
