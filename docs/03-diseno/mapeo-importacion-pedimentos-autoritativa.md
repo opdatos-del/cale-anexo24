@@ -664,3 +664,148 @@ que `PEDIMENTOS_CARGAR`. Se propone separación por least privilege
 (`PEDIMENTOS_CONFIRMAR`), sin implementar todavía mientras el contrato siga
 `PARTIAL`. No hay evidencia de un permiso equivalente en el legacy (sin RBAC
 capturado).
+
+---
+
+## 23. Cierre V3 — decisiones V1 formalizadas
+
+```text
+UNKNOWN_CATALOG_ITEM_POLICY = REJECT
+PEDIMENT_CONFIRM_PERMISSION = PEDIMENTOS_CONFIRMAR
+CONFIRMATION_FAILURE_MODEL = ROLLBACK_TO_PREVIOUS_STATE
+CONFIRMED_STATE_TERMINAL = YES
+LEGACY_FISCAL_FIELD_POLICY = PRESERVE_INPUT
+```
+
+- `REJECT`: `PED-003` exige `MATERIAL` y `PED-004` exige `PRODUCTO`; existen flujos
+  separados de importación de catálogos. No se copia la auto-creación implícita del
+  legacy durante la confirmación.
+- `CONFIRMADA` es terminal V1: no hay desconfirmar/revertir/eliminar. Si la
+  transacción falla: rollback total, la carga conserva su estado previo, la API
+  devuelve error y la bitácora registra el intento fallido. No se crea un estado
+  `FALLIDA` por una excepción.
+- `PRESERVE_INPUT`: `IGIE/IVA/DTA/PREV/TIPOTASAIGIE` se capturan, validan
+  tipo/formato, preservan y **no** se recalculan ni transforman fiscalmente.
+
+## 24. Cierre V3 — staging V2
+
+`version_plantilla` pasa de `LEGACY-STAGE-DERIVED-V1` a `LEGACY-STAGE-DERIVED-V2`.
+
+Campos añadidos a `CAMPOS_CONFIRMADOS` (nombres físicos legacy preservados para
+mantener el mapping exacto; el staging guarda `datos_json`, por lo que **no**
+requiere `ALTER TABLE`):
+
+| Campo | Tipo moderno | Regla |
+|---|---|---|
+| `IGIE` | `BigDecimal` | decimal nullable; blank → vacío |
+| `IVA` | `BigDecimal` | decimal nullable; blank → vacío |
+| `DTA` | `BigDecimal` | decimal nullable; blank → vacío |
+| `PREV` | `BigDecimal` | decimal nullable; blank → vacío |
+| `TIPOTASAIGIE` | texto | trim; nullable |
+
+```text
+STAGING_V1_BACKWARD_COMPATIBILITY = PASS (JSON sin columnas físicas; cargas V1 siguen legibles)
+FISCAL_FIELD_MAPPING = CONFIRMED
+```
+
+Mapping exacto (línea por línea de `CARGAPEDIMENTOS`):
+
+| Origen | Destino | Acción legacy |
+|---|---|---|
+| `IGIE` | `IMPORTACIONES.ADVALOREM` | `SUM(IGIE)` por pedimento |
+| `IGIE` | `PARTIDAS.MONTOIGI` | valor directo por partida |
+| `IVA` | `IMPORTACIONES.IVA` | `SUM(IVA)` por pedimento |
+| `IVA` | `PARTIDAS.MONTOIVA` | valor directo por partida |
+| `IVA` | `PSALIDAS.montoiva` | valor directo por partida de salida |
+| `PREV` | `IMPORTACIONES.PREVALIDACION` | `MAX(PREV)` por pedimento |
+| `PREV` | `SALIDAS.PREV` | `MAX(PREV)` por pedimento |
+| `DTA` | `IMPORTACIONES.DTA` | `MAX(DTA)` por pedimento |
+| `DTA` | `SALIDAS.DTA` | `MAX(DTA)` por pedimento |
+| `TIPOTASAIGIE` | `PARTIDAS.tipotasaigie` | valor directo |
+
+Tipos destino: `IMPORTACIONES.IVA/DTA/PREVALIDACION/ADVALOREM` `float`;
+`PARTIDAS.MONTOIGI/MONTOIVA` `float`; `PARTIDAS.tipotasaigie` heredado; se conserva
+el valor sin recomputar (no se define escala que trunque).
+
+```text
+IMPORT_FIELD_COVERAGE = COMPLETE (61 / 61)
+EXPORT_FIELD_COVERAGE = COMPLETE (45 / 45)
+```
+
+Los 7 faltantes de import y 3 de export pasan a `STORED`/`DERIVED`: no queda ningún
+campo `MISSING_FROM_STAGING` ni `UNKNOWN`.
+
+## 25. Cierre V3 — identidad operacional
+
+```text
+LEGACY_DUPLICATE_IDENTITY_CONTRACT = CONFIRMED
+MODERN_OPERATIONAL_IDENTITY = IMPORT: NumeroPedimento / EXPORT: NumeroPedimento
+MODERN_OPERATIONAL_IDENTITY_CONTRACT = PARTIAL
+IDEMPOTENCY_TWO_PHASE_GUARD = DESIGNED
+```
+
+Es identidad operacional del sistema V1; **no** se afirma unicidad fiscal universal.
+Guardia de dos fases: PRECHECK en validación (`PED-007`) + TRANSACTIONAL_RECHECK
+(`EXISTS ... WITH (UPDLOCK, HOLDLOCK)`) dentro de la transacción, antes de insertar.
+
+## 26. Cierre V3 — generación de claves (con prueba)
+
+El legacy usa `MAX(key)+1` + `ROW_NUMBER()` + `GENERADORES` (espejo sin PK).
+`sp_getapplock` no protege frente al legacy, que no solicita el mismo applock.
+
+```text
+legacy strategy = MAX_PLUS_ONE_WITH_ROW_NUMBER
+new strategy = TABLE_LOCKED_MAX_PLUS_ONE (TABLOCKX + HOLDLOCK)
+KEY_ALLOCATION_STRATEGY_V1 = TABLE_LOCKED_MAX_PLUS_ONE
+KEY_ALLOCATION_COMPATIBLE_WITH_LEGACY = CONFIRMED_FOR_V1
+```
+
+Conjuntos de bloqueo (tablas con clave `MAX+1`):
+
+```text
+IMPORT_LOCK_SET = IMPORTACIONES, PARTIDAS
+EXPORT_LOCK_SET = SALIDAS, PSALIDAS, DIRIGIDO
+LOCK_ORDER = IMPORTACIONES, PARTIDAS, SALIDAS, PSALIDAS, DIRIGIDO
+```
+
+Prueba aislada real (tabla temporal global en `tempdb`, sin tocar tablas de
+negocio; dos conexiones concurrentes):
+
+```text
+SIN_LOCK_COLISION = true            (MAX+1 concurrente colisiona)
+CON_LOCK_BLOQUEO_LEGACY = true      (sesión legacy bloqueada durante el lock)
+CON_LOCK_CLAVES_DISTINTAS = true    (sin duplicación)
+CON_LOCK_FILAS = 2
+```
+
+Trade-off: menor concurrencia a cambio de compatibilidad con el esquema legacy sin
+cambiar PK; aceptable porque confirmar un archivo no es operación de alta
+frecuencia. Prueba reproducible en CI vía Testcontainers SQL Server
+(`PedimentKeyAllocationConcurrencyTest`).
+
+## 27. Cierre V3 — ubicación del command
+
+```text
+AUTHORITATIVE_COMMAND_DATABASE = CALE_IMMEX.dbo.APP24_C_PEDIMENTO_CONFIRMAR
+COMMAND_CREATED = NO (sólo se cierra la ubicación)
+```
+
+Razón: los datos autoritativos viven en `CALE_IMMEX`; el command genera claves y
+bloquea tablas de `CALE_IMMEX`; y actualiza `ANEXO24_DEV.app24` por nombre de 3
+partes. Ambas bases están en la misma instancia → una sola transacción local, sin DTC.
+
+## 28. Cierre V3 — transacción, fallo y seguridad runtime
+
+```text
+DATABASES_SAME_INSTANCE = YES
+CROSS_DB_ATOMIC_COMMAND_FEASIBLE = YES
+failure model = ROLLBACK_TO_PREVIOUS_STATE
+CURRENT_RUNTIME_LOGIN = opdatos
+CURRENT_RUNTIME_PERMISSION = SUFFICIENT
+TARGET_LEAST_PRIVILEGE_LOGIN = anexo24_app
+TARGET_RUNTIME_SECURITY_MODEL = MODULE_EXECUTE_LEAST_PRIVILEGE
+```
+
+Patrón obligatorio: `SET XACT_ABORT ON` + `BEGIN TRAN` + `TRY/CATCH` con
+`ROLLBACK`; cero partial writes. No se usa `TRUSTWORTHY`. El hardening futuro de
+`anexo24_app` (EXECUTE-only por módulo/firma) es objetivo, no requisito de esta fase.

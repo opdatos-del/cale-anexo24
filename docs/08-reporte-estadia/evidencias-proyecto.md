@@ -119,6 +119,66 @@ Métricas V3: 3 objetos ausentes reclasificados con status separado; 2 datasourc
 identificados; 106 columnas de destino categorizadas (61 + 45); 1 contrato de
 runtime confirmado; 0 cambios de paridad.
 
+---
+
+## Fase — Contrato de confirmación de pedimentos (staging V2 + concurrencia)
+
+**Fecha / fase:** `feature/pediment-confirmation-contract-v1`, primera pasada (sin push).
+
+**Problema técnico abordado:** cerrar el contrato previo a la confirmación
+autoritativa: campos fiscales faltantes en staging, identidad operacional,
+compatibilidad de generación de claves `MAX+1` con el motor legacy, ubicación
+transaccional del command y separación de permiso.
+
+**Método utilizado:** extensión del contrato JSON de staging (sin `ALTER TABLE`);
+mapping fiscal línea por línea de `CARGAPEDIMENTOS`; prueba de concurrencia aislada
+con dos conexiones (tabla temporal global en `tempdb`); auditoría de permisos del
+principal efectivo; diseño transaccional y de bloqueo.
+
+**Decisiones:** `UNKNOWN_CATALOG_ITEM_POLICY = REJECT`;
+`PEDIMENT_CONFIRM_PERMISSION = PEDIMENTOS_CONFIRMAR` (sin asignación a perfiles);
+`CONFIRMED_STATE_TERMINAL = YES`; `LEGACY_FISCAL_FIELD_POLICY = PRESERVE_INPUT`;
+`AUTHORITATIVE_COMMAND_DATABASE = CALE_IMMEX`; `KEY_ALLOCATION_STRATEGY_V1 =
+TABLE_LOCKED_MAX_PLUS_ONE`.
+
+**Riesgos encontrados:** `MAX+1` concurrente colisiona; `sp_getapplock` no coordina
+con el legacy; el motor legacy no toma locks de aplicación.
+
+**Resultado:**
+
+- staging V2 (IGIE/IVA/DTA/PREV/TIPOTASAIGIE), `STAGING_V1_BACKWARD_COMPATIBILITY = PASS`;
+- `IMPORT_FIELD_COVERAGE = COMPLETE (61/61)`, `EXPORT_FIELD_COVERAGE = COMPLETE (45/45)`;
+- `FISCAL_FIELD_MAPPING = CONFIRMED`;
+- `KEY_ALLOCATION_COMPATIBLE_WITH_LEGACY = CONFIRMED_FOR_V1` con prueba real;
+- `IDEMPOTENCY_TWO_PHASE_GUARD = DESIGNED`;
+- permiso `PEDIMENTOS_CONFIRMAR` versionado, 0 asignaciones productivas.
+
+**Pruebas / evidencias:** prueba de concurrencia aislada (`SIN_LOCK_COLISION = true`,
+`CON_LOCK_BLOQUEO_LEGACY = true`, `CON_LOCK_CLAVES_DISTINTAS = true`,
+`CON_LOCK_FILAS = 2`); test reproducible en CI con Testcontainers SQL Server;
+tests de parser V2 (fiscal presente/vacío/inválido); backend `test build` PASS;
+SP-FIRST `violations = 0`.
+
+**Limitaciones:** la prueba de concurrencia usó una tabla temporal sintética (no
+tablas reales de `CALE_IMMEX`); el Testcontainers no arranca en el Docker Desktop
+local (endpoint npipe incompatible con docker-java 1.20.4) y se ejecuta en CI.
+
+**Artefactos producidos:** parser V2 + tests; prueba de concurrencia; migración de
+permiso; actualización de `mapeo-importacion-pedimentos-autoritativa.md` y
+`mapeo-carga-pedimentos.md`.
+
+### Métricas para el reporte
+
+coverage antes/después = 54/61 → 61/61 (import) y 42/45 → 45/45 (export); campos
+agregados = 5; tests añadidos = 4 (2 parser V2, 2 concurrencia); collision test y
+lock test = 1 caso cada uno; reglas PED cerradas = `PED-007` (implementada),
+`PED-001..004` ya confirmadas.
+
+### Anexos candidatos
+
+matriz staging→target; diagrama transaccional; diagrama PRECHECK→RECHECK; prueba de
+concurrencia `MAX+1`; lista `PED-001..007`.
+
 ### Contexto para el capítulo 3 (métodos y técnicas)
 
 Auditoría funcional legacy; análisis de procedimientos almacenados y call graph;

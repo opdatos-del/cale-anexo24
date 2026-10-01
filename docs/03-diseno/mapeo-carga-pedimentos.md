@@ -103,6 +103,23 @@ La columna `Obligatorio` distingue la validación técnica V1 de una regla fisca
 
 ## 3. Reglas técnicas V1
 
+### Ampliación fiscal V2
+
+El contrato de staging se amplía de V1 a V2 para preservar cinco campos fiscales
+legacy que antes no se capturaban (ver `mapeo-importacion-pedimentos-autoritativa.md`):
+
+| Campo | Tipo | Obligatorio | Regla V1/V2 |
+|---|---|---|---|
+| `IGIE` | decimal | No | decimal nullable; blank → vacío |
+| `IVA` | decimal | No | decimal nullable; blank → vacío |
+| `DTA` | decimal | No | decimal nullable; blank → vacío |
+| `PREV` | decimal | No | decimal nullable; blank → vacío |
+| `TIPOTASAIGIE` | texto | No | texto nullable con trim |
+
+En V2 el conteo de campos confirmados pasa a 61. Las cargas V1 almacenadas siguen
+siendo legibles (`datos_json` no tiene columnas físicas por campo), por lo que
+`STAGING_V1_BACKWARD_COMPATIBILITY = PASS`.
+
 - Formatos admitidos: `.xls` y `.xlsx`, sólo si la firma binaria coincide con la
   extensión.
 - Una sola hoja; si hay más, se reporta `HOJAS_NO_SOPORTADAS`.
