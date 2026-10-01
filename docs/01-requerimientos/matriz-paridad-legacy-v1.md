@@ -62,7 +62,7 @@ versionada.
 
 | ID | Área | Legacy route/screen | Capability | Evidence | New equivalent | Frontend | API | DB/SP | State | Priority | Blocker | Proposed destination |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| LEGACY-001 | Catálogos y maestros | `NOT_CAPTURED` — Datos generales | Consultar y mantener datos generales de la empresa | AUDIT_UI | No identificado | No | No | UNKNOWN | MISSING | P1 | Contrato y fuente no cerrados | Catálogos / configuración empresarial |
+| LEGACY-001 | Catálogos y maestros | `NOT_CAPTURED` — Datos generales | Consultar y mantener datos generales de la empresa | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/catalogos/datos-generales` — consulta read-only de la ficha empresarial | `CompanyGeneralDataPage` | `GET /api/v1/catalogos/datos-generales` | `dbo.DatosGenerales`, `dbo.APP24_Q_DATOS_GENERALES_OBTENER` | PARTIAL | P1 | Edición/mantenimiento no confirmado ni implementado | Catálogos / configuración empresarial |
 | LEGACY-002 | Catálogos y maestros | `NOT_CAPTURED` — Materiales | Consultar catálogo de materiales | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/materiales` | `MaterialListPage` | `GET /api/v1/catalogos/materiales` | `dbo.APP24_Q_MATERIALES_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Catálogos / materiales |
 | LEGACY-003 | Catálogos y maestros | `NOT_CAPTURED` — Productos | Consultar catálogo de productos | AUDIT_UI, SQL_METADATA, CODE | `/productos` | `ProductListPage` | `GET /api/v1/catalogos/productos` | `dbo.APP24_Q_PRODUCTOS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Catálogos / productos |
 | LEGACY-004 | Catálogos y maestros | `NOT_CAPTURED` — Estructuras | Consultar estructura o BOM | AUDIT_UI, SQL_METADATA, CODE | `/estructuras` | `StructureListPage` | `GET /api/v1/catalogos/estructuras` | `dbo.APP24_Q_ESTRUCTURAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P1 | El snapshot SQL tenía cero estructuras | Catálogos / estructuras |
@@ -146,7 +146,7 @@ versionada.
 
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
+| Catálogos y maestros | 14 | 3 | 7 | 2 | 0 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
 | Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
@@ -154,12 +154,14 @@ versionada.
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **22** | **13** | **8** | **5** | **6** | **20** |
+| **Total** | **79** | **5** | **22** | **14** | **7** | **5** | **6** | **20** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
-contiene todavía un contrato funcional o una fuente SQL suficiente. `LEGACY-008`
-es `PARTIAL`: el subcaso de almacenes tiene contrato read-only y el catálogo
+contiene todavía un contrato funcional o una fuente SQL suficiente. `LEGACY-001`
+es `PARTIAL`: la ficha read-only tiene fuente, cardinalidad y mapeo confirmados;
+la edición/mantenimiento legacy continúa fuera de V1. `LEGACY-008` es `PARTIAL`:
+el subcaso de almacenes tiene contrato read-only y el catálogo
 independiente de divisiones continúa sin fuente canónica demostrada.
 
 `LEGACY-016` es `PARTIAL`: la carga segura, validación estructural, errores,
@@ -179,8 +181,8 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 22`
-- `PARTIAL = 13`
-- `MISSING = 8`
+- `PARTIAL = 14`
+- `MISSING = 7`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
 - `UNKNOWN = 20`

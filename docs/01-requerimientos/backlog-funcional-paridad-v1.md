@@ -41,12 +41,17 @@ material, Categorías y Almacenes como consultas `READ_ONLY`, cada uno con fuent
 SQL, procedimiento versionado, endpoint, permiso común y superficie agrupada en
 `/catalogos`. La capacidad de División independiente permanece `UNKNOWN`.
 
+**Implementado en `feature/legacy-company-general-data-read-v1`:** Datos generales
+como consulta `READ_ONLY` de la única fila actual de `dbo.DatosGenerales`, con
+mapeo explícito de razón social, RFC, Registro IMMEX y domicilio fiscal. La
+edición/mantenimiento legacy permanece fuera de V1.
+
 **Implementado en `feature/legacy-business-parties-v1`:** Clientes, Proveedores y
 Agentes aduanales como consultas `READ_ONLY`, paginadas y agrupadas en
 `/catalogos/socios-comerciales`. Reutilizan `CATALOGOS_AUX_CONSULTAR`.
 
-**Pendiente:** submaquilas, datos relacionados y consultas guardadas; también
-confirmar si existe un catálogo canónico independiente de divisiones. El staging
+**Pendiente:** submaquilas, edición de datos generales y consultas guardadas;
+también confirmar si existe un catálogo canónico independiente de divisiones. El staging
 de importación de socios queda pendiente por falta de layout aislado y contrato
 de validación suficiente.
 

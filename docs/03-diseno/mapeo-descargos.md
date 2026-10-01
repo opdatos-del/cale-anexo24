@@ -359,14 +359,17 @@ DESCARGOSBLOQUEADOS_WRITERS = [dbo.BLOQUEA_DOCUMENTO (INSERT)]
 DESCARGOSBLOQUEADOS_DELETERS = []
 DESCARGOSBLOQUEADOS_TRUNCATORS = []
 DESCARGOSBLOQUEADOS_READERS = [dbo.APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR, dbo.NUEVOFOLIOB]
-BLOCKED_SNAPSHOT_RETENTION = PERSISTENT_HISTORY
+BLOCKED_SNAPSHOT_RETENTION = NO_PURGE_PATH_OBSERVED
 BLOCKED_STABLE_ORDERING = PASS
 PK = DESCARGOSBLOQUEADOSKEY (PRIMARY KEY, NOT NULL, UNIQUE)
 ```
 
-La clasificación `PERSISTENT_HISTORY` significa que el modelo y las referencias
-LIVE observadas no incluyen una rutina de limpieza del snapshot; no constituye una
-garantía de retención indefinida fuera de esos objetos.
+La clasificación `NO_PURGE_PATH_OBSERVED` se limita al alcance auditado:
+`sys.sql_modules` y `sys.sql_expression_dependencies` para los objetos listados.
+Sólo se observaron `INSERT`/`UPDATE` y lecturas; no se observaron
+`DELETE`/`TRUNCATE`/`MERGE` sobre `DESCARGOSBLOQUEADOS`. Esto permite llamar al
+resultado un snapshot persistido observado, pero no garantiza retención perpetua
+fuera de esos objetos, procesos, permisos o políticas de infraestructura.
 
 ```text
 BLOCKED_READ_CONTRACT = PARTIAL
