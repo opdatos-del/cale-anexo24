@@ -179,6 +179,29 @@ lock test = 1 caso cada uno; reglas PED cerradas = `PED-007` (implementada),
 matriz staging→target; diagrama transaccional; diagrama PRECHECK→RECHECK; prueba de
 concurrencia `MAX+1`; lista `PED-001..007`.
 
+### CI en feature branches
+
+Se habilitó validación pre-integración para ramas `feature/**`
+(`FEATURE_BRANCH_CI = PRE_INTEGRATION_VALIDATION`) y se hizo obligatoria la prueba
+de concurrencia en CI (skip prohibido cuando `CI=true`).
+
+Evidencia observada en GitHub Actions (commit `466e64c`):
+
+```text
+sp-first-gate = SUCCESS
+backend = SUCCESS
+frontend = SUCCESS
+CONCURRENCY_TESTS_EXECUTED = 2
+CONCURRENCY_TESTS_SKIPPED = 0
+CONCURRENCY_TESTS_FAILED = 0
+maxPlusOneSinBloqueoPuedeColisionar = PASSED
+bloqueoDeTablaCoordinaConSesionLegacySinConocerElBloqueo = PASSED
+```
+
+La prueba se ejecutó en un contenedor SQL Server efímero del runner Linux; no usa
+`backend/.env`, ni `CALE_IMMEX`, ni red corporativa. En Windows local se omite
+cuando el endpoint Docker es incompatible (`SKIP LOCAL` documentado).
+
 ### Contexto para el capítulo 3 (métodos y técnicas)
 
 Auditoría funcional legacy; análisis de procedimientos almacenados y call graph;
