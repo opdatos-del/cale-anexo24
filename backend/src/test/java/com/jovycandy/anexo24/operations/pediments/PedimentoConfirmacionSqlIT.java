@@ -162,6 +162,7 @@ class PedimentoConfirmacionSqlIT {
     @Test
     void rollbackAtomicoAnteFalloForzado() throws Exception {
         crearMaterial("MAT-1");
+        crearMaterial("ROLLBACK-X");
         long carga = crearCarga("LEGACY-STAGE-DERIVED-V2");
         agregarFila(carga, 1, "H", importRow("RB-0001", "MAT-1", "1"));
         agregarFila(carga, 2, "H", importRow("RB-0001", "ROLLBACK-X", "2"));
@@ -323,12 +324,12 @@ class PedimentoConfirmacionSqlIT {
         assertEquals("CONFIRMED", r.get("Resultado"));
         // PARTIDAS: MONTOIGI desde IGIE (null preservado), MONTOIVA desde IVA (cero).
         assertNull(valor(CALE, "SELECT TOP 1 MONTOIGI FROM dbo.PARTIDAS"));
-        assertEquals("0", valor(CALE, "SELECT TOP 1 MONTOIVA FROM dbo.PARTIDAS"));
+        assertEquals(0.0, valorDouble(CALE, "SELECT TOP 1 MONTOIVA FROM dbo.PARTIDAS"), 1e-9);
         // IMPORTACIONES: agregados legacy (SUM/MAX con ISNULL) => 0 para ausentes.
-        assertEquals("0", valor(CALE, "SELECT TOP 1 ADVALOREM FROM dbo.IMPORTACIONES"));
-        assertEquals("0", valor(CALE, "SELECT TOP 1 IVA FROM dbo.IMPORTACIONES"));
-        assertEquals("3.5", valor(CALE, "SELECT TOP 1 DTA FROM dbo.IMPORTACIONES"));
-        assertEquals("0", valor(CALE, "SELECT TOP 1 PREVALIDACION FROM dbo.IMPORTACIONES"));
+        assertEquals(0.0, valorDouble(CALE, "SELECT TOP 1 ADVALOREM FROM dbo.IMPORTACIONES"), 1e-9);
+        assertEquals(0.0, valorDouble(CALE, "SELECT TOP 1 IVA FROM dbo.IMPORTACIONES"), 1e-9);
+        assertEquals(3.5, valorDouble(CALE, "SELECT TOP 1 DTA FROM dbo.IMPORTACIONES"), 1e-9);
+        assertEquals(0.0, valorDouble(CALE, "SELECT TOP 1 PREVALIDACION FROM dbo.IMPORTACIONES"), 1e-9);
         assertEquals("MAT-1", valor(CALE, "SELECT TOP 1 CLAVE FROM dbo.PARTIDAS"));
         transaccionLimpia();
     }
@@ -511,11 +512,17 @@ class PedimentoConfirmacionSqlIT {
     }
 
     private void crearMaterial(String clave) throws Exception {
-        ejecutar(CALE, "INSERT INTO dbo.MATERIAL (MATERIALKEY, CLAVE, UNIDAD, DESCRIPCION) VALUES (1, '" + clave + "', 'KG', 'Sintetico')");
+        ejecutar(CALE, "INSERT INTO dbo.MATERIAL (MATERIALKEY, CLAVE, UNIDAD, DESCRIPCION) VALUES ("
+                + claveNumerica(clave) + ", '" + clave + "', 'KG', 'Sintetico')");
     }
 
     private void crearProducto(String clave) throws Exception {
-        ejecutar(CALE, "INSERT INTO dbo.PRODUCTOS (PRODUCTOKEY, CVE_PRODUCTO, UNIDAD) VALUES (1, '" + clave + "', 'KG')");
+        ejecutar(CALE, "INSERT INTO dbo.PRODUCTOS (PRODUCTOKEY, CVE_PRODUCTO, UNIDAD) VALUES ("
+                + claveNumerica(clave) + ", '" + clave + "', 'KG')");
+    }
+
+    private static int claveNumerica(String clave) {
+        return Math.abs(clave.hashCode() % 1_000_000) + 1;
     }
 
     private Map<String, String> confirmar(long cargaId) throws Exception {
@@ -573,6 +580,11 @@ class PedimentoConfirmacionSqlIT {
         try (Connection c = conectar(db); Statement s = c.createStatement(); ResultSet rs = s.executeQuery(sql)) {
             return rs.next() ? rs.getString(1) : null;
         }
+    }
+
+    private double valorDouble(String db, String sql) throws Exception {
+        String v = valor(db, sql);
+        return v == null ? Double.NaN : Double.parseDouble(v);
     }
 
     // --------------------------------------------------------- fixture de filas
