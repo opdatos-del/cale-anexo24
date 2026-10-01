@@ -92,7 +92,7 @@ versionada.
 | LEGACY-028 | Operación aduanera/inventario | `NOT_CAPTURED` — CTM | Consultar o procesar CTM | SQL_METADATA | No identificado | No | No | `CTMDESCARGA`, `SALDOSCTM`, `LIGACTMA`, `LIGACTMFACTURA` | MISSING | P1 | Flujo especializado sin contrato común | Operaciones especiales |
 | LEGACY-029 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo automático | Generar o reprocesar descargos | SQL_METADATA | No identificado | No | No | `DESCARGATSALIDA*`, `DESCARGASALIDAPEPS`, `SALDOS*` | BLOCKED_BUSINESS | P0 | Algoritmo, autorización, rollback e idempotencia pendientes | Descargos / motor controlado |
 | LEGACY-030 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo dirigido | Generar descargo dirigido | SQL_METADATA | No identificado | No | No | `DESCDIRIGIDA`, `SALDOSDIRIGIDOS`, `DIRIGIDO` | BLOCKED_BUSINESS | P1 | Regla dirigida y separación de funciones pendientes | Descargos / dirigidos |
-| LEGACY-031 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo bloqueado | Consultar o resolver operaciones bloqueadas | SQL_METADATA | No identificado | No | No | `bloqueado`, `DIRIGIDO` y procesos relacionados; semántica no cerrada | UNKNOWN | P1 | Falta definición funcional de bloqueado | Descargos / excepciones |
+| LEGACY-031 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo bloqueado | Consultar o resolver operaciones bloqueadas | SQL_METADATA, CODE, RUNTIME | `/reportes` — consulta read-only parcial del snapshot histórico persistente observado | `ReportListPage` | `GET /api/v1/reportes/operaciones-bloqueadas` | `dbo.DESCARGOSBLOQUEADOS`, `dbo.APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR`; `BLOQUEA_DOCUMENTO` como escritor observado | PARTIAL | P1 | Resolver, desbloquear, reprocesar y estado activo fuera de alcance | Descargos / excepciones |
 | LEGACY-032 | Descargos y trazabilidad | `NOT_CAPTURED` — Análisis de descarga | Analizar faltantes, trazo y resultado de descarga | SQL_METADATA, CODE, RUNTIME | `/reportes` — análisis read-only parcial de relaciones históricas | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | PARTIAL | P1 | Sólo relación importación → descarga → salida; faltantes, trazo, saldos fiscales y motor fuera de alcance | Descargos / análisis |
 | LEGACY-033 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por importación | Consultar historial de asignaciones por entrada | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/reportes` — superficie consolidada con filtro textual de importación y relaciones entrada → descarga → salida | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | IMPLEMENTED_REDESIGNED | P1 | No requiere pantalla separada; faltantes/trazo/saldos fiscales siguen fuera | Descargos / consultas |
 | LEGACY-034 | Descargos y trazabilidad | `NOT_CAPTURED` — Historial por exportación | Consultar historial de asignaciones por salida | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/reportes` — superficie consolidada con filtro textual de salida y relaciones salida → descarga → entrada | `ReportListPage` | `GET /api/v1/reportes/analisis-descargas` | `dbo.V_INFORMEDESCARGAS`, `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`; `DESCARGA` como grano físico | IMPLEMENTED_REDESIGNED | P1 | No requiere pantalla separada; faltantes/trazo/saldos fiscales siguen fuera | Descargos / consultas |
@@ -148,13 +148,13 @@ versionada.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
-| Descargos y trazabilidad | 7 | 0 | 3 | 1 | 0 | 2 | 0 | 1 |
+| Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
 | Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **22** | **12** | **8** | **5** | **6** | **21** |
+| **Total** | **79** | **5** | **22** | **13** | **8** | **5** | **6** | **20** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -179,11 +179,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 22`
-- `PARTIAL = 12`
+- `PARTIAL = 13`
 - `MISSING = 8`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 21`
+- `UNKNOWN = 20`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -191,7 +191,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 25 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 20 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.

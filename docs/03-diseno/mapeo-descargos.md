@@ -332,6 +332,86 @@ Permiso: `REPORTES_GENERAR`.
 UI: opción `Análisis de descargas` dentro de `/reportes`, sin sidebar nuevo.
 XLSX: `NOT_IMPLEMENTED`.
 
+## Operaciones bloqueadas V1
+
+La auditoría separa explícitamente la consulta de un bloqueo de la acción de
+resolverlo. `dbo.BLOQUEA_DOCUMENTO` actualiza `PSALIDAS.bloqueado` y crea un
+snapshot en `dbo.DESCARGOSBLOQUEADOS`; no se ejecutó ese procedimiento. La tabla
+snapshot tiene una fila por asignación histórica bloqueada generada por el
+proceso, una PK real `DESCARGOSBLOQUEADOSKEY` y campos de exportación,
+importación, producto, material, cantidades, fechas y folio. No existe un objeto
+independiente llamado `BLOQUEADO`: es la columna `PSALIDAS.bloqueado` y el
+snapshot `DESCARGOSBLOQUEADOS` es el resultado persistido del proceso. La
+relación con `DESCARGA` se demuestra por la definición de `BLOQUEA_DOCUMENTO`,
+pero el snapshot no conserva `DESCARGAKEY` ni una FK directa.
+
+#### Gate de retención y orden
+
+El inventario LIVE de `sys.sql_modules` y `sys.sql_expression_dependencies` cubre
+`BLOQUEA_DOCUMENTO`, `APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR` y la referencia de
+`NUEVOFOLIOB`. `BLOQUEA_DOCUMENTO` es el único escritor observado: inserta filas
+en el snapshot y actualiza `PSALIDAS.bloqueado`. El procedimiento read-only nuevo
+y `NUEVOFOLIOB` son lectores; no se observaron referencias a `DELETE`, `TRUNCATE`
+o `MERGE` sobre `DESCARGOSBLOQUEADOS`.
+
+```text
+DESCARGOSBLOQUEADOS_WRITERS = [dbo.BLOQUEA_DOCUMENTO (INSERT)]
+DESCARGOSBLOQUEADOS_DELETERS = []
+DESCARGOSBLOQUEADOS_TRUNCATORS = []
+DESCARGOSBLOQUEADOS_READERS = [dbo.APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR, dbo.NUEVOFOLIOB]
+BLOCKED_SNAPSHOT_RETENTION = PERSISTENT_HISTORY
+BLOCKED_STABLE_ORDERING = PASS
+PK = DESCARGOSBLOQUEADOSKEY (PRIMARY KEY, NOT NULL, UNIQUE)
+```
+
+La clasificación `PERSISTENT_HISTORY` significa que el modelo y las referencias
+LIVE observadas no incluyen una rutina de limpieza del snapshot; no constituye una
+garantía de retención indefinida fuera de esos objetos.
+
+```text
+BLOCKED_READ_CONTRACT = PARTIAL
+BLOCKED_READ_V1 = IMPLEMENTED_SNAPSHOT_SUBSET
+BLOCKED_SOURCE = dbo.DESCARGOSBLOQUEADOS
+BLOCKED_SOURCE_ROWS = 0
+NULL_KEY_ROWS = 0
+DUPLICATE_KEY_GROUPS = 0
+BLOCKED_DIRECTED_RELATION = NONE
+BLOCKED_DESCARGA_RELATION = DERIVED_SNAPSHOT_NO_DIRECT_FK
+ACTIVE_PSALIDAS_BLOCKED_ROWS = 0
+ACTIVE_BLOCKED_STATE = NOT_DEMONSTRATED_IN_CURRENT_DATASET
+```
+
+`PSALIDAS.bloqueado` fue `NULL` en 3,392/3,392 filas; por ello la V1 no afirma
+que existan operaciones actualmente bloqueadas. El snapshot actual está vacío,
+pero su grano y sus campos están demostrados. La consulta usa filtros textuales
+sólo sobre documentos, claves, producto, material y folio, paginación 1-based de
+máximo 100 y orden `FECHA_BLOQUEO DESC, DESCARGOSBLOQUEADOSKEY DESC`.
+
+- SP: `dbo.APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR`.
+- API: `GET /api/v1/reportes/operaciones-bloqueadas`.
+- UI: opción `Operaciones bloqueadas` dentro de `/reportes`, sin sidebar nuevo.
+- Empty state: `No hay operaciones bloqueadas para los filtros seleccionados.`
+- No existen comandos `resolver`, `desbloquear`, `reprocesar` ni `generar`.
+- `DESCDIRIGIDA` es WRITE/MIXED por delegar en `SALDOSDIRIGIDOS`; ambos quedan
+  fuera de la consulta y no fueron ejecutados.
+
+Reconciliación LIVE del SP, sin imprimir filas:
+
+```text
+source total = 0
+SP total = 0
+synthetic empty filter = total 0, rows 0
+extreme page = total 0, rows 0
+STRUCTURAL_MATCH = PASS
+stable ordering = PASS
+mutable SP executed = 0
+CALE_IMMEX business writes = 0
+inline Java SQL = 0
+```
+
+`LEGACY-031` pasa de `UNKNOWN` a `PARTIAL` sólo por este subconjunto de
+consulta histórica; resolver o desbloquear permanece fuera de alcance.
+
 ### 9.1 Clasificación de columnas de `V_INFORMEDESCARGAS`
 
 La metadata LIVE registró tipo, longitud y nullable para las 42 columnas. La

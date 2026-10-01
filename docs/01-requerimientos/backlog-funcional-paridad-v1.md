@@ -276,10 +276,11 @@ El dashboard actual tiene accesos por permiso, avisos, estado visual, total
   auxiliares pendientes de fuente canónica y contrato.
 - `LEGACY-019`: carga de exportaciones separada de consulta.
 - `LEGACY-023` a `LEGACY-028`: operaciones especiales.
-- `LEGACY-030` y `LEGACY-031`: generación dirigida y operaciones bloqueadas
-  pendientes; el subconjunto analítico read-only de `LEGACY-032` está implementado
-  como PARTIAL y `LEGACY-033`/`LEGACY-034` están cubiertos como
-  `IMPLEMENTED_REDESIGNED` por la superficie consolidada.
+- `LEGACY-030`: generación dirigida pendiente; `LEGACY-031` tiene una consulta
+  read-only parcial del snapshot histórico persistente observado, sin resolver ni desbloquear. El
+  subconjunto analítico read-only de `LEGACY-032` está implementado como PARTIAL
+  y `LEGACY-033`/`LEGACY-034` están cubiertos como `IMPLEMENTED_REDESIGNED` por
+  la superficie consolidada.
 - `LEGACY-041`, `LEGACY-046`, `LEGACY-049`, `LEGACY-051`: cumplimiento y reportes
   operativos especializados.
 - `LEGACY-060`, `LEGACY-064`, `LEGACY-065`, `LEGACY-069` a `LEGACY-073`:
