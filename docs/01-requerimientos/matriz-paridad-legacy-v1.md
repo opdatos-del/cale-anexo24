@@ -112,7 +112,7 @@ versionada.
 | LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | UNKNOWN | P2 | Semántica y fuente canónica pendientes | Reportes / cumplimiento |
 | LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA | No identificado | No | No | `DIRIGIDO`, `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` | UNKNOWN | P1 | Flujo especializado pendiente | Reportes / cumplimiento |
 | LEGACY-050 | Reportes y consolidados | `NOT_CAPTURED` — Permisos | Reportar permisos o actividades | CODE | Administración de perfiles y actividades | `/perfiles` | `/api/v1/administracion/perfiles` y `/actividades` | `app24.PerfilApp`, `Actividad`, `PerfilActividad` | CONSOLIDATE | P1 | No se justificó reporte separado | Administración |
-| LEGACY-051 | Reportes y consolidados | `NOT_CAPTURED` — Rectificaciones | Consultar o reportar rectificaciones | SQL_METADATA | No identificado | No | No | Referencias `INSERTAPEDIMENTO`/campos rectificados | UNKNOWN | P2 | Falta alcance funcional | Reportes / cumplimiento |
+| LEGACY-051 | Reportes y consolidados | `NOT_CAPTURED` — Rectificaciones | Consultar o reportar rectificaciones | SQL_METADATA, CODE, RUNTIME | `/reportes` — resumen read-only de rectificaciones | `ReportListPage` | `GET /api/v1/reportes/rectificaciones` | `dbo.v_total_rectificaciones`, `dbo.APP24_Q_RECTIFICACIONES_LISTAR`; `dbo.v_rectificaciones` auditada y vacía | PARTIAL | P2 | Sólo resumen agregado; detalle y procesamiento fuera de alcance | Reportes / cumplimiento |
 | LEGACY-052 | Reportes y consolidados | `NOT_CAPTURED` — Activo fijo | Reportar activos fijos | AUDIT_UI, CODE | Consulta de operaciones de activo fijo y reportes comunes | `/operaciones/activos-fijos`, `/reportes` | Operaciones/reportes; sin reporte especializado | `APP24_Q_ACTIVOS_FIJOS_LISTAR` | CONSOLIDATE | P1 | No se modela activo individual | Operaciones / reportes |
 | LEGACY-053 | Reportes y consolidados | `NOT_CAPTURED` — Exportación de resultados | Descargar resultados en XLSX | AUDIT_UI, CODE, RUNTIME | Exportación común de Reportes V1 | `/reportes` | Cuatro endpoints `*/exportacion` | `ExportadorXlsxReportes`; consultas read-only | IMPLEMENTED_REDESIGNED | P1 | No se replican formatos legacy no comprobados | Reportes / exportación |
 | LEGACY-054 | Interfaces/importación | `NOT_CAPTURED` — Materiales | Importar materiales desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/materiales`, errores | `app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.MATERIAL` y `FactoresMP` no implementada | Importaciones / catálogos / staging seguro |
@@ -149,12 +149,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
-| Reportes y consolidados | 18 | 0 | 5 | 1 | 0 | 2 | 5 | 5 |
+| Reportes y consolidados | 18 | 0 | 5 | 2 | 0 | 2 | 5 | 4 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **20** | **9** | **9** | **5** | **6** | **25** |
+| **Total** | **79** | **5** | **20** | **11** | **8** | **5** | **6** | **24** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -179,11 +179,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 20`
-- `PARTIAL = 9`
-- `MISSING = 9`
+- `PARTIAL = 11`
+- `MISSING = 8`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 25`
+- `UNKNOWN = 24`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.

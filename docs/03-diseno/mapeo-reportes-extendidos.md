@@ -12,7 +12,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 | Compulsa | `v_compulsa_gen` (8 columnas, 662 filas) y `v_compulsa` (33 columnas, 3394 filas) comparan glosa contra Anexo 24 | PARTIAL | Implementar sólo consulta resumen paginada desde `v_compulsa_gen`; detalle y generación quedan pendientes |
 | Scrap / desperdicios | `vDESPERDICIOS` y `VReporteAplicaciondesperdicios`; esquema demostrado, 0 filas actuales | PARTIAL | No implementar hasta cerrar diferencia entre desperdicio, aplicado y detalle |
 | Dirigidos | Tablas y procedimientos de descarga dirigida; predominan objetos mutables | UNKNOWN | No ejecutar ni exponer como reporte |
-| Rectificaciones | `v_rectificaciones` tiene detalle explícito pero 0 filas; `v_total_rectificaciones` tiene 662 agregados | PARTIAL | No mezclar agregado y detalle sin regla funcional |
+| Rectificaciones | `v_rectificaciones` tiene detalle explícito pero 0 filas; `v_total_rectificaciones` tiene 662 agregados | PARTIAL | Implementar resumen read-only paginado desde `v_total_rectificaciones`; detalle y procesamiento quedan fuera de V1 |
 | Activo fijo especializado | Consulta operativa `APP24_Q_ACTIVOS_FIJOS_LISTAR` ya implementada | CONSOLIDATE | No duplicar dentro de Reportes |
 | Consolidado materiales | Sin contrato independiente confirmado | UNKNOWN | No implementar |
 | Consolidado productos | Sin contrato independiente confirmado | UNKNOWN | No implementar |
@@ -64,6 +64,40 @@ Columnas del resumen: pedimento, fecha, clave y fracción, cada una en versión 
 - `COMPULSA_EMPTY_FILTER = PASS`.
 - `COMPULSA_STABLE_ORDERING = PASS`: el `ORDER BY` usa las ocho columnas proyectadas; no se inventa una PK ausente en la vista.
 - Definición versionada vs `sys.sql_modules`: `STRUCTURAL_MATCH = PASS`, normalizando encabezado, whitespace y literales para evitar diferencias de codificación de `sqlcmd`.
+
+## Rectificaciones V1
+
+El resumen implementado usa `dbo.v_total_rectificaciones`, que proyecta una fila
+por `pedimento` distinto de `dbo.v_operaciones` y calcula `Total` como el número
+de pedimentos distintos cuyo `pedimentooriginal` coincide con ese pedimento. En
+LIVE se observaron 662 filas, todas con `Total = 0`; esto describe el dataset
+actual y no cambia el contrato de consulta.
+
+- SP versionado: `dbo.APP24_Q_RECTIFICACIONES_LISTAR`.
+- API: `GET /api/v1/reportes/rectificaciones`.
+- Permiso: `REPORTES_GENERAR`.
+- Filtro: sólo `pedimento`, por ser la única columna con significado confirmado para búsqueda.
+- Paginación: página 1-based, tamaño máximo 100; `@Total` se calcula después del filtro y antes de `OFFSET/FETCH`.
+- Orden: `pedimento`, con `NULL` primero; la vista proyecta únicamente esa columna como identidad lógica y no se inventa una PK.
+- UI: opción `Rectificaciones` dentro de `/reportes`; sin nueva entrada lateral.
+- XLSX: `NOT_IMPLEMENTED` en esta V1.
+- Detalle: `dbo.v_rectificaciones` auditada, pero `0` filas en LIVE; no se expone como detalle.
+- Procesamiento: no se ejecutan `INSERTAPEDIMENTO`, `CARGAPEDIMENTOS` ni otros procedimientos mutables.
+
+## Reconciliación de Rectificaciones
+
+- `dbo.v_rectificaciones`: `0` filas; dataset de detalle con pedimento rectificado,
+  clave, descarga, pedimento original, existencia, clave/descarga original y
+  estatus calculado.
+- `dbo.v_total_rectificaciones`: `662` filas; dataset agregado por pedimento,
+  con `Total` de relaciones encontradas.
+- `RECTIFICATION_VIEW_RELATION = PARTIAL`: ambas vistas dependen de
+  `dbo.v_operaciones`, pero una es detalle condicionado a pedimentos originales y
+  la otra es un agregado por pedimento; no se afirma una correspondencia 1:1.
+- Fuentes: `dbo.v_operaciones` es una vista read-only sobre `Importaciones`,
+  `partidas`, `psalidas` y `salidas`. Las tablas de operación no se modifican.
+- `RECTIFICATIONS_SUMMARY_CONTRACT = CONFIRMED`.
+- `RECTIFICATIONS_DETAIL_CONTRACT = NOT_IMPLEMENTED / DATASET_EMPTY`.
 
 ## Controles
 

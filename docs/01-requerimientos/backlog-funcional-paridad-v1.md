@@ -171,8 +171,10 @@ estable basada en las columnas proyectadas de `v_compulsa_gen`. `READ SUMMARY V1
 
 **Pendiente:** detalle de `v_compulsa`, generación/reconciliación legacy, XLSX
 específico, concentrados de materiales/productos/estructuras, vencimientos,
-scrap, dirigidos, CTM/F4/HDE, rectificaciones y otros informes sólo cuando
-exista una proyección aprobada. El detalle y generación de Compulsa son
+scrap, dirigidos, CTM/F4/HDE, detalle/procesamiento de rectificaciones y otros
+informes sólo cuando exista una proyección aprobada. El resumen read-only de
+rectificaciones está implementado en `GET /api/v1/reportes/rectificaciones`; el
+detalle permanece sin datos en el snapshot actual y no forma parte de V1. El detalle y generación de Compulsa son
 `PENDING CONTRACT / OUT OF V1`. CTM/F4/HDE permanece `UNKNOWN`, no
 `BLOCKED_BUSINESS`, hasta contar con decisión de negocio explícita. No se debe copiar el número de columnas
 legacy por defecto.
