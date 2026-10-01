@@ -9,15 +9,18 @@ import com.jovycandy.anexo24.operations.usedmaterials.api.dto.MaterialUtilizadoD
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.api.dto.AnalisisDescargaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.CompulsaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
+import com.jovycandy.anexo24.reports.extended.domain.model.OperacionBloqueada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Compulsa;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
@@ -52,6 +55,7 @@ public class ReportesController {
     private final ConsultarReportesUseCase consultarReportesUseCase;
     private final ExportadorXlsxReportes exportadorXlsxReportes;
     private final ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase;
+    private final ListarOperacionesBloqueadasUseCase listarOperacionesBloqueadasUseCase;
     private final ListarCompulsaUseCase listarCompulsaUseCase;
     private final ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase;
     private final ListarRectificacionesUseCase listarRectificacionesUseCase;
@@ -60,6 +64,7 @@ public class ReportesController {
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
             ExportadorXlsxReportes exportadorXlsxReportes,
             ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase,
+            ListarOperacionesBloqueadasUseCase listarOperacionesBloqueadasUseCase,
             ListarCompulsaUseCase listarCompulsaUseCase,
             ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase,
             ListarRectificacionesUseCase listarRectificacionesUseCase,
@@ -67,6 +72,7 @@ public class ReportesController {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
         this.listarAnalisisDescargasUseCase = listarAnalisisDescargasUseCase;
+        this.listarOperacionesBloqueadasUseCase = listarOperacionesBloqueadasUseCase;
         this.listarCompulsaUseCase = listarCompulsaUseCase;
         this.listarOperacionesDirigidasUseCase = listarOperacionesDirigidasUseCase;
         this.listarRectificacionesUseCase = listarRectificacionesUseCase;
@@ -131,6 +137,17 @@ public class ReportesController {
             @RequestParam(defaultValue = "20") int tamano) {
         Pagina<AnalisisDescarga> resultado = listarAnalisisDescargasUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(AnalisisDescargaDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/operaciones-bloqueadas")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<OperacionBloqueadaDto>> operacionesBloqueadas(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<OperacionBloqueada> resultado = listarOperacionesBloqueadasUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(OperacionBloqueadaDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 

@@ -1,0 +1,115 @@
+USE CALE_IMMEX;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR
+    @Filtro VARCHAR(60) = NULL,
+    @Pagina INT = 1,
+    @Tamano INT = 20,
+    @Total BIGINT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @Pagina IS NULL OR @Pagina < 1
+       OR @Tamano IS NULL OR @Tamano < 1 OR @Tamano > 100
+    BEGIN
+        THROW 50042, 'Parámetros de paginación inválidos.', 1;
+    END;
+
+    SET @Filtro = NULLIF(LTRIM(RTRIM(@Filtro)), '');
+
+    DECLARE @Desplazamiento BIGINT = (CAST(@Pagina AS BIGINT) - 1) * CAST(@Tamano AS BIGINT);
+
+    ;WITH Base AS (
+        SELECT
+            b.DESCARGOSBLOQUEADOSKEY AS BLOQUEO_ID,
+            b.[PEDIMENTO EXPORTACION] AS PEDIMENTO_EXPORTACION,
+            b.[CLAVE EXPORTACION] AS CLAVE_EXPORTACION,
+            b.[FECHA EXPORTACION] AS FECHA_EXPORTACION,
+            b.[CODIGO PRODUCTO] AS PRODUCTO,
+            b.[CANTIDAD PRODUCTO] AS CANTIDAD_PRODUCTO,
+            b.[FRACCION PRODUCTO] AS FRACCION_PRODUCTO,
+            b.PSALIDAKEY AS PSALIDA_KEY,
+            b.[PEDIMENTO IMPORTACION] AS PEDIMENTO_IMPORTACION,
+            b.[CLAVE IMPORTACION] AS CLAVE_IMPORTACION,
+            b.[FECHA IMPORTACION] AS FECHA_IMPORTACION,
+            b.[CODIGO MATERIAL] AS MATERIAL,
+            b.[CANTIDAD MATERIAL] AS CANTIDAD_MATERIAL,
+            b.[FRACCION MATERIAL] AS FRACCION_MATERIAL,
+            b.PARTIDAKEY AS PARTIDA_KEY,
+            b.INCORPORADO AS INCORPORADO,
+            b.DESPERDICIO AS DESPERDICIO,
+            b.MERMA AS MERMA,
+            b.FECHA AS FECHA_BLOQUEO,
+            b.FOLIO AS FOLIO
+        FROM dbo.DESCARGOSBLOQUEADOS AS b
+        WHERE @Filtro IS NULL
+           OR b.[PEDIMENTO EXPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CLAVE EXPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CODIGO PRODUCTO] LIKE '%' + @Filtro + '%'
+           OR b.[PEDIMENTO IMPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CLAVE IMPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CODIGO MATERIAL] LIKE '%' + @Filtro + '%'
+           OR CONVERT(VARCHAR(20), b.FOLIO) LIKE '%' + @Filtro + '%'
+    )
+    SELECT @Total = COUNT_BIG(*)
+    FROM Base;
+
+    ;WITH Base AS (
+        SELECT
+            b.DESCARGOSBLOQUEADOSKEY AS BLOQUEO_ID,
+            b.[PEDIMENTO EXPORTACION] AS PEDIMENTO_EXPORTACION,
+            b.[CLAVE EXPORTACION] AS CLAVE_EXPORTACION,
+            b.[FECHA EXPORTACION] AS FECHA_EXPORTACION,
+            b.[CODIGO PRODUCTO] AS PRODUCTO,
+            b.[CANTIDAD PRODUCTO] AS CANTIDAD_PRODUCTO,
+            b.[FRACCION PRODUCTO] AS FRACCION_PRODUCTO,
+            b.PSALIDAKEY AS PSALIDA_KEY,
+            b.[PEDIMENTO IMPORTACION] AS PEDIMENTO_IMPORTACION,
+            b.[CLAVE IMPORTACION] AS CLAVE_IMPORTACION,
+            b.[FECHA IMPORTACION] AS FECHA_IMPORTACION,
+            b.[CODIGO MATERIAL] AS MATERIAL,
+            b.[CANTIDAD MATERIAL] AS CANTIDAD_MATERIAL,
+            b.[FRACCION MATERIAL] AS FRACCION_MATERIAL,
+            b.PARTIDAKEY AS PARTIDA_KEY,
+            b.INCORPORADO AS INCORPORADO,
+            b.DESPERDICIO AS DESPERDICIO,
+            b.MERMA AS MERMA,
+            b.FECHA AS FECHA_BLOQUEO,
+            b.FOLIO AS FOLIO
+        FROM dbo.DESCARGOSBLOQUEADOS AS b
+        WHERE @Filtro IS NULL
+           OR b.[PEDIMENTO EXPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CLAVE EXPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CODIGO PRODUCTO] LIKE '%' + @Filtro + '%'
+           OR b.[PEDIMENTO IMPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CLAVE IMPORTACION] LIKE '%' + @Filtro + '%'
+           OR b.[CODIGO MATERIAL] LIKE '%' + @Filtro + '%'
+           OR CONVERT(VARCHAR(20), b.FOLIO) LIKE '%' + @Filtro + '%'
+    )
+    SELECT
+        BLOQUEO_ID,
+        PEDIMENTO_EXPORTACION,
+        CLAVE_EXPORTACION,
+        FECHA_EXPORTACION,
+        PRODUCTO,
+        CANTIDAD_PRODUCTO,
+        FRACCION_PRODUCTO,
+        PSALIDA_KEY,
+        PEDIMENTO_IMPORTACION,
+        CLAVE_IMPORTACION,
+        FECHA_IMPORTACION,
+        MATERIAL,
+        CANTIDAD_MATERIAL,
+        FRACCION_MATERIAL,
+        PARTIDA_KEY,
+        INCORPORADO,
+        DESPERDICIO,
+        MERMA,
+        FECHA_BLOQUEO,
+        FOLIO
+    FROM Base
+    ORDER BY FECHA_BLOQUEO DESC, BLOQUEO_ID DESC
+    OFFSET @Desplazamiento ROWS FETCH NEXT @Tamano ROWS ONLY;
+END;
+GO

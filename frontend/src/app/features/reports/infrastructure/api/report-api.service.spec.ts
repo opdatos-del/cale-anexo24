@@ -82,6 +82,14 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('consulta operaciones bloqueadas sin periodo y con filtro textual', () => {
+    service.search({ ...criteria, type: 'operaciones-bloqueadas', filter: ' 26 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/operaciones-bloqueadas');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('26');
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
   it('convierte el periodo completo de bitácora a instantes ISO', () => {
     service.search({ ...criteria, type: 'bitacora', module: 'SEGURIDAD', result: 'EXITO' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/bitacora');

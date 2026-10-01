@@ -4,6 +4,7 @@ import com.jovycandy.anexo24.Anexo24Application;
 import com.jovycandy.anexo24.operations.entries.api.dto.EntradaLineaDto;
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
@@ -52,6 +53,9 @@ class ReportesControllerTest {
     private ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase;
 
     @MockitoBean
+    private ListarOperacionesBloqueadasUseCase listarOperacionesBloqueadasUseCase;
+
+    @MockitoBean
     private ListarCompulsaUseCase listarCompulsaUseCase;
 
     @MockitoBean
@@ -82,6 +86,31 @@ class ReportesControllerTest {
                 .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/analisis-descargas")
                         .param("filtro", "190-1562")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void listarOperacionesBloqueadasSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/operaciones-bloqueadas"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listarOperacionesBloqueadasExigePermisoDeReportes() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/operaciones-bloqueadas")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listarOperacionesBloqueadasRespondePaginaConPermiso() throws Exception {
+        when(listarOperacionesBloqueadasUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/operaciones-bloqueadas")
+                        .param("filtro", "26")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
