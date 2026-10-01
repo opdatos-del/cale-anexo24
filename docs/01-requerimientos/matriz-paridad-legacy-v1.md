@@ -77,10 +77,10 @@ versionada.
 | LEGACY-013 | Catálogos y maestros | `NOT_CAPTURED` — Activo fijo | Consultar partidas marcadas como activo fijo | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | La granularidad nueva es partida, no activo individual | Operaciones / activo fijo |
 | LEGACY-014 | Catálogos y maestros | `NOT_CAPTURED` — Consultas guardadas | Guardar y reutilizar consultas o filtros | AUDIT_UI | No identificado | No | No | UNKNOWN | UNKNOWN | P3 | No existe contrato versionado | Catálogos auxiliares / consultas |
 | LEGACY-015 | Operación aduanera/inventario | `NOT_CAPTURED` — Entradas / Importaciones | Consultar entradas e importaciones por rango y filtros | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/entradas` | `EntryListPage` | `GET /api/v1/operaciones/entradas` | `dbo.APP24_Q_ENTRADAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Operaciones / entradas |
-| LEGACY-016 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de pedimentos | Cargar pedimentos desde staging | SQL_METADATA, CODE, RUNTIME | `/operaciones/pedimentos` — staging y preview V1 | `PedimentUploadPage` | `POST/GET /api/v1/operaciones/pedimentos/cargas` | `app24.APP24_C_PEDIMENTO_CARGA_CREAR`, `APP24_Q_PEDIMENTO_CARGA_POR_HASH`, `APP24_Q_PEDIMENTO_CARGA_OBTENER`, `APP24_Q_PEDIMENTO_CARGA_ERRORES` | PARTIAL | P0 | Confirmación hacia `IMPORTACIONES`/`PARTIDAS` y pipeline legacy fuera de alcance | Importaciones / staging seguro |
-| LEGACY-017 | Operación aduanera/inventario | `NOT_CAPTURED` — Validación de pedimentos | Validar pedimentos antes de procesar | SQL_METADATA, CODE | `/operaciones/pedimentos` — validación batch read-only durante staging | `PedimentoUploadPage` | `POST /api/v1/operaciones/pedimentos/cargas` | `APP24_Q_PEDIMENTO_VALIDAR_REGLAS`, `VALIDAPEDIMENTO`, `VALIDA_I_DETALLENP` | PARTIAL | P0 | PED-001..004 confirmadas; inventario, duplicado operativo y confirmación completa pendientes | Importaciones |
+| LEGACY-016 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de pedimentos | Cargar pedimentos desde staging | SQL_METADATA, CODE, RUNTIME | `/operaciones/pedimentos` — staging, preview y confirmación | `PedimentUploadPage` | `POST/GET /api/v1/operaciones/pedimentos/cargas`, `POST .../cargas/{id}/confirmacion` | `app24.APP24_C_PEDIMENTO_CARGA_CREAR`, `APP24_Q_PEDIMENTO_CARGA_POR_HASH`, `APP24_Q_PEDIMENTO_CARGA_OBTENER`, `APP24_Q_PEDIMENTO_CARGA_ERRORES`, `dbo.APP24_C_PEDIMENTO_CONFIRMAR` | IMPLEMENTED_REDESIGNED | P0 | Rediseñado con staging aislado propio; no replica el staging global legacy `CargaPedimentosIE` | Importaciones / staging seguro |
+| LEGACY-017 | Operación aduanera/inventario | `NOT_CAPTURED` — Validación de pedimentos | Validar pedimentos antes de procesar | SQL_METADATA, CODE | `/operaciones/pedimentos` — validación batch read-only durante staging | `PedimentUploadPage` | `POST /api/v1/operaciones/pedimentos/cargas` | `APP24_Q_PEDIMENTO_VALIDAR_REGLAS`, `VALIDAPEDIMENTO`, `VALIDA_I_DETALLENP` | PARTIAL | P0 | PED-001..004 y PED-007 confirmadas; PED-005/PED-006 siguen sin contrato implementable porque `INVENTARIO` no existe LIVE | Importaciones |
 | LEGACY-018 | Operación aduanera/inventario | `NOT_CAPTURED` — Salidas / Exportaciones | Consultar salidas y líneas por rango y filtros | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/salidas` | `ExitListPage` | `GET /api/v1/operaciones/salidas` | `dbo.APP24_Q_SALIDAS_LISTAR` | IMPLEMENTED_EQUIVALENT | P0 | Ninguno interno identificado | Operaciones / salidas |
-| LEGACY-019 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de exportaciones | Cargar o procesar operaciones de salida | SQL_METADATA, CODE | `/operaciones/pedimentos` — mismo staging y preview para `TipoOperacion = 2` | `PedimentUploadPage` | `POST/GET /api/v1/operaciones/pedimentos/cargas` | `CargaPedimento`, `CargaPedimentoFila`, `ErrorCargaPedimento`; `CARGAPEDIMENTOS` como evidencia legacy | PARTIAL | P1 | Confirmación mutable hacia `SALIDAS`/`PSALIDAS` y contrato operativo completo fuera de alcance | Importaciones y operaciones |
+| LEGACY-019 | Operación aduanera/inventario | `NOT_CAPTURED` — Carga de exportaciones | Cargar o procesar operaciones de salida | SQL_METADATA, CODE | `/operaciones/pedimentos` — mismo staging, preview y confirmación para `TipoOperacion = 2` | `PedimentUploadPage` | `POST/GET /api/v1/operaciones/pedimentos/cargas`, `POST .../cargas/{id}/confirmacion` | `CargaPedimento`, `CargaPedimentoFila`, `ErrorCargaPedimento`; `dbo.APP24_C_PEDIMENTO_CONFIRMAR` (`SALIDAS`/`PSALIDAS`/`DIRIGIDO` condicional) | IMPLEMENTED_REDESIGNED | P1 | No ejecuta descargos, PEPS ni saldos; sólo persistencia autoritativa de la operación | Importaciones y operaciones |
 | LEGACY-020 | Operación aduanera/inventario | `NOT_CAPTURED` — Materiales utilizados | Consultar asignaciones históricas entrada → salida → material | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/materiales-utilizados` | `UsedMaterialListPage` | `GET /api/v1/operaciones/materiales-utilizados` | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | IMPLEMENTED_REDESIGNED | P0 | No ejecuta descargos ni recalcula saldos | Operaciones / trazabilidad |
 | LEGACY-021 | Operación aduanera/inventario | `NOT_CAPTURED` — Saldos | Consultar saldo con semántica fiscal y corte definidos | AUDIT_UI, SQL_METADATA | Reporte `Saldos` deshabilitado; sin contrato | Parcial sólo como opción no disponible | No hay endpoint de saldo aprobado | `PR_INFORME_SALDOS`, `v_saldos`, `v_saldosdesp` como candidatos | BLOCKED_BUSINESS | P0 | Fórmula, fuentes, granularidad y corte pendientes | Operaciones / saldos |
 | LEGACY-022 | Operación aduanera/inventario | `NOT_CAPTURED` — Activo fijo | Consultar activos derivados de entradas | AUDIT_UI, SQL_METADATA, CODE | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | No representa alta/baja/retorno de activo individual | Operaciones / activo fijo |
@@ -118,7 +118,7 @@ versionada.
 | LEGACY-054 | Interfaces/importación | `NOT_CAPTURED` — Materiales | Importar materiales desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/materiales`, errores | `app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.MATERIAL` y `FactoresMP` no implementada | Importaciones / catálogos / staging seguro |
 | LEGACY-055 | Interfaces/importación | `NOT_CAPTURED` — Productos | Importar productos desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/productos`, errores | `app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.PRODUCTOS` no implementada | Importaciones / catálogos / staging seguro |
 | LEGACY-056 | Interfaces/importación | `NOT_CAPTURED` — Clientes/proveedores | Importar o actualizar clientes y proveedores | SQL_METADATA | No identificado | No | No | `CARGA_FACTURAS` y catálogos legacy | MISSING | P1 | Efectos compartidos e idempotencia pendientes | Importaciones / catálogos |
-| LEGACY-057 | Interfaces/importación | `NOT_CAPTURED` — Pedimentos | Importar pedimentos | AUDIT_UI, SQL_METADATA | No identificado | No | No | `CARGAPEDIMENTOS`, `CARGAPEDIMENTOSIE`, `ERRORCARGA` | MISSING | P0 | Flujo autoritativo y rollback pendientes | Importaciones / pedimentos |
+| LEGACY-057 | Interfaces/importación | `NOT_CAPTURED` — Pedimentos | Importar pedimentos | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/pedimentos` — confirmación autoritativa | `PedimentUploadPage` | `POST .../cargas/{id}/confirmacion` | `dbo.APP24_C_PEDIMENTO_CONFIRMAR`; legacy `CARGAPEDIMENTOS`/`CargaPedimentosIE`/`ERRORCARGA` no reutilizados | IMPLEMENTED_REDESIGNED | P0 | No ejecuta descargos ni motor fiscal posterior; importación autoritativa cubierta en V1 | Importaciones / pedimentos |
 | LEGACY-058 | Interfaces/importación | `NOT_CAPTURED` — Facturación | Cargar archivo, validar, previsualizar y confirmar efectos operativos | AUDIT_UI, EXCEL, SQL_METADATA, CODE | `/facturacion` cubre carga, validación, preview, errores, hash y staging durable | `BillingUploadPage` | `POST /api/v1/facturacion/cargas`, `GET /cargas/{id}`, plantilla | `app24.CargaFacturacion`, `ErrorCarga`; confirmación legacy no integrada | PARTIAL | P0 | Pipeline autoritativo y side effects pendientes de negocio | Facturación / confirmación |
 | LEGACY-059 | Interfaces/importación | `NOT_CAPTURED` — Servicios | Importar servicios | SQL_METADATA | No identificado | No | No | Fuente exacta no localizada en contrato versionado | UNKNOWN | P2 | Evidencia insuficiente | Importaciones / servicios |
 | LEGACY-060 | Interfaces/importación | `NOT_CAPTURED` — Actas de destrucción | Importar actas de destrucción | SQL_METADATA | No identificado | No | No | `CARGAACTAS` | MISSING | P1 | Layout y reglas pendientes | Importaciones / especiales |
@@ -147,14 +147,14 @@ versionada.
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Catálogos y maestros | 14 | 3 | 8 | 1 | 0 | 0 | 0 | 2 |
-| Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
+| Operación aduanera/inventario | 14 | 2 | 4 | 1 | 4 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
 | Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
-| Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
+| Interfaces/importación | 10 | 0 | 1 | 3 | 2 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **23** | **13** | **7** | **5** | **6** | **20** |
+| **Total** | **79** | **5** | **26** | **11** | **6** | **5** | **6** | **20** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -168,12 +168,23 @@ cubre la capacidad. `LEGACY-012` conserva `UNKNOWN`: la evidencia sólo muestra
 tablas y un procedimiento transaccional de transferencia, no un maestro de
 submaquiladores.
 
-`LEGACY-016` es `PARTIAL`: la carga segura, validación estructural, errores,
-preview, hash, RBAC y staging durable están implementados; la confirmación hacia
-`IMPORTACIONES`/`PARTIDAS` permanece fuera de alcance. `LEGACY-017` es
-`PARTIAL`: las reglas read-only PED-001..004 están implementadas durante staging;
-las reglas de inventario, duplicado operativo y confirmación autoritativa siguen
-pendientes.
+`LEGACY-016` es `IMPLEMENTED_REDESIGNED`: upload, parser, staging durable aislado,
+validación, errores, preview, hash, RBAC y confirmación autoritativa están
+implementados y probados. Es un rediseño, no una réplica del staging global legacy
+`CargaPedimentosIE`. `LEGACY-017` es `PARTIAL`: PED-001..004 y PED-007 están
+implementadas; PED-005 y PED-006 siguen sin contrato implementable porque dependen
+de `INVENTARIO`, ausente en LIVE.
+
+`LEGACY-019` es `IMPLEMENTED_REDESIGNED`: la rama `TipoOperacion = 2` cubre
+upload, validación y confirmación hacia `SALIDAS`/`PSALIDAS` (y `DIRIGIDO` sólo
+cuando el contrato legacy lo exige). `LEGACY-057` es `IMPLEMENTED_REDESIGNED`: la
+importación autoritativa `TipoOperacion = 1` hacia `IMPORTACIONES`/`PARTIDAS` está
+implementada con transacción atómica, idempotencia y locks compatibles con el
+motor legacy.
+
+Limitación explícita: la confirmación V1 **no** ejecuta descargos, PEPS, saldos ni
+el descargo dirigido generativo, aunque persista `DIRIGIDO` según el contrato de
+salida. Importar/exportar no equivale a ejecutar el motor fiscal de descargos.
 
 `LEGACY-054` y `LEGACY-055` son `PARTIAL`: materiales y productos cuentan con
 parser `.xls/.xlsx`, validación estructural, hash, errores, preview, RBAC y
@@ -184,9 +195,9 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 23`
-- `PARTIAL = 13`
-- `MISSING = 7`
+- `IMPLEMENTED_REDESIGNED = 26`
+- `PARTIAL = 11`
+- `MISSING = 6`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
 - `UNKNOWN = 20`

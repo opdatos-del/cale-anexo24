@@ -236,6 +236,56 @@ mapeo de errores SQL = 12 códigos controlados; endpoints = 1; permisos nuevos =
 diagrama de la transacción del command; matriz de errores SQL → HTTP; matriz
 401/403/200/404/409/422; captura de la futura UI de confirmación.
 
+---
+
+## Fase — Confirmación autoritativa: interfaz, despliegue controlado y paridad
+
+**Fecha / fase:** `feature/pediment-authoritative-confirmation-v1`, cierre V1.
+
+**Problema técnico abordado:** exponer la confirmación en la UI sin revelar la acción
+a quien no puede ejecutarla, y desplegar el DDL autorizado sin ejecutar el command
+sobre datos empresariales.
+
+**Método utilizado:** reutilización del `ConfirmService` existente (MatDialog) en vez
+de un diálogo paralelo; `canConfirm` derivado de permiso + estado + errores + filas
+inválidas; refresco del recurso por `GET` tras confirmar; despliegue LIVE del DDL
+versionado con verificación de definición repo↔LIVE normalizada.
+
+**Resultados:**
+
+- UI con botón `Confirmar` sólo con `PEDIMENTOS_CONFIRMAR` y carga previsualizada sin
+  errores; `CONFIRMADA` muestra estado terminal sin botón;
+- `ALREADY_CONFIRMED` tratado como éxito informativo (no error), con refresco;
+- errores 404/409/422 con mensajes funcionales, sin detalles SQL;
+- migraciones 11 y 12 aplicadas a `ANEXO24_DEV` (idempotentes, 0 asignaciones de perfil,
+  0 filas modificadas);
+- `dbo.APP24_C_PEDIMENTO_CONFIRMAR` desplegado en `CALE_IMMEX`;
+- `COMMAND_REPO_LIVE_MATCH = PASS` (15107 = 15107 caracteres normalizados);
+- `business command executions = 0` y `business writes = 0` durante el despliegue.
+
+**Pruebas / evidencias:**
+
+```text
+frontend: 113 tests PASS · lint PASS · build PASS · parent-relative imports = 0
+backend:  SQL IT 15 PASSED / 0 skipped / 0 failed · concurrencia 2 PASSED
+SP-FIRST: violations = 0
+paridad:  LEGACY-016/019/057 → IMPLEMENTED_REDESIGNED; LEGACY-017 sigue PARTIAL
+          total 79 = 5 equivalentes + 26 rediseñadas + 11 parciales + 6 faltantes
+                     + 5 bloqueadas + 6 consolidadas + 20 desconocidas
+```
+
+**Limitaciones:** el runtime sigue siendo `opdatos` (`TARGET_LEAST_PRIVILEGE_MIGRATION =
+PENDING`); la confirmación no ejecuta descargos/PEPS/saldos.
+
+**Artefactos producidos:** UI de confirmación (modelo, repositorio, API, casos de uso,
+página y tests), migrations aplicadas, command desplegado, matriz de paridad actualizada.
+
+### Anexos candidatos (cierre)
+
+captura de la UI de confirmación; matriz de errores SQL → HTTP; diagrama del pipeline
+final (staging → validación → confirmación autoritativa); resultado de la prueba de
+concurrencia `MAX+1`.
+
 ### CI en feature branches
 
 Se habilitó validación pre-integración para ramas `feature/**`

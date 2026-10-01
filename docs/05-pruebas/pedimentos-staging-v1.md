@@ -5,12 +5,16 @@
 La entrega implementa una superficie segura de:
 
 ```text
-archivo → hash → parser → validación → staging durable → errores → preview
+archivo → hash → parser V2 → validación → staging durable → errores → preview → confirmación autoritativa
 ```
 
-La confirmación operativa permanece bloqueada/no implementada. No se ejecutan
-procedimientos legacy mutables ni se escriben `CALE_IMMEX`,
-`CARGAPEDIMENTOSIE`, `ERRORCARGA`, `IMPORTACIONES`, `PARTIDAS` o inventario.
+La confirmación autoritativa está implementada (`POST /api/v1/operaciones/pedimentos/cargas/{id}/confirmacion`)
+con transacción atómica, idempotencia, locks compatibles con el motor legacy y
+permiso propio `PEDIMENTOS_CONFIRMAR`. No se ejecutan procedimientos legacy
+mutables ni se reutiliza el staging global `CARGAPEDIMENTOSIE`.
+
+Limitación: la confirmación V1 no ejecuta descargos, PEPS, saldos ni el descargo
+dirigido generativo; sólo persiste la operación autoritativa.
 
 Estados de decisión:
 
@@ -18,7 +22,8 @@ Estados de decisión:
 - `PEDIMENT_LAYOUT_CONTRACT = PARTIAL`;
 - `PEDIMENT_STAGING_V1 = PASS` después de compilar, probar y aplicar la
   migración de aplicación;
-- `PEDIMENT_CONFIRMATION = NOT_IMPLEMENTED`.
+- `PEDIMENT_STAGING_V2 = PASS` (campos fiscales `IGIE/IVA/DTA/PREV/TIPOTASAIGIE`);
+- `PEDIMENT_CONFIRMATION = IMPLEMENTED` (SQL 15/15 en CI, backend y UI probados).
 
 ## 2. Contrato legacy observado
 

@@ -795,7 +795,8 @@ frecuencia. Prueba reproducible en CI vía Testcontainers SQL Server
 
 ```text
 AUTHORITATIVE_COMMAND_DATABASE = CALE_IMMEX.dbo.APP24_C_PEDIMENTO_CONFIRMAR
-COMMAND_CREATED = NO (sólo se cierra la ubicación)
+COMMAND_CREATED = YES (implementado, probado en CI 15/15 y desplegado LIVE)
+COMMAND_REPO_LIVE_MATCH = PASS
 ```
 
 Razón: los datos autoritativos viven en `CALE_IMMEX`; el command genera claves y
