@@ -36,8 +36,13 @@ class PedimentKeyAllocationConcurrencyTest {
 
     @BeforeAll
     static void iniciarContenedor() {
-        Assumptions.assumeTrue(dockerDisponible(),
-                "Docker no disponible o no compatible; se omite la prueba de contenedor (se ejecuta en CI).");
+        boolean disponible = dockerDisponible();
+        // En CI el test es obligatorio: no se permite verde-con-skip.
+        if (!disponible && "true".equalsIgnoreCase(System.getenv("CI"))) {
+            throw new IllegalStateException("Docker no disponible en CI: el test de concurrencia es obligatorio "
+                    + "(CONCURRENCY_TEST_CI_REQUIRED).");
+        }
+        Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite la prueba de contenedor.");
         SQL.start();
     }
 
