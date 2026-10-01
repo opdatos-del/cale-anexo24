@@ -60,6 +60,44 @@ class ExcelPedimentoParserTest {
         assertTrue(result.errores().stream().allMatch(error -> "no almacenado".equals(error.valorEnmascarado())));
     }
 
+    @Test
+    void canonizaCamposFiscalesV2() throws Exception {
+        byte[] workbook = workbook(List.of("Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion",
+                "FechaPago", "Sec", "Clave", "Descripcion", "Fraccion", "CantidadComercial", "UnidadComercial",
+                "IGIE", "IVA", "DTA", "PREV", "TIPOTASAIGIE"),
+                List.of("190", "3302", "5003971", "A1", "1", "2026-05-28", "1", "MAT-1", "Material", "17019999", "12.50", "KG",
+                        "1.2500", "0", "3.50", "0.75", "  TASA-GENERAL  "));
+
+        CargaPedimentoArchivo result = parser.parsear("fiscal-v2.xlsx", "d".repeat(64), workbook);
+
+        assertTrue(result.errores().isEmpty());
+        assertEquals("1.2500", result.filas().getFirst().datos().get("IGIE"));
+        assertEquals("0", result.filas().getFirst().datos().get("IVA"));
+        assertEquals("3.50", result.filas().getFirst().datos().get("DTA"));
+        assertEquals("0.75", result.filas().getFirst().datos().get("PREV"));
+        assertEquals("TASA-GENERAL", result.filas().getFirst().datos().get("TIPOTASAIGIE"));
+        assertEquals(ExcelPedimentoParser.VERSION_CONTRATO, result.versionPlantilla());
+    }
+
+    @Test
+    void fiscalVacioNoSeConvierteEnCeroYDecimalInvalidoSeReporta() throws Exception {
+        byte[] workbook = workbook(List.of("Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion",
+                "FechaPago", "Sec", "Clave", "Descripcion", "Fraccion", "CantidadComercial", "UnidadComercial",
+                "IGIE", "IVA", "DTA", "PREV", "TIPOTASAIGIE"),
+                List.of("190", "3302", "5003971", "A1", "1", "2026-05-28", "1", "MAT-1", "Material", "17019999", "12.50", "KG",
+                        "", "", "no-decimal", "", ""));
+
+        CargaPedimentoArchivo result = parser.parsear("fiscal-v2-invalido.xlsx", "e".repeat(64), workbook);
+
+        assertEquals(0, result.filasValidas());
+        // Blank fiscal queda vacío, no cero.
+        assertEquals("", result.filas().getFirst().datos().get("IGIE"));
+        assertEquals("", result.filas().getFirst().datos().get("IVA"));
+        assertEquals("", result.filas().getFirst().datos().get("PREV"));
+        assertEquals("", result.filas().getFirst().datos().get("TIPOTASAIGIE"));
+        assertTrue(result.errores().stream().anyMatch(error -> "DTA".equals(error.columna())));
+    }
+
     private byte[] workbook(List<String> headers, List<String> values) throws Exception {
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("PEDIMENTOS");

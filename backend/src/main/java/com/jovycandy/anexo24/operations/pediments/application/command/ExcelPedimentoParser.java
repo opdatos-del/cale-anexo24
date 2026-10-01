@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 /** Parser de la superficie confirmada por metadata de CargaPedimentosIE. */
 @Component
 public class ExcelPedimentoParser {
-    public static final String VERSION_CONTRATO = "LEGACY-STAGE-DERIVED-V1";
+    public static final String VERSION_CONTRATO = "LEGACY-STAGE-DERIVED-V2";
     public static final int MAX_FILAS = 2_000;
     public static final int MAX_COLUMNAS = 80;
     public static final int MAX_CELDAS = 100_000;
@@ -48,7 +48,9 @@ public class ExcelPedimentoParser {
             "DescargaDirigida", "TASAIGIE", "FPIGIE", "TASAIVA", "FPIVA", "CNT", "COVE", "FACTORINC", "FME",
             "ESACTIVO", "PESOBRUTO", "APARTADO", "Descarga", "INCOTERM", "FECHAENTRADA", "NICO", "lote",
             "complemento3", "complemento2", "DIVISION", "complemento1", "CATEGORIA", "marca", "modelo", "serie",
-            "IVA_PRE", "MULTAS", "RECARGOS", "IVA_PRV");
+            "IVA_PRE", "MULTAS", "RECARGOS", "IVA_PRV",
+            // V2: campos fiscales legacy preservados como entrada (ver mapeo autoritativo).
+            "IGIE", "IVA", "DTA", "PREV", "TIPOTASAIGIE");
 
     private static final List<String> OBLIGATORIOS = List.of(
             "Aduana", "Patente", "NumeroPedimento", "ClavePedimento", "TipoOperacion", "FechaPago", "Sec",
@@ -56,7 +58,8 @@ public class ExcelPedimentoParser {
     private static final Set<String> DECIMALES = Set.of(
             "tc", "CantidadComercial", "CantidadTarifa", "ValorDolares",
             "ValorComercial", "ValorAduanal", "ValorME", "TASAIGIE", "TASAIVA", "CNT", "FACTORINC", "FME",
-            "PESOBRUTO", "IVA_PRE", "MULTAS", "RECARGOS", "IVA_PRV");
+            "PESOBRUTO", "IVA_PRE", "MULTAS", "RECARGOS", "IVA_PRV",
+            "IGIE", "IVA", "DTA", "PREV");
     private static final Set<String> ENTEROS = Set.of("TipoOperacion", "TipoPedimento", "Sec", "FPIGIE", "FPIVA");
     private static final Set<String> FECHAS = Set.of("FechaPago", "FechaFactura", "FECHAENTRADA");
 
