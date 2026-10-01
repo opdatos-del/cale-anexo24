@@ -81,4 +81,8 @@ tasks.named<BootRun>("bootRun") {
 tasks.withType<Test> {
     // Los tests deben usar application-test.yml y no depender de credenciales reales.
     useJUnitPlatform()
+    // Evidencia explícita en CI de los tests ejecutados/omitidos (p. ej. concurrencia SQL).
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
 }
