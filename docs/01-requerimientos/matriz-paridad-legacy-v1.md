@@ -107,7 +107,7 @@ versionada.
 | LEGACY-043 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de materiales | Consolidar materiales | SQL_METADATA, CODE | Catálogo y reportes operativos separados | `/materiales`, `/reportes` | Catálogo/reportes existentes | Fuentes `MATERIAL` y reportes; consolidado específico no cerrado | CONSOLIDATE | P2 | Definir si requiere proyección adicional | Reportes / consolidados |
 | LEGACY-044 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de productos | Consolidar productos | SQL_METADATA, CODE | Catálogo y reportes operativos separados | `/productos`, `/reportes` | Catálogo/reportes existentes | `PRODUCTOS` y reportes; consolidado específico no cerrado | CONSOLIDATE | P2 | Definir campos y propósito | Reportes / consolidados |
 | LEGACY-045 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de estructuras | Consolidar estructuras/BOM | SQL_METADATA, CODE | Catálogo de estructuras; sin reporte separado | `/estructuras` | `GET /api/v1/catalogos/estructuras` | `APP24_Q_ESTRUCTURAS_LISTAR` | CONSOLIDATE | P2 | Dataset BOM actual vacío | Reportes / consolidados |
-| LEGACY-046 | Reportes y consolidados | `NOT_CAPTURED` — Vencimientos | Consultar vencimientos | SQL_METADATA | No identificado | No | No | `PFECHAVENCE` y referencias en informes; contrato no cerrado | UNKNOWN | P1 | Falta fuente y regla de vencimiento | Reportes / cumplimiento |
+| LEGACY-046 | Reportes y consolidados | `NOT_CAPTURED` — Vencimientos | Consultar vencimientos | SQL_METADATA, CODE, RUNTIME | `/reportes` — vencimientos read-only de desperdicio | `ReportListPage` | `GET /api/v1/reportes/vencimientos` | `dbo.vDESPERDICIOS`, `dbo.APP24_Q_VENCIMIENTOS_LISTAR`; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | P1 | Sólo subconjunto de desperdicio; saldos, descargos y estados fuera de alcance | Reportes / cumplimiento |
 | LEGACY-047 | Reportes y consolidados | `NOT_CAPTURED` — Compulsa | Ejecutar o consultar compulsa | SQL_METADATA, CODE | `/reportes` — Compulsa | `ReportListPage` | `GET /api/v1/reportes/compulsa` | `dbo.v_compulsa_gen`, `dbo.APP24_Q_COMPULSA_LISTAR` | PARTIAL | P2 | Consulta resumida read-only implementada; detalle, generación y reconciliación mutable fuera de alcance | Reportes / cumplimiento |
 | LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | UNKNOWN | P2 | Semántica y fuente canónica pendientes | Reportes / cumplimiento |
 | LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA | No identificado | No | No | `DIRIGIDO`, `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` | UNKNOWN | P1 | Flujo especializado pendiente | Reportes / cumplimiento |
@@ -149,12 +149,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 7 | 1 | 1 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 2 | 2 | 5 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 1 | 2 | 0 | 2 | 0 | 2 |
-| Reportes y consolidados | 18 | 0 | 5 | 2 | 0 | 2 | 5 | 4 |
+| Reportes y consolidados | 18 | 0 | 5 | 3 | 0 | 2 | 5 | 3 |
 | Interfaces/importación | 10 | 0 | 0 | 3 | 3 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **20** | **11** | **8** | **5** | **6** | **24** |
+| **Total** | **79** | **5** | **20** | **12** | **8** | **5** | **6** | **23** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -179,11 +179,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 20`
-- `PARTIAL = 11`
+- `PARTIAL = 12`
 - `MISSING = 8`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 24`
+- `UNKNOWN = 23`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.

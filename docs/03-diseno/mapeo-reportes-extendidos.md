@@ -8,7 +8,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 
 | Candidato | Evidencia | Clasificación | Decisión V1 |
 |---|---|---|---|
-| Vencimientos | `vDESPERDICIOS.VENCIMIENTO` y `VReporteAplicaciondesperdicios.VENCIMIENTO`; ambas views tienen 0 filas | PARTIAL | No implementar sin semántica funcional y casos activos |
+| Vencimientos | `vDESPERDICIOS.VENCIMIENTO` y `VReporteAplicaciondesperdicios.VENCIMIENTO`; ambas views tienen 0 filas; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | Implementar consulta read-only del subconjunto de desperdicios; saldos, descargos y estados quedan fuera de V1 |
 | Compulsa | `v_compulsa_gen` (8 columnas, 662 filas) y `v_compulsa` (33 columnas, 3394 filas) comparan glosa contra Anexo 24 | PARTIAL | Implementar sólo consulta resumen paginada desde `v_compulsa_gen`; detalle y generación quedan pendientes |
 | Scrap / desperdicios | `vDESPERDICIOS` y `VReporteAplicaciondesperdicios`; esquema demostrado, 0 filas actuales | PARTIAL | No implementar hasta cerrar diferencia entre desperdicio, aplicado y detalle |
 | Dirigidos | Tablas y procedimientos de descarga dirigida; predominan objetos mutables | UNKNOWN | No ejecutar ni exponer como reporte |
