@@ -439,12 +439,25 @@ class PedimentoConfirmacionSqlIT {
         }
         if (!batch.toString().isBlank()) batches.add(batch.toString());
         try (Statement s = c.createStatement()) {
-            for (String b : batches) {
+            for (int i = 0; i < batches.size(); i++) {
+                String b = batches.get(i);
                 if (b.isBlank()) continue;
-                s.execute(b);
-                while (s.getMoreResults() || s.getUpdateCount() != -1) { /* drena */ }
+                try {
+                    s.execute(b);
+                    while (s.getMoreResults() || s.getUpdateCount() != -1) { /* drena */ }
+                } catch (SQLException error) {
+                    throw new IllegalStateException("Fallo aplicando " + archivo.getFileName() + " batch #" + i
+                            + " [" + primeraLinea(b) + "] :: " + error.getMessage(), error);
+                }
             }
         }
+    }
+
+    private static String primeraLinea(String batch) {
+        for (String linea : batch.split("\r?\n")) {
+            if (!linea.isBlank()) return linea.trim();
+        }
+        return "";
     }
 
     private long crearCarga(String version) throws Exception {

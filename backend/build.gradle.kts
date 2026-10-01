@@ -84,5 +84,6 @@ tasks.withType<Test> {
     // Evidencia explícita en CI de los tests ejecutados/omitidos (p. ej. concurrencia SQL).
     testLogging {
         events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
