@@ -1,11 +1,14 @@
 # Runtime least privilege — auditoría y diseño
 
 Fase de **auditoría y diseño**. No se crean logins, usuarios, roles, GRANT ni
-DENY; no se altera el runtime; no se ejecuta DDL ni SP mutables. Toda la
-evidencia LIVE es metadata read-only (`sys.*`, `OBJECT_DEFINITION`).
+DENY en el servidor real; no se altera el runtime; no se ejecuta DDL ni SP
+mutables. Toda la evidencia LIVE es metadata read-only (`sys.*`,
+`OBJECT_DEFINITION`). El spike cross-database se ejecuta sobre un SQL Server
+efímero (contenedor), nunca sobre LIVE.
 
-Estado del diseño: `LEAST_PRIVILEGE_DESIGN_READY = YES` (con un spike de
-verificación pendiente para el mecanismo cross-database, sección 9).
+Estado del diseño: `LEAST_PRIVILEGE_DESIGN_READY = YES`.
+Mecanismo cross-database **verificado por spike** (sección 14):
+`SPIKE_CROSS_DB_MODULE_SIGNING = PASS`; F3 resuelto.
 
 ---
 
@@ -134,8 +137,11 @@ grado de permiso propuesto = `EXECUTE` por objeto al rol runtime de esa DB.
 | `APP24_C_PEDIMENTO_CONFIRMAR` | ConfirmacionPedimentoJdbcAdapter | W | **Y** | N | EXECUTE |
 
 Dependencias transitivas (ver sección 5): el command ejecuta
-`ANEXO24_DEV.app24.APP24_C_BITACORA_REGISTRAR` y escribe en
-`CargaPedimento`, `CargaPedimentoFila` y `ErrorCargaPedimento`. El resto de
+`ANEXO24_DEV.app24.APP24_C_BITACORA_REGISTRAR` y en `ANEXO24_DEV` sólo
+requiere `SELECT`, `UPDATE` sobre `CargaPedimento` (**sin `INSERT`**),
+`SELECT` sobre `CargaPedimentoFila` y `ErrorCargaPedimento`, y `EXECUTE`
+sobre el SP de bitácora (el `INSERT` a `BitacoraEvento` lo resuelve la
+cadena de propiedad intra-DB del propio SP). El resto de
 entry points sólo leen tablas/vistas/funciones `dbo` de la misma DB (50
 referencias de tabla + 2 de `DBO` + funciones `FACTOR`, `VALIDUNIT`,
 `ISVALIDUNIT`, `getProductStruct`), todas del owner `dbo`.
@@ -193,7 +199,7 @@ Grafo completo del producto: **un solo flujo cross-db**.
 CALE_IMMEX.dbo.APP24_C_PEDIMENTO_CONFIRMAR
   ├─ EXEC → ANEXO24_DEV.app24.APP24_C_BITACORA_REGISTRAR   (cross-db, SP)
   │            └─ INSERT ANEXO24_DEV.app24.BitacoraEvento
-  ├─ UPDATE/INSERT → ANEXO24_DEV.app24.CargaPedimento      (cross-db, tabla)
+  ├─ SELECT/UPDATE → ANEXO24_DEV.app24.CargaPedimento      (cross-db, tabla; sin INSERT)
   ├─ SELECT        → ANEXO24_DEV.app24.CargaPedimentoFila  (cross-db, tabla)
   ├─ SELECT        → ANEXO24_DEV.app24.ErrorCargaPedimento (cross-db, tabla)
   └─ intra-db (ownership chaining dbo):
@@ -250,9 +256,15 @@ Sin `sysadmin`, `securityadmin`, `serveradmin`, `dbcreator`, `CONTROL SERVER`.
 | Objeto | Permiso | A |
 |---|---|---|
 | 35 SP de la tabla 4.2 | `EXECUTE` por objeto | `app24_runtime` |
-| Mecanismo cross-db (sección 9): `APP24_C_BITACORA_REGISTRAR` + `CargaPedimento`, `CargaPedimentoFila`, `ErrorCargaPedimento` | `EXECUTE` / `SELECT`+`INSERT`+`UPDATE` | **principal de contexto del command**, nunca el caller runtime |
+| `APP24_C_BITACORA_REGISTRAR` | `EXECUTE` | principal de contexto del command (nunca el caller runtime) |
+| `CargaPedimento` | `SELECT`, `UPDATE` (**sin `INSERT`**) | principal de contexto |
+| `CargaPedimentoFila` | `SELECT` | principal de contexto |
+| `ErrorCargaPedimento` | `SELECT` | principal de contexto |
+| `BitacoraEvento` | sin permiso directo: el `INSERT` se resuelve por ownership chain intra-DB del SP de bitácora | — |
 
-`DIRECT_TABLE_PERMISSIONS (runtime) = 0` en ambas DB.
+`DIRECT_TABLE_PERMISSIONS (runtime) = 0` en ambas DB. El principal de
+contexto del command (cert-user) sí recibe DML acotado en `ANEXO24_DEV`
+(sección 14), pero sólo surte efecto durante la ejecución firmada.
 `SCHEMA-level EXECUTE = NO` (schema `app24` contiene commands sensibles y
 schema `dbo` contiene 509 objetos legacy; prohibido grant de schema).
 
@@ -282,12 +294,11 @@ Evaluación de alternativas sin `db_owner`:
 | F. Module signing con certificado | Firmar `APP24_C_PEDIMENTO_CONFIRMAR`; usuario desde certificado en `ANEXO24_DEV` con `EXECUTE` bitácora + DML 3 tablas | **Preferida**; sin login adicional; requiere verificación del comportamiento cross-db en el servidor del cliente |
 
 **Decisión de diseño:** F (module signing) como principal; E como fallback.
-Antes de implementar se requiere un **spike de verificación** en entorno
-desechable (contenedor o DB de prueba): firmar el command, replicar el
-certificado en `ANEXO24_DEV`, crear el cert-user con los permisos mínimos y
-confirmar que un caller `anexo24_app` (sin permisos cross-db, sin chaining)
-puede ejecutar el flujo completo. Si el servidor no honra el patrón
-documentado de firma cross-db, se implementa E.
+El spike de verificación (sección 14) confirmó F en SQL Server 2022: firmar
+el command en la DB origen, importar el certificado (solo clave pública) en
+`ANEXO24_DEV`, crear el cert-user con los permisos mínimos y ejecutar como
+caller sin permisos cross-db ni chaining funciona de extremo a extremo.
+La variante E no se requiere.
 
 El caller runtime nunca recibe DML sobre las 3 tablas: sólo el principal de
 contexto (cert-user) o el usuario de impersonación.
@@ -337,6 +348,11 @@ Separación runtime vs DDL:
 Verificación de contexto: `SUSER_SNAME() = 'anexo24_app'` y `USER_NAME() =
 'anexo24_app'` en ambas DB durante las pruebas positivas.
 
+El spike cross-db (sección 14) ya cubre con bases sintéticas la ruta
+negativa completa de esta matriz y la confirmación de pedimentos firmada;
+la matriz positiva completa se ejecutará contra LIVE en la fase de
+implementación.
+
 ## 12. Rollback plan
 
 Si la nueva identidad falla en validación:
@@ -359,9 +375,67 @@ Si la nueva identidad falla en validación:
 |---|---|---|
 | F1 | Login `anexo24_app` existe; **falta el user en `CALE_IMMEX`** — blocker para migrar runtime | Blocker de implementación |
 | F2 | Deriva repo↔LIVE: `04-app-runtime-permissions.sql` no refleja los 35 GRANT LIVE (cubre menos); actualizar el archivo en la fase de implementación | Finding medio |
-| F3 | Mecanismo cross-db sin verificar en el servidor destino (firma vs `EXECUTE AS`) | Spike obligatorio antes de implementar |
+| F3 | Mecanismo cross-db (`CALE_IMMEX → ANEXO24_DEV`) | **Resuelto**: spike PASS con certificado espejo de clave pública (sección 14) |
 | F4 | `APP24_Q_PEDIMENTO_VALIDAR_REGLAS` registra dependencia colgante `nodo.value` (probable falso positivo de método XML); verificar y, si procede, corregir en fase posterior | Finding bajo |
 | F5 | `RECTIFICACIONES`/`VENCIMIENTOS` resuelven sobre views sin dependencias de tabla registradas en `sys.sql_expression_dependencies`; el chaining las cubre igualmente (owner dbo); confirmar en implementación | Finding bajo |
 | F6 | `opdatos` restante con `sysadmin` seguirá existiendo como identidad administrativa; no se elimina en esta fase | Aceptado |
 
 `LIVE_CHANGES = 0`: esta fase no creó ni modificó ningún objeto LIVE.
+
+## 14. Spike cross-database: module signing (resultado)
+
+Suite reproducible:
+`backend/src/test/java/com/jovycandy/anexo24/security/RuntimeLeastPrivilegeCrossDbIT.java`
+(8 casos) sobre SQL Server 2022 efímero (Testcontainers), con bases
+sintéticas `LP_SOURCE` (≈ `CALE_IMMEX`) y `LP_TARGET` (≈ `ANEXO24_DEV`),
+`TRUSTWORTHY OFF`, `DB_CHAINING OFF` y sin datos empresariales.
+
+Ejecución local verificada (Docker Desktop 4.86; con el engine actual,
+Testcontainers 1.20.4 requiere `JAVA_TOOL_OPTIONS=-Dapi.version=1.44`
+porque el API mínimo del engine es 1.40): **8/8 PASSED**.
+
+| Paso del spike | Resultado observado |
+|---|---|
+| Baseline sin firma (EXEC cross-db) | DENIED: `SELECT permission was denied on the object 'CargaPedimentoFila', database 'LP_TARGET'` |
+| Variante 1: certificado DB espejo (clave pública) | **PASS — mecanismo ganador** |
+| Variante 2: certificado espejo con clave privada | no necesaria (variante 1 basta) |
+| Variante 3: certificado de servidor + login | no necesaria (variante 1 basta) |
+| Positivo firmado | staging leído, estado actualizado, bitácora registrada, `Resultado = OK` |
+| SELECT/INSERT/UPDATE/DELETE directos del runtime | DENIED (las 4 operaciones, sobre las 4 tablas) |
+| DDL del runtime (CREATE/ALTER/DROP) | DENIED |
+| EXEC de SP sin GRANT | DENIED |
+| Ejecución tras `ALTER PROCEDURE` (firma eliminada) | DENIED |
+| Ejecución tras `ADD SIGNATURE` (refirma) | PASS |
+
+Mecanismo ganador: `CERT_DB_ESPEJO_PUBLICO` (module signing clásico
+cross-database):
+
+1. en la DB origen: certificado autofirmado + `ADD SIGNATURE` al command;
+2. exportar **solo la clave pública** (`BACKUP CERTIFICATE ... TO FILE`) e
+   importarla en la DB destino (`CREATE CERTIFICATE ... FROM FILE`);
+3. en la DB destino: `CREATE USER ... FROM CERTIFICATE` y GRANT exactos:
+   `SELECT`, `UPDATE` en `CargaPedimento` (sin `INSERT`), `SELECT` en
+   `CargaPedimentoFila`, `SELECT` en `ErrorCargaPedimento`, `EXECUTE` en
+   `APP24_C_BITACORA_REGISTRAR`;
+4. `BitacoraEvento`: sin DML directo — el `INSERT` lo resuelve la cadena de
+   propiedad intra-DB del SP de bitácora;
+5. sin login adicional, sin `TRUSTWORTHY ON`, sin `DB_CHAINING ON`, sin
+   `EXECUTE AS` y sin `db_owner`.
+
+El runtime conectable (`lp_app` en el spike; `anexo24_app` en el diseño)
+conserva únicamente `CONNECT SQL` (servidor) y `CONNECT` (cada base): los
+permisos del cert-user solo surten efecto dentro de la ejecución firmada y
+son invisibles para sesiones directas.
+
+Ciclo de vida de la firma: `ALTER PROCEDURE` elimina la firma y el flujo
+cross-db vuelve a DENIED; `ADD SIGNATURE` la restaura
+(`SIGNATURE_REAPPLY_REQUIRED_AFTER_DDL = YES`). Orden obligatorio de
+deployment para futuras versiones del command:
+
+1. crear/alterar el command;
+2. `ADD SIGNATURE ... BY CERTIFICATE`;
+3. verificar `sys.crypt_properties`;
+4. smoke test de seguridad cross-db.
+
+`F3 = RESOLVED`. La opción E (`EXECUTE AS`) queda descartada como principal
+y no se implementa.
