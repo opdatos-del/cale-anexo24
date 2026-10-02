@@ -9,7 +9,7 @@ backend/     → API Spring Boot 4.1 (Java 21, Gradle 9.7.1 Kotlin DSL + wrapper
 frontend/    → App Angular 22 (pnpm, SCSS, Angular Material)
 infra/sql/   → Bootstrap BD: crea ANEXO24_DEV + usuario de aplicación
 docs/        → Documentación del proyecto (requerimientos, análisis, diseño...)
-.github/     → CI: backend test/build + frontend lint/build
+.github/     → CI: sp-first-gate + backend test/build + frontend test/lint/build
 ```
 
 ## Comandos
@@ -62,12 +62,24 @@ Regla de dependencia: `api → application → domain ← infrastructure`. **El 
 
 Nombres de carpetas en inglés (renombrados deliberadamente desde español).
 
+## Base de datos autoritativa (regla dura)
+
+- **`CALE_IMMEX` es la única BD operativa autoritativa.** Prohibido crear otra BD operativa, esquema paralelo o copia de tablas legacy (`MATERIAL`, `PRODUCTOS`, `IMPORTACIONES`, `PARTIDAS`, `SALIDAS`, `PSALIDAS`, `DESCARGA`, `DIRIGIDO`, clientes, proveedores, estructuras, inventarios). Prohibida la sincronización o migración progresiva `CALE_IMMEX → otra BD`. La aplicación se adapta a `CALE_IMMEX`.
+- **`ANEXO24_DEV/app24` es infraestructura complementaria** (usuarios, perfiles, permisos, bitácora, staging controlado, errores de cargas, metadata técnica), nunca la nueva base operativa.
+- **SP-FIRST estricto:** buscar SP existente → auditar contrato y side effects (directos/transitivos) → reutilizar; sólo si el contrato no sirve, crear `dbo.APP24_Q_*` / `dbo.APP24_C_*` en `CALE_IMMEX` consumiendo las tablas existentes. Clasificar: `SP_EXISTING_REUSABLE`, `SP_EXISTING_NOT_REUSABLE`, `NEW_SP_REQUIRED`, `TECHNICAL_EXCEPTION`, `FALSE_POSITIVE`.
+- **Java sólo invoca SP** para acceso funcional; cero SQL inline (única excepción: `SystemStatusController` → `SELECT 1`).
+- **Patrón de referencia: pedimentos.** Staging técnico en `app24.CargaPedimento*`; la operación autoritativa termina en `CALE_IMMEX.dbo.IMPORTACIONES/PARTIDAS/SALIDAS/PSALIDAS/DIRIGIDO` vía `APP24_C_PEDIMENTO_CONFIRMAR`. No se duplicaron tablas legacy.
+- **Tablas nuevas de negocio:** sólo con justificación y autorización explícita; antes buscar equivalente/view/SP/relación existente. "Más limpio/moderno/facilita JPA" no es justificación.
+- **La arquitectura hexagonal vive en la aplicación** (domain/application/ports/adapters aislan el modelo legacy, no lo reemplazan).
+- **Fixtures sintéticos** (`LP_SOURCE`/`LP_TARGET` y similares) sólo dentro de Testcontainers; nunca en LIVE ni como destino de migración.
+- **Hardening del runtime = identidad, no BD:** objetivo `opdatos/sysadmin → anexo24_app` con `EXECUTE` por objeto; sin DML directo, sin roles fijos, sin `db_owner`.
+
 ## CI (GitHub Actions)
 
 - `chmod +x gradlew` requerido: commits desde Windows pierden el bit de ejecución.
 - Frontend: `pnpm/action-setup` debe ir ANTES que `setup-node` (el `cache: pnpm` de setup-node necesita pnpm presente).
-- No hay step de tests frontend: `angular.json` no tiene target `test` (scaffold con `--skip-tests`). No re-agregar `pnpm test` a CI sin configurar el runner antes.
-- Testcontainers versionado explícito (`1.20.4`): el BOM `2.0.5` falló la resolución. No regresar al BOM.
+- Frontend: el step Test de CI (`pnpm test` = `ng test`, builder `unit-test` de Angular 22) SÍ está activo y ejecuta la suite; no quitarlo.
+- Testcontainers versionado explícito (`1.20.4`): el BOM `2.0.5` falló la resolución. No regresar al BOM. En esta máquina (Docker Desktop con API mínima 1.40) los SQL IT locales requieren `JAVA_TOOL_OPTIONS=-Dapi.version=1.44`; en CI no hace falta.
 
 ## Convenciones
 
