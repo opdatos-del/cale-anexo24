@@ -343,16 +343,29 @@ Capítulos con evidencia suficiente (`docs/08-reporte-estadia/evidencias-proyect
   rollback 0 escrituras parciales; cargas mixtas PASS; SP-FIRST 0 violations;
   DDL LIVE aplicado con 0 ejecuciones de command y 0 escrituras de negocio.
 
-Evidencia faltante:
+Evidencia cerrada:
 
-- Registro del CI final de `dev` (run `37014148994`, `a64434a`) en
-  `evidencias-proyecto.md` — aún no incorporado.
-- Inconsistencia documental detectada: `evidencias-proyecto.md` (sección
-  «Contexto para el capítulo 4») afirma que la clasificación de paridad
-  permanece «sin cambios (LEGACY-016/017/019 = PARTIAL, LEGACY-057 = MISSING)»,
-  contradiciendo la matriz y la sección posterior del mismo documento
-  (016/019/057 = `IMPLEMENTED_REDESIGNED`). Corregir en la fase de reporte.
-- Anexos aún no producidos.
+- CI final de `dev`: run `37014148994` @ `a64434a` — SUCCESS
+  (sp-first-gate, backend, frontend), registrado en `evidencias-proyecto.md`.
+- Paridad vigente: 5 equivalentes + 26 rediseñadas + 11 parciales + 6 faltantes
+  + 5 bloqueadas + 6 consolidadas + 20 desconocidas = 79.
+- Inconsistencia «paridad sin cambios» de `evidencias-proyecto.md` corregida en
+  el commit `1fa2e3b`.
+
+Pendientes reales:
+
+- anexos todavía no producidos;
+- redacción final de capítulos del reporte;
+- decisiones empresariales necesarias para congelar alcance.
+
+Estado de preparación del reporte:
+
+- `REPORT_EVIDENCE_CORE = READY`
+- `REPORT_FINAL_WRITING = PENDING`
+- `ANNEXES = PENDING`
+- `BUSINESS_DECISIONS = PENDING`
+
+No se declara el reporte final terminado.
 
 Anexos candidatos:
 
