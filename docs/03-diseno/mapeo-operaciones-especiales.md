@@ -211,3 +211,67 @@ requiere, como mínimo, lo siguiente:
 
 Hasta reunir esta evidencia no se crean endpoints, permisos, tablas de staging ni
 rutas para estas capacidades.
+
+## Segunda pasada — Actas de destrucción (reauditoría LEGACY-060)
+
+Reauditoría read-only focalizada para decidir si existe contrato suficiente para
+una V1 de `upload → validación → staging → errores → preview`. Ningún objeto
+mutable fue ejecutado.
+
+```text
+ACTAS_LAYOUT_CONTRACT = NOT_SUFFICIENT
+ACTAS_FILE_SURFACE    = NONE
+LEGACY-060            = MISSING (sin cambio)
+```
+
+### Respuestas del discovery (10 preguntas)
+
+| Pregunta | Evidencia LIVE |
+|---|---|
+| ¿Qué archivo recibe el legacy? | Ninguno demostrado: no existe tabla de carga por archivo/hash/lote ni proceso de lectura de archivos; `dbo.Acta` es una tabla stage global |
+| ¿Qué columnas tiene? | `dbo.Acta`: `actakey` (PK bigint), `Folio`, `fecha`, `clave`, `linea`, `cantidad`, `umc`, `descargadirigida`, `VALORCOMERCIAL` |
+| ¿Obligatorias? | Ninguna declarada: todas las columnas de negocio son nullable; `CARGAACTAS` no valida campos |
+| ¿Tipo/formato? | Tipos de tabla únicamente (varchar/datetime/int/float/numeric); sin formato de archivo, hoja ni encabezados demostrados |
+| ¿Qué SP procesa? | `dbo.CARGAACTAS` (sin parámetros, `MIXED`/`WRITE`) |
+| ¿Qué tablas toca? | Lee `Acta`; borra `generadores` (`TABLA='ACTA'`); inserta `salidas`, `psalidas`, `dirigido`; consulta `material` y `productos` como fallback de descripción |
+| ¿Qué validaciones aplica? | Ninguna: no hay chequeos de existencia, formato, duplicados ni obligatoriedad |
+| ¿Qué errores produce? | Ninguno: la limpieza `DELETE FROM ERRORACTA` está comentada y `ERRORACTA` no existe en LIVE |
+| ¿Hay staging legacy? | Sí: `dbo.Acta` (stage global sin aislamiento por archivo, hash, usuario o lote) |
+| ¿Grano de fila? | Folio + línea (`actakey` PK; `CARGAACTAS` resuelve `PSALIDAS` por `DOCUMENTO=@FOLIO` y `PARTIDA=@LINEA`) |
+
+### Clasificación SP-FIRST
+
+| Candidato | Tipo | Efecto | Clasificación | Decisión |
+|---|---|---|---|---|
+| `dbo.CARGAACTAS` | SP | WRITE/MIXED (cursor + INSERT en salidas/psalidas/dirigido, claves `MAX+1`, sin transacción) | `SP_EXISTING_NOT_REUSABLE` | No ejecutar; no sirve para preview |
+| `dbo.Acta` | TABLE | stage global | `SP_EXISTING_NOT_REUSABLE` (como contrato de archivo) | No adoptar como layout de archivo; sólo evidencia del modelo de fila |
+| `dbo.ERRORACTA` | — | ausente en LIVE | `FALSE_POSITIVE` | No reutilizar |
+| `GENERADORES` (scratch `TABLA='ACTA'`) | TABLE | scratch global | `SP_EXISTING_NOT_REUSABLE` | Excluido |
+| Nuevo SP | — | — | `NEW_SP_REQUIRED` = NOT_PROVEN | Sin layout de archivo ni contrato de errores no se define proyección |
+
+### Conteos
+
+```text
+dbo.Acta  = 0 filas
+ERRORACTA = no existe
+```
+
+### Evidencia faltante para reabrir LEGACY-060
+
+- superficie real de entrada (¿archivo? ¿formato XLS/XLSX? ¿pantalla?): no demostrada;
+- encabezados, orden y formato de columnas del archivo;
+- obligatoriedad y reglas de validación reproducibles (el SP legacy no valida);
+- contrato de errores por archivo/hoja/fila/columna (ausente en legacy);
+- comportamiento ante duplicados (`Folio`+`línea` ya existentes: el SP omite silenciosamente);
+- caso de aceptación verificable y semántica de `descargadirigida`/`umc`.
+
+### Controles de la segunda pasada
+
+```text
+LIVE reads = SELECT/metadata
+LIVE writes = 0
+legacy mutable SP executed = 0
+new SP = 0
+new staging tables = 0
+API/UI = NOT_IMPLEMENTED
+```

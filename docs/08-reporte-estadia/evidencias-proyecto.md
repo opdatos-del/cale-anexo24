@@ -387,3 +387,36 @@ incluye una pantalla legacy denominada Scrap.
 **Artefactos producidos:** `docs/03-diseno/mapeo-desperdicios.md` (segunda
 pasada); `docs/01-requerimientos/matriz-paridad-legacy-v1.md` (nota de
 reauditoría).
+
+---
+
+## Fase — Reauditoría LEGACY-060 (actas de destrucción, sin implementación)
+
+**Fecha / fase:** paridad V1, rama `feature/legacy-destruction-acts-staging-v1`.
+
+**Problema técnico abordado:** `LEGACY-060` seguía `MISSING`; la auditoría previa
+de operaciones especiales no cerró layout. Se reauditó para decidir si existía
+una V1 de carga/preview implementable.
+
+**Método utilizado:** barrido read-only LIVE sobre `CALE_IMMEX` (`sys.objects`,
+`sys.columns`, `sys.sql_modules`, `sys.sql_expression_dependencies`,
+`OBJECT_DEFINITION`, conteos); ningún objeto mutable ejecutado.
+
+**Resultados:**
+
+- `CARGAACTAS` (sin parámetros) lee el stage global `dbo.Acta` y escribe
+  `salidas`/`psalidas`/`dirigido` con claves `MAX+1`, sin transacción y sin
+  validaciones;
+- `ERRORACTA` no existe en LIVE y su limpieza está comentada: sin contrato de
+  errores;
+- no existe superficie de archivo (tabla de carga por archivo/hash/lote);
+- `dbo.Acta` = 0 filas.
+
+**Resultado:** `ACTAS_LAYOUT_CONTRACT = NOT_SUFFICIENT`; `LEGACY-060 = MISSING`
+(sin cambio); no se implementó staging, API ni UI.
+
+**Limitaciones:** la evidencia LIVE no incluye el archivo/pantalla de entrada ni
+reglas de validación legacy (inexistentes en el SP).
+
+**Artefactos producidos:** `docs/03-diseno/mapeo-operaciones-especiales.md`
+(segunda pasada); `docs/01-requerimientos/matriz-paridad-legacy-v1.md` (nota).
