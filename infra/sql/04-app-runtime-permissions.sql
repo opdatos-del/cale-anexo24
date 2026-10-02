@@ -1,5 +1,7 @@
 -- ============================================
 -- ANEXO24_DEV: permisos mínimos de cuenta runtime
+-- Fuente de verdad de los GRANT EXECUTE por objeto del runtime app24
+-- (validada por scripts/check-runtime-sql-permissions.py).
 -- Ejecutar con identidad administrativa después de 02-app-schema.sql
 -- y 03-app-seed-security.sql.
 -- ============================================
@@ -107,6 +109,28 @@ GRANT EXECUTE ON OBJECT::app24.APP24_C_PERFIL_CREAR TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_C_PERFIL_ACTUALIZAR_NOMBRE TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_C_PERFIL_CAMBIAR_ESTADO TO app24_runtime;
 GRANT EXECUTE ON OBJECT::app24.APP24_C_PERFIL_REEMPLAZAR_PERMISOS TO app24_runtime;
+
+-- Staging de facturación (migrations/05 y 06): consolidado aquí como fuente de verdad.
+GRANT EXECUTE ON OBJECT::app24.APP24_C_FACTURACION_CARGA_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_FACTURACION_CARGA_POR_HASH TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_FACTURACION_CARGA_OBTENER TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_FACTURACION_PLANTILLA_ACTIVA TO app24_runtime;
+
+-- Staging de pedimentos (migration/09).
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_PEDIMENTO_CARGA_POR_HASH TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_PEDIMENTO_CARGA_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_PEDIMENTO_CARGA_OBTENER TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_PEDIMENTO_CARGA_ERRORES TO app24_runtime;
+
+-- Staging de importación de catálogos (migration/10).
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_MATERIAL_CARGA_POR_HASH TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_MATERIAL_CARGA_OBTENER TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_MATERIAL_CARGA_ERRORES TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_POR_HASH TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_OBTENER TO app24_runtime;
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_ERRORES TO app24_runtime;
 GO
 
 PRINT 'Permisos mínimos app24_runtime aplicados a anexo24_app.';
