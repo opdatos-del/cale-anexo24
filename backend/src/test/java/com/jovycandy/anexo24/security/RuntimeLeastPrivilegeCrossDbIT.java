@@ -357,6 +357,38 @@ class RuntimeLeastPrivilegeCrossDbIT {
         resetTarget();
     }
 
+    @Test
+    @Order(9)
+    void rolRuntimeHeredaEjecucionSinGrantsDirectos() throws Exception {
+        // Réplica del patrón de infra/sql/05-cale-immex-runtime-permissions.sql:
+        // EXECUTE por objeto al rol; el usuario runtime sólo es miembro y no
+        // acumula grants directos.
+        assertDenegado("EXEC de SP de prueba antes de crear el rol",
+                () -> ejecutarComoRuntime(FUENTE, "EXEC dbo.LEGACY_DANGEROUS_SP"));
+        try (Connection fuente = conectarAdmin(FUENTE)) {
+            ejecutar(fuente, "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'cale_immex_runtime' AND type = 'R')"
+                    + " CREATE ROLE cale_immex_runtime");
+            ejecutar(fuente, "IF NOT EXISTS (SELECT 1 FROM sys.database_role_members drm"
+                    + " JOIN sys.database_principals rol ON rol.principal_id = drm.role_principal_id"
+                    + " JOIN sys.database_principals miembro ON miembro.principal_id = drm.member_principal_id"
+                    + " WHERE rol.name = 'cale_immex_runtime' AND miembro.name = '" + RUNTIME + "')"
+                    + " ALTER ROLE cale_immex_runtime ADD MEMBER " + RUNTIME);
+            ejecutar(fuente, "GRANT EXECUTE ON OBJECT::dbo.LEGACY_DANGEROUS_SP TO cale_immex_runtime");
+        }
+        assertEquals(1, valorComoRuntime(FUENTE, "SELECT IS_ROLEMEMBER('cale_immex_runtime')"),
+                "El runtime debe ser miembro del rol");
+        ejecutarComoRuntime(FUENTE, "EXEC dbo.LEGACY_DANGEROUS_SP");
+        assertEquals(0, valorAdmin(FUENTE, "SELECT COUNT(*) FROM sys.database_permissions"
+                        + " WHERE grantee_principal_id = USER_ID('" + RUNTIME + "')"
+                        + " AND major_id = OBJECT_ID('dbo.LEGACY_DANGEROUS_SP')"),
+                "El usuario no debe acumular grants directos: hereda por rol");
+        assertEquals(1, valorAdmin(FUENTE, "SELECT COUNT(*) FROM sys.database_permissions"
+                        + " WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"
+                        + " AND major_id = OBJECT_ID('dbo.LEGACY_DANGEROUS_SP')"
+                        + " AND permission_name = 'EXECUTE' AND state = 'G'"),
+                "El rol debe ser el titular del GRANT EXECUTE");
+    }
+
     // ------------------------------------------------------------- fixtures
 
     private static void crearBases() throws Exception {
@@ -563,6 +595,14 @@ class RuntimeLeastPrivilegeCrossDbIT {
             return rs.next() ? rs.getString(1) : null;
         } catch (SQLException error) {
             throw new IllegalStateException("Fallo consulta [" + sql + "]: " + error.getMessage(), error);
+        }
+    }
+
+    private static int valorComoRuntime(String db, String sql) {
+        try (Connection c = conectarRuntime(db); Statement s = c.createStatement(); ResultSet rs = s.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : -1;
+        } catch (SQLException error) {
+            throw new IllegalStateException("Fallo consulta runtime [" + sql + "]: " + error.getMessage(), error);
         }
     }
 

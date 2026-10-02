@@ -10,6 +10,15 @@ Estado del diseño: `LEAST_PRIVILEGE_DESIGN_READY = YES`.
 Mecanismo cross-database **verificado por spike** (sección 14):
 `SPIKE_CROSS_DB_MODULE_SIGNING = PASS`; F3 resuelto.
 
+Fase repo completada (**RUNTIME IDENTITY HARDENING**, sección 15): scripts
+versionados `infra/sql/04`, `05` y `06`, checker de deriva Java↔grants y
+self-tests. Recordatorio de alcance (política del proyecto):
+
+- NO BUSINESS DB MIGRATION — `CALE_IMMEX` sigue siendo la única base operativa autoritativa.
+- NO NEW OPERATIONAL DATABASE.
+- NO BUSINESS TABLE MIGRATION — no se copian, mueven ni sincronizan tablas legacy.
+- `LIVE_CHANGES = 0` en esta fase (los scripts quedan preparados, no aplicados).
+
 ---
 
 ## 1. Estado actual
@@ -318,6 +327,12 @@ Separación runtime vs DDL:
   sigue siendo manual/controlado en esta etapa (sin cambio).
 - No se crea ninguna identidad de deployment en esta fase.
 
+Scripts de seguridad de esta fase (metadata, no DDL de negocio):
+
+- `infra/sql/04-app-runtime-permissions.sql` — ANEXO24_DEV, fuente de verdad de los 35 `EXECUTE` por objeto.
+- `infra/sql/05-cale-immex-runtime-permissions.sql` — CALE_IMMEX, user + rol `cale_immex_runtime` + 23 `EXECUTE` por objeto.
+- `infra/sql/06-pedimento-cross-db-signing.sql` — firma cross-db (deployment preparado, no ejecutado en LIVE).
+
 ## 11. Test plan (implementación futura)
 
 ### Positivas (login `anexo24_app`)
@@ -373,8 +388,8 @@ Si la nueva identidad falla en validación:
 
 | # | Finding | Estado |
 |---|---|---|
-| F1 | Login `anexo24_app` existe; **falta el user en `CALE_IMMEX`** — blocker para migrar runtime | Blocker de implementación |
-| F2 | Deriva repo↔LIVE: `04-app-runtime-permissions.sql` no refleja los 35 GRANT LIVE (cubre menos); actualizar el archivo en la fase de implementación | Finding medio |
+| F1 | Login `anexo24_app` existe; el user en `CALE_IMMEX` lo crea ahora `05-cale-immex-runtime-permissions.sql` | **Resuelto en repo (script 05)**; LIVE pendiente de deployment autorizado |
+| F2 | Deriva repo↔LIVE de permisos runtime | **Resuelto en repo**: `04` sincronizado con los 35 entry points y validado por `check-runtime-sql-permissions.py` |
 | F3 | Mecanismo cross-db (`CALE_IMMEX → ANEXO24_DEV`) | **Resuelto**: spike PASS con certificado espejo de clave pública (sección 14) |
 | F4 | `APP24_Q_PEDIMENTO_VALIDAR_REGLAS` registra dependencia colgante `nodo.value` (probable falso positivo de método XML); verificar y, si procede, corregir en fase posterior | Finding bajo |
 | F5 | `RECTIFICACIONES`/`VENCIMIENTOS` resuelven sobre views sin dependencias de tabla registradas en `sys.sql_expression_dependencies`; el chaining las cubre igualmente (owner dbo); confirmar en implementación | Finding bajo |
@@ -386,7 +401,8 @@ Si la nueva identidad falla en validación:
 
 Suite reproducible:
 `backend/src/test/java/com/jovycandy/anexo24/security/RuntimeLeastPrivilegeCrossDbIT.java`
-(8 casos) sobre SQL Server 2022 efímero (Testcontainers), con bases
+(9 casos: 8 del spike + 1 de rol runtime agregado en la fase repo, sección 15)
+sobre SQL Server 2022 efímero (Testcontainers), con bases
 sintéticas `LP_SOURCE` (≈ `CALE_IMMEX`) y `LP_TARGET` (≈ `ANEXO24_DEV`),
 `TRUSTWORTHY OFF`, `DB_CHAINING OFF` y sin datos empresariales.
 
@@ -439,3 +455,36 @@ deployment para futuras versiones del command:
 
 `F3 = RESOLVED`. La opción E (`EXECUTE AS`) queda descartada como principal
 y no se implementa.
+
+## 15. Fase repo: RUNTIME IDENTITY HARDENING (scripts, sin cambios LIVE)
+
+**No es una migración de base de datos.** `CALE_IMMEX` sigue siendo la única
+base operativa autoritativa; no se crean bases, tablas de negocio ni se mueven
+datos. Esta fase prepara exclusivamente la metadata de seguridad del runtime.
+
+| Artefacto | Alcance |
+|---|---|
+| `infra/sql/04-app-runtime-permissions.sql` | ANEXO24_DEV: fuente de verdad de los 35 `GRANT EXECUTE` por objeto del rol `app24_runtime` (consolida staging de facturación, pedimentos y catálogos que vivía en migrations 05/06/09/10) |
+| `infra/sql/05-cale-immex-runtime-permissions.sql` | CALE_IMMEX: exige que el login exista, crea el user `anexo24_app`, el rol `cale_immex_runtime` y los 23 `GRANT EXECUTE` por objeto; sin DML directo, sin schema grants, sin roles fijos |
+| `infra/sql/06-pedimento-cross-db-signing.sql` | Firma cross-db del command: DMK + certificado + `ADD SIGNATURE` + certificado espejo en ANEXO24_DEV + cert-user con los 5 permisos exactos + verificación que falla si falta la firma. Deployment preparado; **no ejecutado en LIVE** |
+| `scripts/check-runtime-sql-permissions.py` | Gate de deriva Java↔grants: compara los SP extraídos de `backend/src/main/java` contra `04` y `05` (`missing=0`, `extra=0`); prohíbe schema grants, DML directo y roles fijos |
+| `scripts/tests/check_runtime_sql_permissions_test.py` | Self-test del checker (pass, missing, extra, missing_cale, schema_grant, table_grant) |
+
+Gates (local y CI `sp-first-gate`):
+
+```bash
+python scripts/check-runtime-sql-permissions.py            # RUNTIME_PERMISSION_GATE|PASS
+python scripts/tests/check_runtime_sql_permissions_test.py  # RUNTIME_PERMISSION_TESTS|PASS
+```
+
+La suite `RuntimeLeastPrivilegeCrossDbIT` se extendió con un caso que replica
+el patrón de `05`: `EXECUTE` por objeto otorgado al rol, runtime miembro del
+rol y `DIRECT_TABLE_GRANTS_RUNTIME = 0` (sin grants directos al usuario).
+
+Deployment (cuando se autorice, fuera de esta fase):
+
+1. aplicar `05` (CALE_IMMEX) y `04` (ANEXO24_DEV) con identidad administrativa;
+2. si el command se redespliega: procedure → `06` (firma) → verificación → smoke test de seguridad;
+3. `CREATE OR ALTER`/`ALTER PROCEDURE` elimina la firma (`SIGNATURE_REAPPLY_REQUIRED_AFTER_DDL = YES`);
+4. cambiar `.env` a `anexo24_app` sólo después de la matriz positiva/negativa;
+5. rollback: revertir variables de `.env` a la identidad anterior (sección 12).

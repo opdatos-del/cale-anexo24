@@ -1,0 +1,3 @@
+-- Fixture missing: falta APP24_Q_DEMO_ERRORES.
+GRANT EXECUTE ON OBJECT::app24.APP24_Q_DEMO_OBTENER TO app24_runtime;
+GO

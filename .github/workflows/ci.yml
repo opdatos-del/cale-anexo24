@@ -26,6 +26,12 @@ jobs:
       - name: Gate SP-FIRST (SQL inline prohibido)
         run: python3 scripts/check-inline-sql.py
 
+      - name: Test del checker de deriva runtime
+        run: python3 scripts/tests/check_runtime_sql_permissions_test.py
+
+      - name: Gate de deriva runtime (Java ↔ grants SQL)
+        run: python3 scripts/check-runtime-sql-permissions.py
+
   backend:
     runs-on: ubuntu-latest
     needs: sp-first-gate
