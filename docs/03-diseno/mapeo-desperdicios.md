@@ -186,4 +186,90 @@ persistent synthetic data = 0
 ```
 
 No hubo Java, Angular, migración, endpoint, permiso ni cambio de paridad en
-esta primera pasada.
+esa primera pasada.
+
+## Segunda pasada — reauditoría exhaustiva (sin implementación)
+
+Reauditoría read-only sobre `CALE_IMMEX` para decidir si existe contrato
+suficiente para una consulta Scrap V1. Sólo metadata, definiciones, conteos,
+dependencias y parámetros; ningún objeto mutable fue ejecutado.
+
+```text
+SCRAP_OBJECT_NAMED = NONE
+SCRAP_UI_EVIDENCE  = NONE
+READ_ONLY_WASTE_SP = NONE
+NEW_SP_REQUIRED    = NOT_PROVEN
+SCRAP_CONTRACT     = PARTIAL (sin cambio)
+LEGACY-048         = UNKNOWN (sin cambio)
+```
+
+### Cobertura del barrido
+
+- nombres (`%DESPERD%`, `%MERMA%`, `%SCRAP%`, `%DESP`, `DESCARGA%`) sobre
+  `sys.objects`;
+- definiciones de módulos (`sys.sql_modules`) que mencionan `desperd`, `merma`
+  o `scrap`;
+- columnas de 14 candidatos (`sys.columns`);
+- conteos de 18 tablas/views;
+- dependencias (`sys.sql_expression_dependencies`) y parámetros (`sys.parameters`).
+
+### Clasificación SP-FIRST
+
+| Candidato | Tipo | Efecto | Clasificación | Decisión |
+|---|---|---|---|---|
+| `dbo.vDESPERDICIOS` | VIEW | READ ONLY | `SP_EXISTING_REUSABLE` (fuente) | Ya consumida por `APP24_Q_VENCIMIENTOS_LISTAR` (LEGACY-046); no es contrato Scrap |
+| `dbo.VReporteAplicaciondesperdicios` | VIEW | READ ONLY | `SP_EXISTING_NOT_REUSABLE` | `FULL OUTER JOIN` + `Diferencia` sin caso de aceptación |
+| `dbo.vDesperdiciosDetalleAplicacion` | VIEW | READ ONLY | `SP_EXISTING_NOT_REUSABLE` | Aplicación por destino; grano documento/clave no aprobado |
+| `dbo.DESCARGA_DESPERDICIO` | VIEW | READ ONLY | `SP_EXISTING_NOT_REUSABLE` | Proyección por línea de descarga; mezcla descargo con desperdicio |
+| `dbo.PED_DESPERDICIOS` | VIEW | READ ONLY | `SP_EXISTING_NOT_REUSABLE` | Pendientes por pedimento; separa desperdicio y merma |
+| `dbo.V_F4DESP`, `dbo.V_G6_DESP`, `dbo.v_saldosdesp` | VIEW | READ ONLY | `SP_EXISTING_NOT_REUSABLE` | Subtipos F4/G6/saldos con contrato especializado |
+| `dbo.DescargaDesp`, `Desperdicios`, `DesperdiciosPendientes`, `InformeDesperdicio`, `pdesperdicios`, `DescDirDesperdicios` | TABLES | físicas | `SP_EXISTING_NOT_REUSABLE` | Sin contrato; `InformeDesperdicio`, `Desperdicios` y `pdesperdicios` sin referencias en dependencias; `DescDirDesperdicios` sólo tocada por procesos mutables |
+| `dbo.LIGADESPERDICIOS`, `SALDOS*`, `HISTORIADESCARGAS*`, `SP_G5` | SP | WRITE/MIXED | `SP_EXISTING_NOT_REUSABLE` | Mutables; no GET |
+| `dbo.DESCARGADO_G5` | FUNCTION | READ ONLY | `FALSE_POSITIVE` | Cálculo G5; no es desperdicio |
+| Nuevo SP | — | — | `NEW_SP_REQUIRED` = NOT_PROVEN | Sin contrato de pantalla/columnas/filtros no se define proyección |
+
+### Conteos re-verificados (LIVE)
+
+```text
+descarga                       = 3866 filas (Desperdicio: 3866 NULL)
+DESCARGA_DESPERDICIO           = 0
+DescargaDesp                   = 0
+DescDirDesperdicios            = 0
+Desperdicios                   = 0
+DesperdiciosPendientes         = 0
+InformeDesperdicio             = 0
+pdesperdicios                  = 0
+PED_DESPERDICIOS               = 0
+V_F4DESP                       = 0
+V_G6_DESP                      = 0
+v_saldosdesp                   = 0
+vDESPERDICIOS                  = 0
+vDesperdiciosDetalleAplicacion = 0
+VReporteAplicaciondesperdicios = 0
+```
+
+### Dependencias relevantes
+
+- `APP24_Q_VENCIMIENTOS_LISTAR → vDESPERDICIOS`: única reutilización read-only existente;
+- `VReporteAplicaciondesperdicios → vDESPERDICIOS + vDesperdiciosDetalleAplicacion`;
+- `LIGADESPERDICIOS → descarga/DESCARGA_DESPERDICIO/DescDirDesperdicios/dirigido/salidas/psalidas/V_F4DESP` (mutable; invocada por `SP_G5`);
+- `v_saldosdesp → descarga/DescargaDesp/partidas/...` (saldos; fuera de alcance).
+
+### Evidencia faltante (sin cambio)
+
+- pantalla o ruta legacy inequívoca de Scrap;
+- columnas visibles, filtros y orden;
+- significado de Scrap y relación con `Aplicado`/`DescargaDesp`/`PED_DESPERDICIOS`;
+- grano y caso de aceptación anonimizado;
+- comportamiento de exportación.
+
+### Controles de la segunda pasada
+
+```text
+LIVE reads = SELECT/metadata
+LIVE writes = 0
+legacy mutable SP executed = 0
+new SP = 0
+new endpoint = 0
+Java/Angular changes = 0
+```

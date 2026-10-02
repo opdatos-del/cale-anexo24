@@ -350,3 +350,40 @@ paridad vigente            = 5 equivalentes + 26 rediseñadas + 11 parciales
 
 El detalle de las decisiones de negocio pendientes y las métricas de cierre
 viven en `docs/01-requerimientos/cierre-alcance-v1.md`.
+
+---
+
+## Fase — Reauditoría LEGACY-048 (scrap / desperdicio read-only)
+
+**Fecha / fase:** paridad V1, rama `feature/legacy-scrap-report-v1`.
+
+**Problema técnico abordado:** `LEGACY-048` seguía `UNKNOWN`; existía una
+auditoría previa (rama `feature/legacy-waste-report-v1`) sin contrato
+suficiente. Se reauditó para decidir si existe una consulta read-only
+implementable.
+
+**Método utilizado:** barrido read-only LIVE sobre `CALE_IMMEX` (`sys.objects`,
+`sys.sql_modules`, `sys.columns`, `sys.sql_expression_dependencies`,
+`sys.parameters`, `OBJECT_DEFINITION`); conteos agregados; ningún objeto mutable
+ejecutado.
+
+**Resultados:**
+
+- sin objeto ni definición que use el nombre `Scrap`; sin SP read-only de
+  desperdicio;
+- 15 datasets de desperdicio con 0 filas; `descarga.Desperdicio` NULL en
+  3.866/3.866 filas;
+- única reutilización read-only existente: `APP24_Q_VENCIMIENTOS_LISTAR →
+  vDESPERDICIOS` (LEGACY-046);
+- `NEW_SP_REQUIRED = NOT_PROVEN`: falta contrato de pantalla (columnas,
+  filtros, grano, caso de aceptación).
+
+**Resultado:** `SCRAP_CONTRACT = PARTIAL` y `LEGACY-048 = UNKNOWN` (sin
+cambio); no se implementó SP, endpoint ni frontend.
+
+**Limitaciones:** la evidencia del repositorio y de la metadata LIVE no
+incluye una pantalla legacy denominada Scrap.
+
+**Artefactos producidos:** `docs/03-diseno/mapeo-desperdicios.md` (segunda
+pasada); `docs/01-requerimientos/matriz-paridad-legacy-v1.md` (nota de
+reauditoría).
