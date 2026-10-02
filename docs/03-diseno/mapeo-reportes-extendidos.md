@@ -19,7 +19,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 | Consolidado materiales | Sin contrato independiente confirmado | UNKNOWN | No implementar |
 | Consolidado productos | Sin contrato independiente confirmado | UNKNOWN | No implementar |
 | Consolidado estructuras | `PR_INFORME_ESTRUCTURAS` usa procesamiento interno y no ofrece contrato seguro independiente | PARTIAL | No ejecutar; mantener consulta de estructuras existente |
-| CTM / F4 / HDE | Múltiples tablas, views y procedimientos de descarga/cumplimiento | UNKNOWN | No existe aún una decisión de negocio ni contrato funcional suficiente |
+| CTM / F4 / HDE | `V_F4CTMA`/`V_F4DESP` delimitan líneas dirigidas de salidas F4/A3 por `TipoDescarga` CTMAPAA/DESP (0 filas); tablas CTM y `V_INFORME_F4_CTMAPAA` sin contrato; sin objetos HDE | PARTIAL | Implementar sólo la consulta read-only F4 con XLSX; CTM mutable y HDE quedan fuera (`HDE_CONTRACT = NOT_FOUND`) |
 
 ## Procedimientos legacy candidatos
 
@@ -150,6 +150,29 @@ inline Java SQL = 0
 analítica read-only. La superficie consolidada permite consultar por entrada y
 por salida; `LEGACY-033` y `LEGACY-034` quedan cubiertos como
 `IMPLEMENTED_REDESIGNED`, sin exigir pantallas separadas ni ejecutar mutaciones.
+
+## F4 (CTM / desperdicio) V1
+
+La consulta implementada expone las líneas dirigidas de las vistas legacy
+read-only `dbo.V_F4CTMA` (TipoDescarga `CTMAPAA`) y `dbo.V_F4DESP`
+(TipoDescarga `DESP`), ambas filtradas por `Cve_pedimento` F4/A3. El grano es la
+relación de `dirigido`; `dirigidokey` (PK not nullable) sostiene el orden
+determinístico. En LIVE ambas vistas tienen 0 filas (`dirigido` vacío).
+
+- SP versionado: `dbo.APP24_Q_F4_LISTAR`.
+- API: `GET /api/v1/reportes/f4` y `GET /api/v1/reportes/f4/exportacion` (XLSX
+  con la misma proyección vía `ExportadorXlsxReportes`).
+- Filtros: búsqueda textual sobre tipo de descarga, F4, importación y clave.
+- Orden: `FECHA DESC`, `F4`, `CLAVE`, `DIRIGIDOKEY`.
+- Proyección: tipo de descarga, F4, fecha, importación, clave, incorporado y
+  saldo.
+- Permiso: `REPORTES_GENERAR` / `REPORTES_EXPORTAR`.
+- UI: opción `F4 (CTM / desperdicio)` dentro de `/reportes`; sin sidebar nuevo.
+- `F4_READ_V1 = IMPLEMENTED`; `LIVE_ROWS = 0` documentado sin inventar caso real.
+- `CTM` mutable (`LIGACTMA`, `LIGACTMFACTURA`, `SALDOSCTM`, `CTMDESCARGA`) y
+  `V_INFORME_F4_CTMAPAA` fuera de alcance; `HDE_CONTRACT = NOT_FOUND`.
+- Pruebas: `F4LineasSqlIT` (contrato de columnas, conteo, páginas, filtros y
+  orden determinístico sobre SQL Server efímero) y pruebas de use case/API/UI.
 
 ## Controles
 

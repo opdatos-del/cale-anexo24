@@ -84,13 +84,16 @@ operativo autorizado.
 | `SALDOSCTM` | `CALCULATION` / `WRITE` | Actualiza descargas, saldos y trazo CTM | Excluido |
 | `LIGACTMA` | `PROCESS` / `WRITE` | Vincula datos CTMA y afecta flujo especializado | No ejecutar |
 | `LIGACTMFACTURA` | `PROCESS` / `WRITE` | Vincula facturas/desperdicios con descargas | No ejecutar |
-| `V_F4CTMA` | `READ ONLY` / referencia | Vista especializada F4/CTM sin contrato V1 aprobado | No exponer |
-| `V_F4DESP` | `READ ONLY` / referencia | Vista especializada desperdicio/F4 sin contrato V1 aprobado | No exponer |
+| `V_F4CTMA` | `READ ONLY` / fuente implementada | Vista especializada F4/CTM; 0 filas | Expuesta vía `APP24_Q_F4_LISTAR` (`GET /api/v1/reportes/f4`) |
+| `V_F4DESP` | `READ ONLY` / fuente implementada | Vista especializada desperdicio/F4; 0 filas | Expuesta vía `APP24_Q_F4_LISTAR` (`GET /api/v1/reportes/f4`) |
 | `DESCARGA_CTMA` | `READ ONLY` / referencia | Vista especializada relacionada, no fuente canónica V1 | No exponer |
 
-Existe una posible capacidad de consulta read-only, pero no están cerrados la
-fuente canónica, granularidad, filtros, campos, semántica de CTM ni aceptación.
-Por ello no se crea un endpoint GET ni se cambia `LEGACY-028` o `LEGACY-063`.
+La consulta read-only de líneas dirigidas F4 quedó implementada como
+`LEGACY-041 = PARTIAL` (`GET /api/v1/reportes/f4` + exportación XLSX sobre
+`V_F4CTMA`/`V_F4DESP`; `LIVE_ROWS = 0`). El proceso CTM mutable
+(`LIGACTMA`, `LIGACTMFACTURA`, `SALDOSCTM`, `CTMDESCARGA`) y `HDE`
+(`HDE_CONTRACT = NOT_FOUND`) permanecen fuera de alcance; no se crea endpoint
+GET para el proceso ni se cambia `LEGACY-028` o `LEGACY-063`.
 
 ## Separación de staging y procesamiento
 

@@ -420,3 +420,38 @@ reglas de validación legacy (inexistentes en el SP).
 
 **Artefactos producidos:** `docs/03-diseno/mapeo-operaciones-especiales.md`
 (segunda pasada); `docs/01-requerimientos/matriz-paridad-legacy-v1.md` (nota).
+
+---
+
+## Fase — Reporte read-only F4 (CTM / desperdicio, LEGACY-041 parcial)
+
+**Fecha / fase:** paridad V1, rama `feature/legacy-ctm-f4-report-v1`.
+
+**Problema técnico abordado:** `LEGACY-041` (`CTM/F4/HDE`) estaba `UNKNOWN` sin
+proyección read-only aprobada; se auditó `V_F4CTMA`/`V_F4DESP` para decidir si
+existía al menos una consulta implementable.
+
+**Método utilizado:** barrido read-only LIVE (objetos, definiciones, columnas,
+conteos, dependencias, parámetros) sobre `CALE_IMMEX`; sin ejecutar objetos
+mutables; pruebas SQL sobre SQL Server efímero con fixtures sintéticos.
+
+**Resultados:**
+
+- `V_F4CTMA`/`V_F4DESP` son vistas read-only de líneas dirigidas F4/A3
+  (`TipoDescarga` CTMAPAA/DESP) con grano `dirigidokey` y 0 filas en LIVE;
+- todo el resto del subsistema CTM (`LIGACTMA`, `SALDOSCTM`, `CTMDESCARGA`,
+  `DESCARGACTMF`, `V_INFORME_F4_CTMAPAA`) es mutable o sin contrato; no existe
+  objeto HDE (`HDE_CONTRACT = NOT_FOUND`);
+- implementado `GET /api/v1/reportes/f4` + exportación XLSX vía
+  `dbo.APP24_Q_F4_LISTAR` (nuevo SP read-only) y opción `F4 (CTM / desperdicio)`
+  en `/reportes`.
+
+**Resultado:** `LEGACY-041`: `UNKNOWN → PARTIAL`; `LIVE_ROWS = 0` documentado.
+
+**Limitaciones:** el proceso CTM, HDE y el informe `V_INFORME_F4_CTMAPAA`
+quedan fuera de alcance; el SP requiere deployment LIVE controlado antes de
+usarse en runtime.
+
+**Artefactos producidos:** `infra/sql/procedures/queries/APP24_Q_F4_LISTAR.sql`;
+`docs/03-diseno/mapeo-reportes-extendidos.md` (sección F4 V1);
+`docs/01-requerimientos/matriz-paridad-legacy-v1.md` (LEGACY-041).
