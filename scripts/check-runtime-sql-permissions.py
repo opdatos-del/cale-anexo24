@@ -10,6 +10,12 @@ sobrantes:
 - Si existe `07-runtime-security-verify.sql` (opcional), sus listas `VALUES`
   `('app24', ...)` / `('dbo', ...)` también deben coincidir exactamente con
   los sets de Java (evita deriva del verificador LIVE).
+- Scan global de `infra/sql/**/*.sql` (incluye migrations históricas): cualquier
+  `GRANT`/`DENY`/`ALTER ROLE ... ADD MEMBER` sobre `anexo24_app`,
+  `app24_runtime` o `cale_immex_runtime` debe ser canónico. Se admiten
+  duplicados históricos de `GRANT EXECUTE ON OBJECT::<SP autorizado>`; se
+  rechazan SP fuera del contrato, schema grants, DML directo, EXECUTE
+  database-wide, `ADD MEMBER` a roles fijos y permisos directos al usuario.
 
 No es una migración de datos ni de base: sólo valida la metadata de seguridad
 de la identidad runtime (`anexo24_app`).
@@ -51,6 +57,23 @@ CALE_SCHEMA = "dbo"
 LITERAL_SP = re.compile(r'"((?:app24|dbo)\.[A-Za-z0-9_]+)"')
 VALUES_APP = re.compile(r"\('app24',\s*'([A-Z0-9_]+)'\)")
 VALUES_CALE = re.compile(r"\('dbo',\s*'([A-Z0-9_]+)'\)")
+
+RUNTIME_PRINCIPALS = {"anexo24_app", "app24_runtime", "cale_immex_runtime"}
+ROLES_RUNTIME = {"app24_runtime", "cale_immex_runtime"}
+
+GRANT_STMT = re.compile(
+    r"GRANT\s+([A-Za-z, ]+?)\s+ON\s+([A-Za-z0-9_:\[\].]+)\s+TO\s+\[?([A-Za-z0-9_]+)\]?",
+    re.IGNORECASE,
+)
+GRANT_BASE = re.compile(r"GRANT\s+([A-Za-z ]+?)\s+TO\s+\[?([A-Za-z0-9_]+)\]?", re.IGNORECASE)
+DENY_STMT = re.compile(
+    r"DENY\s+([A-Za-z, ]+?)\s+ON\s+([A-Za-z0-9_:\[\].]+)\s+TO\s+\[?([A-Za-z0-9_]+)\]?",
+    re.IGNORECASE,
+)
+ALTER_ROLE_ADD = re.compile(
+    r"ALTER\s+ROLE\s+\[?([A-Za-z0-9_]+)\]?\s+ADD\s+MEMBER\s+\[?([A-Za-z0-9_]+)\]?",
+    re.IGNORECASE,
+)
 
 GRANT_OBJ = re.compile(
     r"GRANT\s+EXECUTE\s+ON\s+OBJECT::([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\s+TO\s+([A-Za-z0-9_]+)",
@@ -128,6 +151,55 @@ def violaciones_estructurales(archivo: Path) -> list[str]:
     return problemas
 
 
+def escanear_sql_repo(sql_root: Path, app_canonico: set[str], cale_canonico: set[str]) -> tuple[int, list[str]]:
+    """Escanea todo `infra/sql/**/*.sql` buscando permisos no canónicos de los
+    principals runtime. Los duplicados históricos de `GRANT EXECUTE ON
+    OBJECT::<SP canónico>` son válidos; cualquier otra forma es hallazgo."""
+    archivos = sorted(sql_root.rglob("*.sql"))
+    hallazgos: list[str] = []
+    for archivo in archivos:
+        texto = sin_comentarios(archivo.read_text(encoding="utf-8", errors="replace"))
+        nombre = archivo.relative_to(sql_root).as_posix()
+        for coincidencia in GRANT_STMT.finditer(texto):
+            permisos = {p.strip().upper() for p in coincidencia.group(1).split(",") if p.strip()}
+            objeto = coincidencia.group(2)
+            principal = coincidencia.group(3)
+            if principal not in RUNTIME_PRINCIPALS:
+                continue
+            if objeto.upper().startswith("SCHEMA::"):
+                hallazgos.append(f"schema_execute|archivo={nombre}|principal={principal}")
+                continue
+            if objeto.upper().startswith("OBJECT::"):
+                esquema, _, sp = objeto[8:].partition(".")
+                canonico = (
+                    app_canonico if esquema.lower() == APP_SCHEMA
+                    else cale_canonico if esquema.lower() == CALE_SCHEMA
+                    else None
+                )
+                if permisos == {"EXECUTE"}:
+                    if principal == "anexo24_app":
+                        hallazgos.append(f"execute_directo_usuario|archivo={nombre}|objeto={objeto}")
+                    elif canonico is None or sp not in canonico:
+                        hallazgos.append(f"execute_sp_fuera_contrato|archivo={nombre}|principal={principal}|objeto={objeto}")
+                else:
+                    hallazgos.append(f"grant_no_execute|archivo={nombre}|principal={principal}|objeto={objeto}|permiso={coincidencia.group(1).strip()}")
+                continue
+            hallazgos.append(f"grant_inesperado|archivo={nombre}|principal={principal}|objeto={objeto}")
+        for coincidencia in GRANT_BASE.finditer(texto):
+            permiso = coincidencia.group(1).strip().upper()
+            principal = coincidencia.group(2)
+            if principal in RUNTIME_PRINCIPALS and permiso not in ("CONNECT", "CONNECT SQL"):
+                hallazgos.append(f"grant_base_wide|archivo={nombre}|principal={principal}|permiso={permiso}")
+        for coincidencia in DENY_STMT.finditer(texto):
+            if coincidencia.group(3) in RUNTIME_PRINCIPALS:
+                hallazgos.append(f"deny_directo|archivo={nombre}|principal={coincidencia.group(3)}|objeto={coincidencia.group(2)}")
+        for coincidencia in ALTER_ROLE_ADD.finditer(texto):
+            rol, miembro = coincidencia.group(1), coincidencia.group(2)
+            if miembro in RUNTIME_PRINCIPALS and rol.lower() not in ROLES_RUNTIME:
+                hallazgos.append(f"rol_fijo_add_member|archivo={nombre}|rol={rol}|miembro={miembro}")
+    return len(archivos), hallazgos
+
+
 def comparar(db: str, esperados: set[str], presentes: set[str]) -> tuple[str, list[str]]:
     faltantes = sorted(esperados - presentes)
     sobrantes = sorted(presentes - esperados)
@@ -144,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--app-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "04-app-runtime-permissions.sql")
     parser.add_argument("--cale-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "05-cale-immex-runtime-permissions.sql")
     parser.add_argument("--verify-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "07-runtime-security-verify.sql")
+    parser.add_argument("--sql-root", type=Path, default=REPO_ROOT / "infra" / "sql")
     args = parser.parse_args(argv)
 
     fallos: list[str] = []
@@ -197,6 +270,15 @@ def main(argv: list[str] | None = None) -> int:
             fallos.append(f"missing|database=CALE_IMMEX|script=07-runtime-security-verify.sql|{', '.join(faltan_v_cale)}")
         if sobran_v_cale:
             fallos.append(f"extra|database=CALE_IMMEX|script=07-runtime-security-verify.sql|{', '.join(sobran_v_cale)}")
+
+    if not args.sql_root.is_dir():
+        fallos.append(f"sql_root_inexistente|ruta={args.sql_root}")
+        archivos_scan, hallazgos_scan = 0, []
+    else:
+        archivos_scan, hallazgos_scan = escanear_sql_repo(args.sql_root, app_java, cale_java)
+    print(f"RUNTIME_PERMISSION_REPO_SCAN|files={archivos_scan}|findings={len(hallazgos_scan)}")
+    for hallazgo in hallazgos_scan:
+        fallos.append(f"repo_scan|{hallazgo}")
 
     for db, faltantes, sobrantes in (
         ("ANEXO24_DEV", faltan_app, sobran_app),

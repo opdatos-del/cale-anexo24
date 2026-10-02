@@ -58,6 +58,7 @@ class RuntimeIdentityDeploymentScriptsIT {
     private static final String CERT_PATH_1 = "/var/opt/mssql/app24_deploy_cert_1.cer";
     private static final String CERT_PATH_2 = "/var/opt/mssql/app24_deploy_cert_2.cer";
     private static final String CERT_PATH_3 = "/var/opt/mssql/app24_deploy_cert_3.cer";
+    private static final String CERT_PATH_4 = "/var/opt/mssql/app24_deploy_cert_4.cer";
 
     private static final String[] CALE_SP = {
             "APP24_Q_ACTIVOS_FIJOS_LISTAR", "APP24_Q_AGENTES_ADUANALES_LISTAR",
@@ -197,8 +198,9 @@ class RuntimeIdentityDeploymentScriptsIT {
                 "El guard debe dispararse antes de cualquier DDL: " + error.getMessage());
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.certificates WHERE name = '" + CERT + "'"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.certificates WHERE name = '" + CERT + "'"));
-        assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##'"));
+        assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##'"));
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.crypt_properties WHERE major_id = OBJECT_ID('dbo.APP24_C_PEDIMENTO_CONFIRMAR')"));
+        assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_principals WHERE name = '" + CERT_USER + "'"));
         System.out.println("[DEPLOY-IT] SQLCMD_VARIABLE_GUARD = PASS (" + error.getMessage() + ")");
     }
 
@@ -235,32 +237,33 @@ class RuntimeIdentityDeploymentScriptsIT {
 
     @Test
     @Order(4)
-    void thumbprintDriftFallaLaVerificacion() throws Exception {
+    void thumbprintDriftFallaSinEfectosDePermisos() throws Exception {
         try (Connection app = conectarAdmin(APP)) {
             ejecutar(app, "IF USER_ID('" + CERT_USER + "') IS NOT NULL DROP USER [" + CERT_USER + "]");
             ejecutar(app, "IF CERT_ID('" + CERT + "') IS NOT NULL DROP CERTIFICATE [" + CERT + "]");
             ejecutar(app, "IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')"
                     + " CREATE MASTER KEY ENCRYPTION BY PASSWORD = N'" + DMK_PASSWORD + "'");
             ejecutar(app, "CREATE CERTIFICATE " + CERT + " WITH SUBJECT = N'drift sintético'");
-            ejecutar(app, "CREATE USER " + CERT_USER + " FOR CERTIFICATE " + CERT);
-            ejecutar(app, "GRANT SELECT, UPDATE ON OBJECT::app24.CargaPedimento TO " + CERT_USER);
-            ejecutar(app, "GRANT SELECT ON OBJECT::app24.CargaPedimentoFila TO " + CERT_USER);
-            ejecutar(app, "GRANT SELECT ON OBJECT::app24.ErrorCargaPedimento TO " + CERT_USER);
-            ejecutar(app, "GRANT EXECUTE ON OBJECT::app24.APP24_C_BITACORA_REGISTRAR TO " + CERT_USER);
         }
-        SQLException error = ejecutarBatchesConMarcador(conectarAdmin("master"), script06, "DECLARE @thumbOrigen");
-        assertNotNull(error, "CERTIFICATE_MIRROR_MATCH debe fallar con thumbprints distintos");
+        // 06 completo con el certificado drift: debe fallar ANTES de crear user/permisos.
+        SQLException error = assertThrows(SQLException.class,
+                () -> aplicar06(Map.of("DmkPassword", DMK_PASSWORD, "CertPublicPath", CERT_PATH_2)));
         assertTrue(error.getMessage().contains("CERTIFICATE_MIRROR_MATCH"), error.getMessage());
+        assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_principals WHERE name = '" + CERT_USER + "'"),
+                "THUMBPRINT_FAIL_HAS_NO_PERMISSION_SIDE_EFFECTS: no debe crearse el cert-user");
+        assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions p"
+                        + " JOIN sys.database_principals u ON u.principal_id = p.grantee_principal_id"
+                        + " WHERE u.name = '" + CERT_USER + "'"),
+                "THUMBPRINT_FAIL_HAS_NO_PERMISSION_SIDE_EFFECTS: no debe haber grants");
 
         // Restauración manual (fail closed: el script no repara solo).
         try (Connection app = conectarAdmin(APP)) {
-            ejecutar(app, "IF USER_ID('" + CERT_USER + "') IS NOT NULL DROP USER [" + CERT_USER + "]");
             ejecutar(app, "IF CERT_ID('" + CERT + "') IS NOT NULL DROP CERTIFICATE [" + CERT + "]");
         }
         aplicar06(Map.of("DmkPassword", DMK_PASSWORD, "CertPublicPath", CERT_PATH_3));
         assertEquals(textoAdmin("master", "SELECT CONVERT(VARCHAR(64), thumbprint, 2) FROM CALE_IMMEX.sys.certificates WHERE name = '" + CERT + "'"),
                 textoAdmin("master", "SELECT CONVERT(VARCHAR(64), thumbprint, 2) FROM ANEXO24_DEV.sys.certificates WHERE name = '" + CERT + "'"));
-        System.out.println("[DEPLOY-IT] thumbprint drift → FAIL; espejo restaurado con 06 real");
+        System.out.println("[DEPLOY-IT] THUMBPRINT_FAIL_HAS_NO_PERMISSION_SIDE_EFFECTS = PASS");
     }
 
     @Test
@@ -276,7 +279,7 @@ class RuntimeIdentityDeploymentScriptsIT {
                 () -> ejecutarComoRuntime(CALE, "EXEC dbo.APP24_C_PEDIMENTO_CONFIRMAR"));
         System.out.println("[DEPLOY-IT] tras ALTER → DENIED: " + trasAlter.getMessage());
 
-        aplicar06(Map.of("DmkPassword", DMK_PASSWORD, "CertPublicPath", CERT_PATH_2));
+        aplicar06(Map.of("DmkPassword", DMK_PASSWORD, "CertPublicPath", CERT_PATH_4));
         assertEquals(1, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.crypt_properties WHERE major_id = OBJECT_ID('dbo.APP24_C_PEDIMENTO_CONFIRMAR')"));
         ejecutarRuntimeCommandYValidar();
         assertEquals("CONFIRMADA", textoAdmin(APP, "SELECT Estado FROM app24.CargaPedimento WHERE CargaPedimentoKey = 1"));
@@ -389,6 +392,31 @@ class RuntimeIdentityDeploymentScriptsIT {
 
         aplicar07();
         System.out.println("[DEPLOY-IT] 07 PASS + 6 negativos detectados");
+    }
+
+    @Test
+    @Order(9)
+    void verificador07NivelServidor() throws Exception {
+        aplicar07();
+
+        try (Connection master = conectarAdmin("master")) {
+            ejecutar(master, "ALTER SERVER ROLE sysadmin ADD MEMBER " + RUNTIME);
+        }
+        assertVerificadorFalla("membership sysadmin debe fallar 07");
+        try (Connection master = conectarAdmin("master")) {
+            ejecutar(master, "ALTER SERVER ROLE sysadmin DROP MEMBER " + RUNTIME);
+        }
+
+        try (Connection master = conectarAdmin("master")) {
+            ejecutar(master, "GRANT CONTROL SERVER TO " + RUNTIME);
+        }
+        assertVerificadorFalla("CONTROL SERVER debe fallar 07");
+        try (Connection master = conectarAdmin("master")) {
+            ejecutar(master, "REVOKE CONTROL SERVER FROM " + RUNTIME);
+        }
+
+        aplicar07();
+        System.out.println("[DEPLOY-IT] SERVER_LEVEL_RUNTIME_VERIFY = PASS (2 negativos detectados)");
     }
 
     // ------------------------------------------------------------- fixtures
@@ -622,7 +650,9 @@ class RuntimeIdentityDeploymentScriptsIT {
 
     private static void assertVerificadorFalla(String contexto) {
         SQLException error = assertThrows(SQLException.class, RuntimeIdentityDeploymentScriptsIT::aplicar07, contexto);
-        assertTrue(error.getMessage().contains("RUNTIME_SECURITY_VERIFY"), contexto + " :: " + error.getMessage());
+        String mensaje = error.getMessage() == null ? "" : error.getMessage();
+        assertTrue(mensaje.contains("RUNTIME_SECURITY_VERIFY") || mensaje.contains("SERVER_LEVEL_RUNTIME_VERIFY"),
+                contexto + " :: " + mensaje);
     }
 
     private static SQLException assertDenegado(String contexto, AccionSql accion) {

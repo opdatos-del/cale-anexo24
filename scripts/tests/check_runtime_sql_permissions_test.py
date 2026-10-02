@@ -10,6 +10,12 @@ Ejecuta scripts/check-runtime-sql-permissions.py contra fixtures PASS y FAIL:
 - schema_grant -> GRANT EXECUTE ON SCHEMA:: -> FAIL schema_grant
 - table_grant  -> GRANT de DML directo -> FAIL grant_directo
 - verify_mismatch -> listas de 07-runtime-security-verify.sql desalineadas -> FAIL
+- historical_allowed_duplicate -> duplicado histórico canónico -> PASS
+- historical_extra_sp -> SP fuera del contrato -> FAIL
+- historical_schema_execute -> schema EXECUTE -> FAIL
+- historical_table_select -> DML directo -> FAIL
+- direct_runtime_user_grant -> grant directo a anexo24_app -> FAIL
+- historical_fixed_role -> ADD MEMBER a rol fijo -> FAIL
 
 Sin dependencias externas (STANDARD_LIBRARY_ONLY).
 
@@ -31,18 +37,21 @@ JAVA_FIXTURE = FIXTURES / "java"
 APP_FILE = "04-app-runtime-permissions.sql"
 CALE_FILE = "05-cale-immex-runtime-permissions.sql"
 VERIFY_FILE = "07-runtime-security-verify.sql"
+REPO_SCAN = FIXTURES / "repo_scan"
 
 
-def ejecutar(caso: str) -> tuple[int, str]:
+def ejecutar(caso: str, sql_root: Path | None = None, base: str | None = None) -> tuple[int, str]:
     directorio = FIXTURES / caso
+    base_dir = FIXTURES / base if base else directorio
     resultado = subprocess.run(
         [
             sys.executable,
             str(SCANNER),
             "--java-root", str(JAVA_FIXTURE),
-            "--app-script", str(directorio / APP_FILE),
-            "--cale-script", str(directorio / CALE_FILE),
-            "--verify-script", str(directorio / VERIFY_FILE),
+            "--app-script", str(base_dir / APP_FILE),
+            "--cale-script", str(base_dir / CALE_FILE),
+            "--verify-script", str(base_dir / VERIFY_FILE),
+            "--sql-root", str(sql_root or directorio),
         ],
         capture_output=True,
         text=True,
@@ -93,6 +102,30 @@ def main() -> int:
     revisar("verify_mismatch rc=1", rc == 1, out)
     revisar("verify_mismatch detectado",
             "script=07-runtime-security-verify.sql" in out and "missing|database=ANEXO24_DEV" in out, out)
+
+    rc, out = ejecutar("historical_allowed_duplicate", sql_root=REPO_SCAN / "historical_allowed_duplicate", base="pass")
+    revisar("historical_allowed_duplicate rc=0", rc == 0, out)
+    revisar("historical_allowed_duplicate findings=0", "RUNTIME_PERMISSION_REPO_SCAN|" in out and "findings=0" in out, out)
+
+    rc, out = ejecutar("historical_extra_sp", sql_root=REPO_SCAN / "historical_extra_sp", base="pass")
+    revisar("historical_extra_sp rc=1", rc == 1, out)
+    revisar("historical_extra_sp detectado", "execute_sp_fuera_contrato" in out, out)
+
+    rc, out = ejecutar("historical_schema_execute", sql_root=REPO_SCAN / "historical_schema_execute", base="pass")
+    revisar("historical_schema_execute rc=1", rc == 1, out)
+    revisar("historical_schema_execute detectado", "schema_execute" in out, out)
+
+    rc, out = ejecutar("historical_table_select", sql_root=REPO_SCAN / "historical_table_select", base="pass")
+    revisar("historical_table_select rc=1", rc == 1, out)
+    revisar("historical_table_select detectado", "grant_no_execute" in out, out)
+
+    rc, out = ejecutar("direct_runtime_user_grant", sql_root=REPO_SCAN / "direct_runtime_user_grant", base="pass")
+    revisar("direct_runtime_user_grant rc=1", rc == 1, out)
+    revisar("direct_runtime_user_grant detectado", "execute_directo_usuario" in out, out)
+
+    rc, out = ejecutar("historical_fixed_role", sql_root=REPO_SCAN / "historical_fixed_role", base="pass")
+    revisar("historical_fixed_role rc=1", rc == 1, out)
+    revisar("historical_fixed_role detectado", "rol_fijo_add_member" in out, out)
 
     if fallos:
         for fallo in fallos:

@@ -15,6 +15,48 @@
 -- Contrato mantenido en sincronía por scripts/check-runtime-sql-permissions.py.
 -- ============================================
 
+-- ---------------------------------------------------------------
+-- Nivel servidor (read-only): login runtime
+-- ---------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'anexo24_app' AND type = 'S')
+BEGIN
+    THROW 50090, 'SERVER_LEVEL_RUNTIME_VERIFY: no existe el login anexo24_app (SQL_LOGIN).', 1;
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'anexo24_app' AND is_disabled = 1)
+BEGIN
+    THROW 50091, 'SERVER_LEVEL_RUNTIME_VERIFY: el login anexo24_app está deshabilitado.', 1;
+END
+GO
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.server_role_members srm
+    JOIN sys.server_principals rol ON rol.principal_id = srm.role_principal_id
+    JOIN sys.server_principals miembro ON miembro.principal_id = srm.member_principal_id
+    WHERE miembro.name = 'anexo24_app'
+      AND rol.name IN ('sysadmin', 'serveradmin', 'securityadmin', 'processadmin',
+                       'setupadmin', 'bulkadmin', 'diskadmin', 'dbcreator')
+)
+BEGIN
+    THROW 50092, 'SERVER_LEVEL_RUNTIME_VERIFY: anexo24_app pertenece a un rol fijo de servidor prohibido.', 1;
+END
+GO
+
+-- Contrato de permisos de servidor: sólo CONNECT SQL (si existe como grant explícito).
+IF EXISTS (
+    SELECT 1
+    FROM sys.server_permissions p
+    JOIN sys.server_principals l ON l.principal_id = p.grantee_principal_id
+    WHERE l.name = 'anexo24_app'
+      AND NOT (p.permission_name = 'CONNECT SQL' AND p.state = 'G')
+)
+BEGIN
+    THROW 50093, 'SERVER_LEVEL_RUNTIME_VERIFY: anexo24_app tiene permisos de servidor fuera del contrato (sólo se admite CONNECT SQL).', 1;
+END
+GO
+
 USE CALE_IMMEX;
 GO
 
@@ -267,4 +309,5 @@ END
 GO
 
 PRINT 'RUNTIME_SECURITY_VERIFY|PASS';
+PRINT 'SERVER_LEVEL_RUNTIME_VERIFY|PASS';
 GO

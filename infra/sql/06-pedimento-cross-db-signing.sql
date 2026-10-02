@@ -7,7 +7,11 @@
 --
 -- Variables SQLCMD (ejemplo; jamás versionar valores reales):
 --   :setvar DmkPassword     <password operativa de la master key de CALE_IMMEX>
---   :setvar CertPublicPath  <ruta temporal para el .cer público>
+--   :setvar CertPublicPath  <ruta temporal ÚNICA por deployment, p. ej.
+--                            app24_pedimento_<timestamp>.cer; la genera el
+--                            runbook y su limpieza es operativa externa.
+--                            El .cer es sólo clave pública: no contiene
+--                            clave privada. No se borra vía SQL.>
 --
 -- Alcance (sólo metadata de seguridad):
 --   * CALE_IMMEX: master key si falta, certificado de firma, ADD SIGNATURE
@@ -90,13 +94,18 @@ END
 GO
 
 -- Exporta SOLO la clave pública (el .cer no contiene clave privada).
--- Si el archivo destino ya existe, eliminarlo antes o usar otra ruta:
--- el motor rechaza sobrescribir. No versionar el .cer generado.
+-- La ruta debe ser única por deployment (p. ej. app24_pedimento_<timestamp>.cer
+-- generada por el runbook): el motor rechaza sobrescribir. Tras el deployment,
+-- el archivo público temporal se elimina por mecanismo operativo externo;
+-- este script no borra archivos.
 BACKUP CERTIFICATE app24_pedimento_cert TO FILE = N'$(CertPublicPath)';
 GO
 
 -- ---------------------------------------------------------------
--- BLOQUE 2 · ANEXO24_DEV: certificado espejo y permisos mínimos
+-- BLOQUE 2 · ANEXO24_DEV: importar certificado y validar el espejo
+-- ANTES de crear cualquier principal o permiso.
+-- CERTIFICATE_MIRROR_MATCH = REQUIRED: mismo certificado en ambas DB.
+-- Fail closed: un certificado inconsistente NO se repara automáticamente.
 -- ---------------------------------------------------------------
 USE ANEXO24_DEV;
 GO
@@ -107,24 +116,6 @@ BEGIN
 END
 GO
 
-IF USER_ID('app24_pedimento_cert_user') IS NULL
-BEGIN
-    CREATE USER app24_pedimento_cert_user FOR CERTIFICATE app24_pedimento_cert;
-END
-GO
-
--- Permisos EXACTOS del principal de contexto del command.
-GRANT SELECT, UPDATE ON OBJECT::app24.CargaPedimento TO app24_pedimento_cert_user;
-GRANT SELECT ON OBJECT::app24.CargaPedimentoFila TO app24_pedimento_cert_user;
-GRANT SELECT ON OBJECT::app24.ErrorCargaPedimento TO app24_pedimento_cert_user;
-GRANT EXECUTE ON OBJECT::app24.APP24_C_BITACORA_REGISTRAR TO app24_pedimento_cert_user;
-GO
-
--- ---------------------------------------------------------------
--- BLOQUE 3 · Verificación del espejo de certificado (thumbprint)
--- CERTIFICATE_MIRROR_MATCH = REQUIRED: mismo certificado en ambas DB.
--- Fail closed: un certificado inconsistente NO se repara automáticamente.
--- ---------------------------------------------------------------
 DECLARE @thumbOrigen VARBINARY(32), @thumbDestino VARBINARY(32);
 
 SELECT @thumbOrigen = thumbprint FROM CALE_IMMEX.sys.certificates WHERE name = 'app24_pedimento_cert';
@@ -142,8 +133,25 @@ END
 
 IF @thumbOrigen <> @thumbDestino
 BEGIN
-    THROW 50034, 'CERTIFICATE_MIRROR_MATCH: los thumbprints difieren entre CALE_IMMEX y ANEXO24_DEV. Fail closed: revisar el deployment y recrear el espejo manualmente.', 1;
+    THROW 50034, 'CERTIFICATE_MIRROR_MATCH: los thumbprints difieren entre CALE_IMMEX y ANEXO24_DEV. Fail closed: no se crean usuarios ni permisos; revisar el deployment y recrear el espejo manualmente.', 1;
 END
+GO
+
+-- ---------------------------------------------------------------
+-- BLOQUE 3 · Principal de contexto y permisos exactos
+-- (sólo después de validar la identidad criptográfica del espejo)
+-- ---------------------------------------------------------------
+IF USER_ID('app24_pedimento_cert_user') IS NULL
+BEGIN
+    CREATE USER app24_pedimento_cert_user FOR CERTIFICATE app24_pedimento_cert;
+END
+GO
+
+-- Permisos EXACTOS del principal de contexto del command.
+GRANT SELECT, UPDATE ON OBJECT::app24.CargaPedimento TO app24_pedimento_cert_user;
+GRANT SELECT ON OBJECT::app24.CargaPedimentoFila TO app24_pedimento_cert_user;
+GRANT SELECT ON OBJECT::app24.ErrorCargaPedimento TO app24_pedimento_cert_user;
+GRANT EXECUTE ON OBJECT::app24.APP24_C_BITACORA_REGISTRAR TO app24_pedimento_cert_user;
 GO
 
 -- ---------------------------------------------------------------

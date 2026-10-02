@@ -466,10 +466,10 @@ datos. Esta fase prepara exclusivamente la metadata de seguridad del runtime.
 |---|---|
 | `infra/sql/04-app-runtime-permissions.sql` | ANEXO24_DEV: fuente de verdad de los 35 `GRANT EXECUTE` por objeto del rol `app24_runtime` (consolida staging de facturación, pedimentos y catálogos que vivía en migrations 05/06/09/10) |
 | `infra/sql/05-cale-immex-runtime-permissions.sql` | CALE_IMMEX: exige que el login exista, crea el user `anexo24_app`, el rol `cale_immex_runtime` y los 23 `GRANT EXECUTE` por objeto; sin DML directo, sin schema grants, sin roles fijos |
-| `infra/sql/06-pedimento-cross-db-signing.sql` | Firma cross-db del command: guard SQLCMD fail-fast (variables sin sustituir → THROW antes de todo DDL), DMK + certificado + `ADD SIGNATURE`, certificado espejo en ANEXO24_DEV, cert-user con los 5 permisos exactos, verificación de thumbprint idéntico (`CERTIFICATE_MIRROR_MATCH`) y set exacto bidireccional de permisos (`CERT_USER_PERMISSION_SET_EXACT`). Deployment preparado; **no ejecutado en LIVE** |
-| `infra/sql/07-runtime-security-verify.sql` | Verificación **read-only** (sólo SELECT/IF/THROW): memberships fijas, grants directos inesperados al usuario runtime, permisos de rol que no sean EXECUTE por objeto y set exacto de EXECUTE (23 CALE / 35 APP) en ambas bases. No aplica cambios |
-| `scripts/check-runtime-sql-permissions.py` | Gate de deriva Java↔grants: compara los SP extraídos de `backend/src/main/java` contra `04`, `05` y las listas `VALUES` de `07` (`missing=0`, `extra=0`); prohíbe schema grants, DML directo y roles fijos |
-| `scripts/tests/check_runtime_sql_permissions_test.py` | Self-test del checker (pass, missing, extra, missing_cale, schema_grant, table_grant) |
+| `infra/sql/06-pedimento-cross-db-signing.sql` | Firma cross-db del command: guard SQLCMD fail-fast (variables sin sustituir → THROW antes de todo DDL), DMK + certificado + `ADD SIGNATURE`, certificado espejo en ANEXO24_DEV, **thumbprint validado antes de crear el cert-user o cualquier permiso** (fail closed sin efectos de permisos), cert-user con los 5 permisos exactos y set exacto bidireccional (`CERT_USER_PERMISSION_SET_EXACT`). `CertPublicPath` debe ser única por deployment (p. ej. `app24_pedimento_<timestamp>.cer` generada por el runbook; limpieza del .cer público = operativa externa; nunca contiene clave privada). Deployment preparado; **no ejecutado en LIVE** |
+| `infra/sql/07-runtime-security-verify.sql` | Verificación **read-only** (sólo SELECT/IF/THROW): nivel servidor (login existe, habilitado, sin roles fijos `sysadmin`…`dbcreator`, permisos de servidor sólo `CONNECT SQL`) + memberships fijas de base, grants directos inesperados al usuario runtime, permisos de rol que no sean EXECUTE por objeto y set exacto de EXECUTE (23 CALE / 35 APP) en ambas bases. No aplica cambios |
+| `scripts/check-runtime-sql-permissions.py` | Gate de deriva Java↔grants: compara los SP extraídos de `backend/src/main/java` contra `04`, `05` y las listas `VALUES` de `07` (`missing=0`, `extra=0`); prohíbe schema grants, DML directo y roles fijos. Además **scan global de `infra/sql/**/*.sql`** (incluye migrations históricas): duplicados históricos de `GRANT EXECUTE` canónicos permitidos; SP fuera de contrato, schema grants, DML directo, EXECUTE database-wide, `ADD MEMBER` a roles fijos y grants directos al usuario → hallazgo |
+| `scripts/tests/check_runtime_sql_permissions_test.py` | Self-test del checker (13 casos: pass/missing/extra/missing_cale/schema_grant/table_grant/verify_mismatch + 6 de scan histórico) |
 
 Gates (local y CI `sp-first-gate`):
 
@@ -491,11 +491,14 @@ sustituir (falla antes de DDL) y seis inyecciones de deriva detectadas por `07`.
 Marcadores de cierre de esta fase:
 
 ```text
-DEPLOYMENT_SCRIPT_VERIFIED      = YES (RuntimeIdentityDeploymentScriptsIT 8/8)
+DEPLOYMENT_SCRIPT_VERIFIED      = YES (RuntimeIdentityDeploymentScriptsIT 9/9)
 SQLCMD_VARIABLE_GUARD           = PASS
-CERTIFICATE_MIRROR_MATCH        = REQUIRED (thumbprint idéntico; fail closed)
+CERTIFICATE_MIRROR_MATCH        = REQUIRED (thumbprint idéntico ANTES de user/permisos; fail closed)
 CERT_USER_PERMISSION_SET_EXACT  = YES (comparación bidireccional EXCEPT)
 RUNTIME_SECURITY_VERIFY_SCRIPT  = infra/sql/07-runtime-security-verify.sql
+SERVER_LEVEL_RUNTIME_VERIFY     = PASS (login habilitado, sin roles fijos de servidor, sólo CONNECT SQL)
+THUMBPRINT_FAIL_HAS_NO_PERMISSION_SIDE_EFFECTS = PASS
+GLOBAL_SQL_PERMISSION_SCAN      = PASS (75 archivos, 0 hallazgos; duplicados históricos canónicos permitidos)
 ```
 
 Deployment (cuando se autorice, fuera de esta fase):
