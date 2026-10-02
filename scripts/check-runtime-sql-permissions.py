@@ -7,6 +7,9 @@ sobrantes:
 
 - ANEXO24_DEV: SP `app24.*` de Java  ==  04-app-runtime-permissions.sql
 - CALE_IMMEX:  SP `dbo.*` de Java    ==  05-cale-immex-runtime-permissions.sql
+- Si existe `07-runtime-security-verify.sql` (opcional), sus listas `VALUES`
+  `('app24', ...)` / `('dbo', ...)` también deben coincidir exactamente con
+  los sets de Java (evita deriva del verificador LIVE).
 
 No es una migración de datos ni de base: sólo valida la metadata de seguridad
 de la identidad runtime (`anexo24_app`).
@@ -46,6 +49,8 @@ APP_SCHEMA = "app24"
 CALE_SCHEMA = "dbo"
 
 LITERAL_SP = re.compile(r'"((?:app24|dbo)\.[A-Za-z0-9_]+)"')
+VALUES_APP = re.compile(r"\('app24',\s*'([A-Z0-9_]+)'\)")
+VALUES_CALE = re.compile(r"\('dbo',\s*'([A-Z0-9_]+)'\)")
 
 GRANT_OBJ = re.compile(
     r"GRANT\s+EXECUTE\s+ON\s+OBJECT::([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\s+TO\s+([A-Za-z0-9_]+)",
@@ -138,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--java-root", type=Path, default=REPO_ROOT / "backend" / "src" / "main" / "java")
     parser.add_argument("--app-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "04-app-runtime-permissions.sql")
     parser.add_argument("--cale-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "05-cale-immex-runtime-permissions.sql")
+    parser.add_argument("--verify-script", type=Path, default=REPO_ROOT / "infra" / "sql" / "07-runtime-security-verify.sql")
     args = parser.parse_args(argv)
 
     fallos: list[str] = []
@@ -168,6 +174,29 @@ def main(argv: list[str] | None = None) -> int:
     linea_cale, faltan_cale, sobran_cale = comparar("CALE_IMMEX", cale_java, cale_script)
     print(linea_app)
     print(linea_cale)
+
+    verify_presente = args.verify_script.is_file()
+    if verify_presente:
+        fallos.extend(violaciones_estructurales(args.verify_script))
+        texto_verify = sin_comentarios(args.verify_script.read_text(encoding="utf-8", errors="replace"))
+        verify_app = set(VALUES_APP.findall(texto_verify))
+        verify_cale = set(VALUES_CALE.findall(texto_verify))
+        faltan_v_app = sorted(app_java - verify_app)
+        sobran_v_app = sorted(verify_app - app_java)
+        faltan_v_cale = sorted(cale_java - verify_cale)
+        sobran_v_cale = sorted(verify_cale - cale_java)
+        print(f"RUNTIME_PERMISSION|ANEXO24_DEV|verify_script={len(verify_app)}"
+              f"|missing={len(faltan_v_app)}|extra={len(sobran_v_app)}")
+        print(f"RUNTIME_PERMISSION|CALE_IMMEX|verify_script={len(verify_cale)}"
+              f"|missing={len(faltan_v_cale)}|extra={len(sobran_v_cale)}")
+        if faltan_v_app:
+            fallos.append(f"missing|database=ANEXO24_DEV|script=07-runtime-security-verify.sql|{', '.join(faltan_v_app)}")
+        if sobran_v_app:
+            fallos.append(f"extra|database=ANEXO24_DEV|script=07-runtime-security-verify.sql|{', '.join(sobran_v_app)}")
+        if faltan_v_cale:
+            fallos.append(f"missing|database=CALE_IMMEX|script=07-runtime-security-verify.sql|{', '.join(faltan_v_cale)}")
+        if sobran_v_cale:
+            fallos.append(f"extra|database=CALE_IMMEX|script=07-runtime-security-verify.sql|{', '.join(sobran_v_cale)}")
 
     for db, faltantes, sobrantes in (
         ("ANEXO24_DEV", faltan_app, sobran_app),

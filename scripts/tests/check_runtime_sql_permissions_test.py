@@ -9,6 +9,7 @@ Ejecuta scripts/check-runtime-sql-permissions.py contra fixtures PASS y FAIL:
 - missing_cale -> falta un grant en CALE_IMMEX -> FAIL missing
 - schema_grant -> GRANT EXECUTE ON SCHEMA:: -> FAIL schema_grant
 - table_grant  -> GRANT de DML directo -> FAIL grant_directo
+- verify_mismatch -> listas de 07-runtime-security-verify.sql desalineadas -> FAIL
 
 Sin dependencias externas (STANDARD_LIBRARY_ONLY).
 
@@ -29,6 +30,7 @@ FIXTURES = HERE / "runtime_permissions" / "fixtures"
 JAVA_FIXTURE = FIXTURES / "java"
 APP_FILE = "04-app-runtime-permissions.sql"
 CALE_FILE = "05-cale-immex-runtime-permissions.sql"
+VERIFY_FILE = "07-runtime-security-verify.sql"
 
 
 def ejecutar(caso: str) -> tuple[int, str]:
@@ -40,6 +42,7 @@ def ejecutar(caso: str) -> tuple[int, str]:
             "--java-root", str(JAVA_FIXTURE),
             "--app-script", str(directorio / APP_FILE),
             "--cale-script", str(directorio / CALE_FILE),
+            "--verify-script", str(directorio / VERIFY_FILE),
         ],
         capture_output=True,
         text=True,
@@ -60,6 +63,8 @@ def main() -> int:
     revisar("pass rc=0", rc == 0, out)
     revisar("pass marker", "RUNTIME_PERMISSION_GATE|PASS" in out, out)
     revisar("pass coincidencia exacta", "java=2|script=2|missing=0|extra=0" in out, out)
+    revisar("pass verify07 APP", "verify_script=2|missing=0|extra=0" in out, out)
+    revisar("pass verify07 CALE", "verify_script=1|missing=0|extra=0" in out, out)
 
     rc, out = ejecutar("missing")
     revisar("missing rc=1", rc == 1, out)
@@ -83,6 +88,11 @@ def main() -> int:
     rc, out = ejecutar("table_grant")
     revisar("table_grant rc=1", rc == 1, out)
     revisar("table_grant detectado", "grant_directo_SELECT" in out, out)
+
+    rc, out = ejecutar("verify_mismatch")
+    revisar("verify_mismatch rc=1", rc == 1, out)
+    revisar("verify_mismatch detectado",
+            "script=07-runtime-security-verify.sql" in out and "missing|database=ANEXO24_DEV" in out, out)
 
     if fallos:
         for fallo in fallos:

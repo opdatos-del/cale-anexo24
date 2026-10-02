@@ -28,9 +28,34 @@
 -- (CREATE OR ALTER / ALTER PROCEDURE elimina la firma):
 --   1. desplegar el procedure;
 --   2. ejecutar este script (firma + certificado espejo + permisos);
---   3. verificación del bloque 3 (falla si la firma no existe);
+--   3. verificación (bloques 3 y 4: thumbprint, firma y set exacto de permisos);
 --   4. smoke test de seguridad cross-db con una carga controlada.
+--
+-- EJECUCIÓN SQLCMD CON FAIL-FAST:
+--   :on error exit
+--   :setvar DmkPassword     <password operativa de la master key de CALE_IMMEX>
+--   :setvar CertPublicPath  <ruta temporal para el .cer público>
+--
+-- Si las variables no fueron sustituidas, el script falla ANTES de cualquier
+-- DDL (SQLCMD_VARIABLE_GUARD). Las líneas que comienzan con ':' son directivas
+-- SQLCMD: un runner que no sea sqlcmd debe sustituirlas o ignorarlas, nunca
+-- enviarlas al motor. Los valores operativos no deben contener la secuencia '$('.
 -- ============================================
+
+:on error exit
+
+-- Guard SQLCMD: sin variables sustituidas no se ejecuta ningún DDL.
+IF N'$(DmkPassword)' LIKE N'%$(%' OR LEN(N'$(DmkPassword)') = 0
+BEGIN
+    THROW 50030, 'SQLCMD_VARIABLE_GUARD: DmkPassword no fue sustituida. Ejecutar con :setvar en modo SQLCMD. No se aplicó ningún DDL.', 1;
+END
+GO
+
+IF N'$(CertPublicPath)' LIKE N'%$(%' OR LEN(N'$(CertPublicPath)') = 0
+BEGIN
+    THROW 50031, 'SQLCMD_VARIABLE_GUARD: CertPublicPath no fue sustituida. Ejecutar con :setvar en modo SQLCMD. No se aplicó ningún DDL.', 1;
+END
+GO
 
 -- ---------------------------------------------------------------
 -- BLOQUE 1 · CALE_IMMEX: certificado y firma del command
@@ -96,7 +121,34 @@ GRANT EXECUTE ON OBJECT::app24.APP24_C_BITACORA_REGISTRAR TO app24_pedimento_cer
 GO
 
 -- ---------------------------------------------------------------
--- BLOQUE 3 · Verificación (falla si el deployment quedó incompleto)
+-- BLOQUE 3 · Verificación del espejo de certificado (thumbprint)
+-- CERTIFICATE_MIRROR_MATCH = REQUIRED: mismo certificado en ambas DB.
+-- Fail closed: un certificado inconsistente NO se repara automáticamente.
+-- ---------------------------------------------------------------
+DECLARE @thumbOrigen VARBINARY(32), @thumbDestino VARBINARY(32);
+
+SELECT @thumbOrigen = thumbprint FROM CALE_IMMEX.sys.certificates WHERE name = 'app24_pedimento_cert';
+SELECT @thumbDestino = thumbprint FROM ANEXO24_DEV.sys.certificates WHERE name = 'app24_pedimento_cert';
+
+IF @thumbOrigen IS NULL
+BEGIN
+    THROW 50032, 'CERTIFICATE_MIRROR_MATCH: no existe app24_pedimento_cert en CALE_IMMEX.', 1;
+END
+
+IF @thumbDestino IS NULL
+BEGIN
+    THROW 50033, 'CERTIFICATE_MIRROR_MATCH: no existe app24_pedimento_cert en ANEXO24_DEV.', 1;
+END
+
+IF @thumbOrigen <> @thumbDestino
+BEGIN
+    THROW 50034, 'CERTIFICATE_MIRROR_MATCH: los thumbprints difieren entre CALE_IMMEX y ANEXO24_DEV. Fail closed: revisar el deployment y recrear el espejo manualmente.', 1;
+END
+GO
+
+-- ---------------------------------------------------------------
+-- BLOQUE 4 · Verificación de firma y permisos exactos del cert-user
+-- (falla si el deployment quedó incompleto)
 -- ---------------------------------------------------------------
 USE CALE_IMMEX;
 GO
@@ -123,21 +175,63 @@ BEGIN
 END
 GO
 
-IF (SELECT COUNT(*) FROM sys.database_permissions
-    WHERE grantee_principal_id = USER_ID('app24_pedimento_cert_user')) <> 5
+-- CERT_USER_PERMISSION_SET_EXACT = YES: comparación exacta en ambas direcciones
+-- (permission_name, esquema, objeto) con state = GRANT y clase OBJECT.
+IF EXISTS (
+    SELECT p.permission_name, s.name AS esquema, o.name AS objeto
+    FROM sys.database_permissions p
+    JOIN sys.objects o ON o.object_id = p.major_id
+    JOIN sys.schemas s ON s.schema_id = o.schema_id
+    WHERE p.grantee_principal_id = USER_ID('app24_pedimento_cert_user')
+      AND p.state = 'G'
+      AND p.class_desc = 'OBJECT_OR_COLUMN'
+    EXCEPT
+    SELECT permission_name, esquema, objeto FROM (VALUES
+        ('SELECT', 'app24', 'CargaPedimento'),
+        ('UPDATE', 'app24', 'CargaPedimento'),
+        ('SELECT', 'app24', 'CargaPedimentoFila'),
+        ('SELECT', 'app24', 'ErrorCargaPedimento'),
+        ('EXECUTE', 'app24', 'APP24_C_BITACORA_REGISTRAR')
+    ) AS esperado(permission_name, esquema, objeto)
+)
 BEGIN
-    THROW 50022, 'app24_pedimento_cert_user no tiene exactamente los 5 GRANT esperados (SELECT/UPDATE CargaPedimento, SELECT CargaPedimentoFila, SELECT ErrorCargaPedimento, EXECUTE bitácora).', 1;
+    THROW 50022, 'CERT_USER_PERMISSION_SET_EXACT: el cert-user tiene grants sobrantes o distintos al contrato mínimo.', 1;
 END
 GO
 
 IF EXISTS (
+    SELECT permission_name, esquema, objeto FROM (VALUES
+        ('SELECT', 'app24', 'CargaPedimento'),
+        ('UPDATE', 'app24', 'CargaPedimento'),
+        ('SELECT', 'app24', 'CargaPedimentoFila'),
+        ('SELECT', 'app24', 'ErrorCargaPedimento'),
+        ('EXECUTE', 'app24', 'APP24_C_BITACORA_REGISTRAR')
+    ) AS esperado(permission_name, esquema, objeto)
+    EXCEPT
+    SELECT p.permission_name, s.name AS esquema, o.name AS objeto
+    FROM sys.database_permissions p
+    JOIN sys.objects o ON o.object_id = p.major_id
+    JOIN sys.schemas s ON s.schema_id = o.schema_id
+    WHERE p.grantee_principal_id = USER_ID('app24_pedimento_cert_user')
+      AND p.state = 'G'
+      AND p.class_desc = 'OBJECT_OR_COLUMN'
+)
+BEGIN
+    THROW 50023, 'CERT_USER_PERMISSION_SET_EXACT: faltan grants del contrato mínimo del cert-user.', 1;
+END
+GO
+
+-- DENY, GRANT_WITH_GRANT_OPTION o permisos fuera del contrato → fail closed.
+-- (El único permiso no-object admitido es el CONNECT de base por defecto.)
+IF EXISTS (
     SELECT 1
     FROM sys.database_permissions
     WHERE grantee_principal_id = USER_ID('app24_pedimento_cert_user')
-      AND (permission_name IN ('INSERT', 'DELETE') OR class_desc <> 'OBJECT_OR_COLUMN')
+      AND NOT (state = 'G' AND (class_desc = 'OBJECT_OR_COLUMN'
+              OR (class_desc = 'DATABASE' AND permission_name = 'CONNECT')))
 )
 BEGIN
-    THROW 50023, 'app24_pedimento_cert_user tiene permisos fuera del contrato mínimo (INSERT/DELETE o fuera de OBJECT).', 1;
+    THROW 50024, 'CERT_USER_PERMISSION_SET_EXACT: el cert-user tiene DENY/WITH GRANT o permisos fuera del contrato (sólo se admite CONNECT de base).', 1;
 END
 GO
 

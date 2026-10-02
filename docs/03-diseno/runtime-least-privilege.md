@@ -466,8 +466,9 @@ datos. Esta fase prepara exclusivamente la metadata de seguridad del runtime.
 |---|---|
 | `infra/sql/04-app-runtime-permissions.sql` | ANEXO24_DEV: fuente de verdad de los 35 `GRANT EXECUTE` por objeto del rol `app24_runtime` (consolida staging de facturación, pedimentos y catálogos que vivía en migrations 05/06/09/10) |
 | `infra/sql/05-cale-immex-runtime-permissions.sql` | CALE_IMMEX: exige que el login exista, crea el user `anexo24_app`, el rol `cale_immex_runtime` y los 23 `GRANT EXECUTE` por objeto; sin DML directo, sin schema grants, sin roles fijos |
-| `infra/sql/06-pedimento-cross-db-signing.sql` | Firma cross-db del command: DMK + certificado + `ADD SIGNATURE` + certificado espejo en ANEXO24_DEV + cert-user con los 5 permisos exactos + verificación que falla si falta la firma. Deployment preparado; **no ejecutado en LIVE** |
-| `scripts/check-runtime-sql-permissions.py` | Gate de deriva Java↔grants: compara los SP extraídos de `backend/src/main/java` contra `04` y `05` (`missing=0`, `extra=0`); prohíbe schema grants, DML directo y roles fijos |
+| `infra/sql/06-pedimento-cross-db-signing.sql` | Firma cross-db del command: guard SQLCMD fail-fast (variables sin sustituir → THROW antes de todo DDL), DMK + certificado + `ADD SIGNATURE`, certificado espejo en ANEXO24_DEV, cert-user con los 5 permisos exactos, verificación de thumbprint idéntico (`CERTIFICATE_MIRROR_MATCH`) y set exacto bidireccional de permisos (`CERT_USER_PERMISSION_SET_EXACT`). Deployment preparado; **no ejecutado en LIVE** |
+| `infra/sql/07-runtime-security-verify.sql` | Verificación **read-only** (sólo SELECT/IF/THROW): memberships fijas, grants directos inesperados al usuario runtime, permisos de rol que no sean EXECUTE por objeto y set exacto de EXECUTE (23 CALE / 35 APP) en ambas bases. No aplica cambios |
+| `scripts/check-runtime-sql-permissions.py` | Gate de deriva Java↔grants: compara los SP extraídos de `backend/src/main/java` contra `04`, `05` y las listas `VALUES` de `07` (`missing=0`, `extra=0`); prohíbe schema grants, DML directo y roles fijos |
 | `scripts/tests/check_runtime_sql_permissions_test.py` | Self-test del checker (pass, missing, extra, missing_cale, schema_grant, table_grant) |
 
 Gates (local y CI `sp-first-gate`):
@@ -481,10 +482,27 @@ La suite `RuntimeLeastPrivilegeCrossDbIT` se extendió con un caso que replica
 el patrón de `05`: `EXECUTE` por objeto otorgado al rol, runtime miembro del
 rol y `DIRECT_TABLE_GRANTS_RUNTIME = 0` (sin grants directos al usuario).
 
+La suite `RuntimeIdentityDeploymentScriptsIT` aplica los **scripts reales**
+(`04`–`07`, tal como están versionados) en bases efímeras con los nombres
+`CALE_IMMEX`/`ANEXO24_DEV` y cubre, además de lo positivo, los negativos:
+drift de thumbprint, set de cinco permisos incorrecto, variables SQLCMD sin
+sustituir (falla antes de DDL) y seis inyecciones de deriva detectadas por `07`.
+
+Marcadores de cierre de esta fase:
+
+```text
+DEPLOYMENT_SCRIPT_VERIFIED      = YES (RuntimeIdentityDeploymentScriptsIT 8/8)
+SQLCMD_VARIABLE_GUARD           = PASS
+CERTIFICATE_MIRROR_MATCH        = REQUIRED (thumbprint idéntico; fail closed)
+CERT_USER_PERMISSION_SET_EXACT  = YES (comparación bidireccional EXCEPT)
+RUNTIME_SECURITY_VERIFY_SCRIPT  = infra/sql/07-runtime-security-verify.sql
+```
+
 Deployment (cuando se autorice, fuera de esta fase):
 
 1. aplicar `05` (CALE_IMMEX) y `04` (ANEXO24_DEV) con identidad administrativa;
 2. si el command se redespliega: procedure → `06` (firma) → verificación → smoke test de seguridad;
-3. `CREATE OR ALTER`/`ALTER PROCEDURE` elimina la firma (`SIGNATURE_REAPPLY_REQUIRED_AFTER_DDL = YES`);
-4. cambiar `.env` a `anexo24_app` sólo después de la matriz positiva/negativa;
-5. rollback: revertir variables de `.env` a la identidad anterior (sección 12).
+3. ejecutar `07` como verificación final read-only (PASS obligatorio);
+4. `CREATE OR ALTER`/`ALTER PROCEDURE` elimina la firma (`SIGNATURE_REAPPLY_REQUIRED_AFTER_DDL = YES`);
+5. cambiar `.env` a `anexo24_app` sólo después de la matriz positiva/negativa;
+6. rollback: revertir variables de `.env` a la identidad anterior (sección 12).
