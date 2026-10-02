@@ -318,10 +318,35 @@ con gate automatizado; reconciliación read-only contra LIVE.
 ### Contexto para el capítulo 4 (análisis de resultados)
 
 7 procedimientos y 21 tablas auditados; 4 flujos de escritura identificados; 1 regla
-de duplicado (`PED-007`) confirmada; 6 riesgos técnicos documentados; clasificación
-de paridad sin cambios (`LEGACY-016/017/019 = PARTIAL`, `LEGACY-057 = MISSING`).
+de duplicado (`PED-007`) confirmada; 6 riesgos técnicos documentados. La
+clasificación de paridad evolucionó y su estado vigente vive en la sección
+«Cierre V1 — confirmación autoritativa integrada en `dev`» de este documento
+(`LEGACY-016/019/057 = IMPLEMENTED_REDESIGNED`, `LEGACY-017 = PARTIAL`,
+total 79).
 
 ### Anexos potenciales
 
 Diagrama del pipeline legacy, call graph simplificado, matriz SP→tabla/acción,
 matriz de validaciones (`PED-001..007`), resultados del gate SP-FIRST.
+
+---
+
+## Cierre V1 — confirmación autoritativa integrada en `dev`
+
+Evidencia factual consolidada (sin narrativa adicional; reemplaza cualquier
+conteo anterior que contradiga esta distribución):
+
+```text
+commit dev                 = a64434a72e5799605098afd4a9481a479f4bf367
+CI final dev (run)         = 37014148994 — SUCCESS (sp-first-gate, backend, frontend)
+frontend                   = 113/113 tests PASS · lint PASS · build PASS
+PedimentoConfirmacionSqlIT = 15/15 PASS · 0 skipped · 0 failed
+concurrencia MAX+1         = 2/2 PASS · 0 skipped · 0 failed
+SP-FIRST                   = violations = 0
+paridad vigente            = 5 equivalentes + 26 rediseñadas + 11 parciales
+                             + 6 faltantes + 5 bloqueadas + 6 consolidadas
+                             + 20 desconocidas = 79
+```
+
+El detalle de las decisiones de negocio pendientes y las métricas de cierre
+viven en `docs/01-requerimientos/cierre-alcance-v1.md`.

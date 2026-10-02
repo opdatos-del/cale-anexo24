@@ -38,18 +38,29 @@ Conteos recalculados fila por fila en `matriz-paridad-legacy-v1.md`
 | P2 | 20 | 4 | 2 | 1 | 0 | 3 | 10 |
 | P3 | 1 | 0 | 0 | 0 | 0 | 0 | 1 |
 
-Métricas P0:
+Métricas P0 (matriz):
 
 - `P0_TOTAL = 18`
 - `P0_IMPLEMENTED = 13`
 - `P0_PARTIAL = 2`
-- `P0_BLOCKED = 3`
+- `P0_BLOCKED_BUSINESS = 3`
 - `P0_MISSING = 0`
-- `P0_IMPLEMENTABLE = 18 - 3 = 15`
-- `P0_IMPLEMENTABLE_COMPLETION = 13/15 = 86.7 %`
+- `P0_NON_MATRIX_BLOCKED = 18 - 3 = 15`
+- `P0_NON_MATRIX_BLOCKED_COMPLETION = 13/15 = 86.7 %`
 
-Interpretación: no quedan P0 con trabajo técnico interno pendiente; lo que
-falta de P0 depende de decisión de negocio o de fuente externa (sección C).
+Métricas operativas P0:
+
+- `P0_PARTIAL_REQUIRING_BUSINESS_DECISION = 2` (`LEGACY-017`, `LEGACY-058`)
+- `P0_ACTIONABLE_WITHOUT_BUSINESS_DECISION = 13`
+- `P0_ACTIONABLE_IMPLEMENTED = 13`
+- `P0_ACTIONABLE_COMPLETION = 13/13 = 100 %`
+
+Explicación: `P0_ACTIONABLE_COMPLETION = 100 %` **no** significa
+`V1_COMPLETE = YES`. Significa únicamente que no queda capacidad P0 funcional
+implementable sin una decisión o contrato externo. Las cinco capacidades P0
+restantes (`LEGACY-017`, `021`, `029`, `038`, `058`) requieren decisión de
+negocio; las dos parciales (`017`, `058`) ya cuentan con staging y validación
+entregados.
 
 ---
 
@@ -90,8 +101,10 @@ pendiente: todas requieren respuesta de negocio o fuente externa.
 | LEGACY-038 | Reporte de saldos | BLOCKED_BUSINESS | Misma decisión que LEGACY-021 | Depende de la definición de Saldos | Reutiliza la respuesta de Saldos | BUSINESS_DECISION_REQUIRED |
 | LEGACY-058 | Confirmación operativa de facturación | PARTIAL | `decisiones-alcance-v1.md` §2; `mapeo-facturacion.md` | Pipeline autoritativo y side effects pendientes de negocio | Responder preguntas de Facturación; caso de aceptación | BUSINESS_DECISION_REQUIRED |
 
-Resumen: `P0_REMAINING = 5`, todos `BUSINESS_DECISION_REQUIRED`;
-`P0_TECHNICAL_REMAINING = 0`.
+Resumen:
+
+- `P0_BUSINESS_DECISION_REMAINING = 5` (todos `BUSINESS_DECISION_REQUIRED`)
+- `P0_TECHNICAL_REMAINING_WITH_CURRENT_CONTRACTS = 0`
 
 ---
 
@@ -112,9 +125,14 @@ añade las preguntas mínimas.
 
 ## D. P1 propuesto
 
-`P1_TOTAL = 40`; `P1_UNFINISHED = 26`. Clasificación:
+`P1_TOTAL = 40`; `P1_UNFINISHED = 26`. `MATRIX_STATE` (columna Estado de la
+matriz) y `RECOMMENDED_DISPOSITION` son cosas distintas: una fila puede estar
+`PARTIAL`, `MISSING`, `UNKNOWN` o `CONSOLIDATE` en la matriz y su disposición
+recomendada ser `BUSINESS_DECISION_REQUIRED`. Esta fase no reclasifica estados
+de matriz; la disposición de revisión se expresa únicamente como
+`BUSINESS_DECISION_REQUIRED`.
 
-| Clasificación | IDs | Cantidad |
+| Disposición recomendada | IDs | Cantidad |
 |---|---|---:|
 | IMPORTANT_FOR_V1 | — (ninguno con evidencia de obligatoriedad) | 0 |
 | BUSINESS_DECISION_REQUIRED | 001, 025, 026, 028, 030, 042, 050, 052, 054, 055, 056, 060, 077 | 13 |
@@ -123,7 +141,7 @@ añade las preguntas mínimas.
 
 Detalle:
 
-| ID | Capacidad | Estado | Clasificación | Nota |
+| ID | Capacidad | MATRIX_STATE | RECOMMENDED_DISPOSITION | Nota |
 |---|---|---|---|---|
 | LEGACY-001 | Datos generales — edición/mantenimiento | PARTIAL | BUSINESS_DECISION_REQUIRED | Confirmar si V1 exige mantenimiento |
 | LEGACY-025 | Actas de destrucción (operación) | MISSING | BUSINESS_DECISION_REQUIRED | Layout y reglas sin cerrar |
@@ -175,21 +193,31 @@ No se asume que todo P1 deba implementarse en V1.
 
 ## F. UNKNOWN que requiere auditoría adicional
 
-`UNKNOWN_TOTAL = 20`. Agrupación por dominio:
+`UNKNOWN_TOTAL = 20`.
 
-| Grupo | IDs | Afecta V1 | Clasificación |
-|---|---|---|---|
-| Catálogos | 012 (submaquilas), 014 (consultas guardadas) | UNDECIDED (012) / NO (014) | POST_V1 audit |
-| Operaciones especiales | 023, 024 | UNDECIDED | Auditoría funcional previa |
-| Reportes | 041, 048 | NO | POST_V1 |
-| Importaciones especiales | 059, 061, 062, 063 | NO | POST_V1 |
-| Ajuste anual | 064, 065, 066, 067, 068 | UNDECIDED | Auditoría funcional/regulatoria |
-| Anexo 30 | 069, 070, 071, 072, 073 | UNDECIDED | Auditoría funcional/regulatoria |
+Distribución exacta:
 
-Conteos: `AFFECTS_V1 = 0`; `UNDECIDED = 10`; `POST_V1 = 10`.
+- `UNKNOWN_AFFECTS_V1_CONFIRMED = 0`
+- `UNKNOWN_POST_V1 = 10`: `LEGACY-014`, `LEGACY-041`, `LEGACY-048`,
+  `LEGACY-059`, `LEGACY-061`, `LEGACY-062`, `LEGACY-063`, `LEGACY-066`,
+  `LEGACY-067`, `LEGACY-068`.
+- `UNKNOWN_UNDECIDED = 10`: `LEGACY-012`, `LEGACY-023`, `LEGACY-024`,
+  `LEGACY-064`, `LEGACY-065`, `LEGACY-069`, `LEGACY-070`, `LEGACY-071`,
+  `LEGACY-072`, `LEGACY-073`.
 
-Ningún UNKNOWN es requisito automático de V1; los grupos UNDECIDED requieren
-respuesta de negocio para decidir si entran a V1 o pasan a POST_V1.
+| Grupo | IDs | Disposición |
+|---|---|---|
+| Catálogos | 014 | POST_V1 |
+| Catálogos | 012 | UNDECIDED |
+| Operaciones especiales | 023, 024 | UNDECIDED |
+| Reportes | 041, 048 | POST_V1 |
+| Importaciones especiales | 059, 061, 062, 063 | POST_V1 |
+| Ajuste anual | 066, 067, 068 | POST_V1 |
+| Ajuste anual | 064, 065 | UNDECIDED |
+| Anexo 30 | 069, 070, 071, 072, 073 | UNDECIDED |
+
+Ningún UNKNOWN es requisito automático de V1; los UNDECIDED requieren respuesta
+de negocio para decidir si entran a V1 o pasan a POST_V1.
 
 ---
 
@@ -341,17 +369,29 @@ Anexos candidatos:
 ## 14. Estado de control
 
 - `PARITY_TOTAL = 79` (recalculado, coincide con expectativa).
-- `P0_REMAINING = 5`, todos `BUSINESS_DECISION_REQUIRED`.
-- `P0_TECHNICAL_REMAINING = 0`.
+- `P0_BUSINESS_DECISION_REMAINING = 5` (todos `BUSINESS_DECISION_REQUIRED`).
+- `P0_TECHNICAL_REMAINING_WITH_CURRENT_CONTRACTS = 0`.
+- `P0_ACTIONABLE_COMPLETION = 100 %` (13/13; no implica `V1_COMPLETE`).
 - `MISSING_TOTAL = 6` (0 P0).
-- `UNKNOWN_TOTAL = 20` (0 afectan V1 directamente; 10 UNDECIDED).
+- `UNKNOWN_TOTAL = 20`; `UNKNOWN_AFFECTS_V1_CONFIRMED = 0`;
+  `UNKNOWN_UNDECIDED = 10`; `UNKNOWN_POST_V1 = 10`.
 - `SALDOS = PENDING_BUSINESS`.
 - `FACTURACION_CONFIRM = PENDING_BUSINESS`.
 - `DASHBOARD_V1 = PENDING_BUSINESS`.
 - Descargos/PEPS: `BLOCKED_BUSINESS` sin paquete de preguntas previo; añadido
   en la sección 9.
 - `TECHNICAL_INTERNAL_BLOCKERS = 0`.
-- `V1_SCOPE_FROZEN = NO`; `V1_COMPLETE = NO`.
+- `BUSINESS_DECISION_REQUIRED = YES`.
+- `SCOPE_DECISION_REQUIRED = YES`.
+- `V1_SCOPE_FROZEN = NO`.
+- `V1_COMPLETE = NO`.
 - `READY_TO_FREEZE_SCOPE = YES` (el paquete está listo para revisión; el
   congelamiento requiere la respuesta de negocio).
 - Esta rama es documental: no modifica Java, Angular, SQL, SP ni migraciones.
+
+## 15. Interpretación
+
+El desarrollo funcional P0 debe pausarse en los puntos sin contrato empresarial
+para evitar inferir reglas fiscales. Esto no bloquea trabajos independientes
+de: least privilege, deployment hardening, observabilidad, pruebas E2E,
+documentación y preparación de staging.
