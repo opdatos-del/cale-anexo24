@@ -72,7 +72,7 @@ Nombres de carpetas en inglés (renombrados deliberadamente desde español).
 - **Tablas nuevas de negocio:** sólo con justificación y autorización explícita; antes buscar equivalente/view/SP/relación existente. "Más limpio/moderno/facilita JPA" no es justificación.
 - **La arquitectura hexagonal vive en la aplicación** (domain/application/ports/adapters aislan el modelo legacy, no lo reemplazan).
 - **Fixtures sintéticos** (`LP_SOURCE`/`LP_TARGET` y similares) sólo dentro de Testcontainers; nunca en LIVE ni como destino de migración.
-- **Hardening del runtime = identidad, no BD:** objetivo `opdatos/sysadmin → anexo24_app` con `EXECUTE` por objeto; sin DML directo, sin roles fijos, sin `db_owner`.
+- **Identidad runtime SQL = `opdatos` (actual y autorizada).** La aplicación se conecta con `opdatos`; no cambiar la identidad SQL sin autorización explícita. El least privilege (`anexo24_app`, scripts `infra/sql/04-app-runtime-permissions.sql` … `07-runtime-security-verify.sql`) queda clasificado `DEFERRED_SECURITY_HARDENING`: propuesta futura versionada, no ejecutar en LIVE, no ampliar, y no bloquear por ello el desarrollo funcional del Anexo 24.
 
 ## CI (GitHub Actions)
 
