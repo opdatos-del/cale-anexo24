@@ -6,9 +6,11 @@ import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
+import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -66,6 +68,9 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarVencimientosUseCase listarVencimientosUseCase;
+
+    @MockitoBean
+    private ListarLineasF4UseCase listarLineasF4UseCase;
 
     @Test
     void listarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
@@ -307,5 +312,49 @@ class ReportesControllerTest {
                         .param("hasta", "2026-01-31")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void listarF4ExigePermisoDeReportes() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/f4")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listarF4RespondePaginaConPermiso() throws Exception {
+        when(listarLineasF4UseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/f4")
+                        .param("filtro", "CTMAPAA")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void exportarF4ExigePermisoDeExportar() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/f4/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportarF4GeneraXlsxConProyeccionV1() throws Exception {
+        when(listarLineasF4UseCase.exportar(any())).thenReturn(List.of(new LineaF4("CTMAPAA", "F4-1",
+                LocalDateTime.of(2026, 1, 15, 10, 0), "IMP-1", "MAT-1", BigDecimal.TEN, BigDecimal.ONE)));
+
+        MvcResult resultado = mockMvc.perform(get("/api/v1/reportes/f4/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("f4.xlsx")))
+                .andReturn();
+
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(resultado.getResponse().getContentAsByteArray()))) {
+            var hoja = libro.getSheet("f4");
+            org.junit.jupiter.api.Assertions.assertEquals("CTMAPAA", hoja.getRow(1).getCell(0).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertEquals("F4-1", hoja.getRow(1).getCell(1).getStringCellValue());
+        }
     }
 }

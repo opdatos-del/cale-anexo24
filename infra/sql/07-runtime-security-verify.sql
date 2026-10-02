@@ -133,6 +133,7 @@ INSERT INTO @esperado (esquema, objeto) VALUES
     ('dbo', 'APP24_Q_DIRIGIDOS_LISTAR'),
     ('dbo', 'APP24_Q_ENTRADAS_LISTAR'),
     ('dbo', 'APP24_Q_ESTRUCTURAS_LISTAR'),
+    ('dbo', 'APP24_Q_F4_LISTAR'),
     ('dbo', 'APP24_Q_MATERIALES_LISTAR'),
     ('dbo', 'APP24_Q_MATERIALES_UTILIZADOS_LISTAR'),
     ('dbo', 'APP24_Q_OPERACIONES_BLOQUEADAS_LISTAR'),

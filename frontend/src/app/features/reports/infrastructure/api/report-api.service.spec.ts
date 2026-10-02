@@ -90,6 +90,23 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('consulta F4 sin periodo y con filtro textual', () => {
+    service.search({ ...criteria, type: 'f4', filter: ' CTMAPAA ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/f4');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('CTMAPAA');
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('exporta F4 con la proyección y sin periodo', () => {
+    service.export({ ...criteria, type: 'f4', filter: ' MAT-1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/f4/exportacion');
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.params.get('filtro')).toBe('MAT-1');
+    expect(request.request.params.get('tamano')).toBe('100');
+    request.flush(new Blob());
+  });
+
   it('convierte el periodo completo de bitácora a instantes ISO', () => {
     service.search({ ...criteria, type: 'bitacora', module: 'SEGURIDAD', result: 'EXITO' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/bitacora');

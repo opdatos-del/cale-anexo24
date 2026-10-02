@@ -9,6 +9,7 @@ import com.jovycandy.anexo24.operations.usedmaterials.api.dto.MaterialUtilizadoD
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.api.dto.AnalisisDescargaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.CompulsaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.LineaF4Dto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
@@ -16,12 +17,14 @@ import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionBloqueada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Compulsa;
+import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Vencimiento;
@@ -60,6 +63,7 @@ public class ReportesController {
     private final ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase;
     private final ListarRectificacionesUseCase listarRectificacionesUseCase;
     private final ListarVencimientosUseCase listarVencimientosUseCase;
+    private final ListarLineasF4UseCase listarLineasF4UseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
             ExportadorXlsxReportes exportadorXlsxReportes,
@@ -68,7 +72,8 @@ public class ReportesController {
             ListarCompulsaUseCase listarCompulsaUseCase,
             ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase,
             ListarRectificacionesUseCase listarRectificacionesUseCase,
-            ListarVencimientosUseCase listarVencimientosUseCase) {
+            ListarVencimientosUseCase listarVencimientosUseCase,
+            ListarLineasF4UseCase listarLineasF4UseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
         this.listarAnalisisDescargasUseCase = listarAnalisisDescargasUseCase;
@@ -77,6 +82,7 @@ public class ReportesController {
         this.listarOperacionesDirigidasUseCase = listarOperacionesDirigidasUseCase;
         this.listarRectificacionesUseCase = listarRectificacionesUseCase;
         this.listarVencimientosUseCase = listarVencimientosUseCase;
+        this.listarLineasF4UseCase = listarLineasF4UseCase;
     }
 
     @GetMapping("/entradas")
@@ -195,6 +201,17 @@ public class ReportesController {
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+    @GetMapping("/f4")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<LineaF4Dto>> f4(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<LineaF4> resultado = listarLineasF4UseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(LineaF4Dto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
     @GetMapping("/entradas/exportacion")
     @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
     public ResponseEntity<byte[]> exportarEntradas(
@@ -245,6 +262,14 @@ public class ReportesController {
                 aInstant(desde), aInstant(hasta), usuarioId, modulo, resultado, correlationId);
         return archivo("bitacora", List.of("ID", "Fecha", "Usuario ID", "Usuario", "Módulo", "Acción", "Detalle", "Resultado", "Correlation ID"),
                 registros.stream().map(item -> fila(item.id(), item.fecha(), item.usuarioId(), item.usuario(), item.modulo(), item.accion(), item.detalle(), item.resultado(), item.correlationId())).toList());
+    }
+
+    @GetMapping("/f4/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarF4(@RequestParam(required = false) String filtro) {
+        List<LineaF4> resultado = listarLineasF4UseCase.exportar(filtro);
+        return archivo("f4", List.of("Tipo descarga", "F4", "Fecha", "Importación", "Clave", "Incorporado", "Saldo"),
+                resultado.stream().map(item -> fila(item.tipoDescarga(), item.f4(), item.fecha(), item.importacion(), item.clave(), item.incorporado(), item.saldo())).toList());
     }
 
     private ResponseEntity<byte[]> archivo(String nombre, List<String> encabezados, List<List<Object>> filas) {
