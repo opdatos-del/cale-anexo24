@@ -183,14 +183,14 @@ class RuntimeIdentityDeploymentScriptsIT {
         aplicar05();
 
         assertEquals(1, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_principals WHERE name = 'cale_immex_runtime' AND type = 'R'"));
-        assertEquals(27, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
+        assertEquals(28, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime') AND (permission_name <> 'EXECUTE' OR class_desc <> 'OBJECT_OR_COLUMN' OR state <> 'G')"));
         assertEquals(1, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE r.name = 'cale_immex_runtime' AND m.name = '" + RUNTIME + "'"));
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('" + RUNTIME + "') AND NOT (class_desc = 'DATABASE' AND permission_name = 'CONNECT' AND state = 'G')"));
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE m.name = '" + RUNTIME + "' AND r.name IN ('db_owner','db_datareader','db_datawriter','db_ddladmin')"));
 
         assertEquals(1, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_principals WHERE name = 'app24_runtime' AND type = 'R'"));
-        assertEquals(39, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
+        assertEquals(43, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime') AND (permission_name <> 'EXECUTE' OR class_desc <> 'OBJECT_OR_COLUMN' OR state <> 'G')"));
         assertEquals(1, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE r.name = 'app24_runtime' AND m.name = '" + RUNTIME + "'"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('" + RUNTIME + "') AND NOT (class_desc = 'DATABASE' AND permission_name = 'CONNECT' AND state = 'G')"));
