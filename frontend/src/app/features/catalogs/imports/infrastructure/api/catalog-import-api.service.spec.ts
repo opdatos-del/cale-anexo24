@@ -31,4 +31,17 @@ describe('CatalogImportApiService', () => {
     request.flush({ cargaId: 7, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-03T12:00:00' });
     http.verify();
   });
+
+  it('confirma una carga de productos en el endpoint específico', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.confirmProduct(11).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/productos/11/confirmacion');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({ cargaId: 11, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-03T12:00:00' });
+    http.verify();
+  });
 });

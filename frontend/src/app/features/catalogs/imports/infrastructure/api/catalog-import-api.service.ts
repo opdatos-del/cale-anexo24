@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogImportApiService {
@@ -21,5 +21,9 @@ export class CatalogImportApiService {
 
   confirmMaterial(cargaId: number): Observable<CatalogMaterialImportConfirmation> {
     return this.http.post<CatalogMaterialImportConfirmation>(`/api/v1/catalogos/importaciones/materiales/${cargaId}/confirmacion`, {});
+  }
+
+  confirmProduct(cargaId: number): Observable<CatalogProductImportConfirmation> {
+    return this.http.post<CatalogProductImportConfirmation>(`/api/v1/catalogos/importaciones/productos/${cargaId}/confirmacion`, {});
   }
 }

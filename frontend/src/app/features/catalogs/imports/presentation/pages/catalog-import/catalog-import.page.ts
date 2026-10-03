@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-material-import.use-case';
+import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
@@ -16,17 +17,17 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
       <header class="mx-auto mb-6 w-full max-w-7xl">
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Catálogos · staging V1</p>
         <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Importar materiales y productos</h1>
-        <p class="mt-2 text-sm text-slate-500">Valida y previsualiza archivos. Las importaciones de materiales autorizadas pueden confirmarse con las reglas vigentes.</p>
+        <p class="mt-2 text-sm text-slate-500">Valida y previsualiza archivos. Las importaciones de catálogos con permiso de confirmar pueden aplicar las reglas vigentes del sistema Anexo 24.</p>
       </header>
 
-      <section class="mx-auto w-full max-w-7xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Contrato de importación">
+      <section class="mx-auto w-full max-w-7xl rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label="Contrato de importación">
         <div class="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Tipo de catálogo">
           @if (canUploadMaterial()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'MATERIAL'" [class.bg-blue-50]="type() === 'MATERIAL'" [attr.aria-selected]="type() === 'MATERIAL'" (click)="selectType('MATERIAL')">Materiales</button> }
           @if (canUploadProduct()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'PRODUCTO'" [class.bg-blue-50]="type() === 'PRODUCTO'" [attr.aria-selected]="type() === 'PRODUCTO'" (click)="selectType('PRODUCTO')">Productos</button> }
         </div>
 
         <div class="flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 class="m-0 text-sm font-semibold text-slate-800">Selecciona un archivo</h2><p class="mb-0 mt-1 text-xs text-slate-500">.xls o .xlsx · máximo 10 MiB · contrato derivado de CargaMaterial/tmpproductos</p></div>
+          <div><h2 class="m-0 text-sm font-semibold text-slate-800">Selecciona un archivo</h2><p class="mb-0 mt-1 text-xs text-slate-500">.xls o .xlsx · máximo 10 MiB · contrato derivado de CargaMaterial y tmpproductos</p></div>
           <label class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
             <mat-icon aria-hidden="true">upload_file</mat-icon> Elegir archivo
             <input class="sr-only" type="file" accept=".xls,.xlsx" (change)="onFileSelected($event)" />
@@ -53,7 +54,7 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
             </p>
           } @else if (canConfirmCurrent()) {
             <section class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Confirmación de importación">
-              <p class="m-0 text-sm text-amber-950">La confirmación aplicará los materiales válidos al catálogo operativo.</p>
+              <p class="m-0 text-sm text-amber-950">{{ confirmationAdvertencia() }}</p>
               @if (confirmationError()) { <p class="mb-0 mt-3 text-sm text-red-800" role="alert">{{ confirmationError() }}</p> }
               <button mat-flat-button type="button" class="mt-4" [disabled]="isConfirming()" (click)="requestConfirmation()">
                 @if (isConfirming()) { Confirmando importación... } @else { Confirmar importación }
@@ -72,6 +73,7 @@ export class CatalogImportPage {
   protected readonly canUploadMaterial = computed(() => this.auth.hasPermission('MATERIALES_CARGAR'));
   protected readonly canUploadProduct = computed(() => this.auth.hasPermission('PRODUCTOS_CARGAR'));
   protected readonly canConfirmMaterial = computed(() => this.auth.hasPermission('MATERIALES_CONFIRMAR'));
+  protected readonly canConfirmProduct = computed(() => this.auth.hasPermission('PRODUCTOS_CONFIRMAR'));
   protected readonly type = signal<CatalogImportType>(this.auth.hasPermission('MATERIALES_CARGAR') ? 'MATERIAL' : 'PRODUCTO');
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly selectionError = signal<string | null>(null);
@@ -79,14 +81,23 @@ export class CatalogImportPage {
   protected readonly isConfirming = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly confirmationError = signal<string | null>(null);
-  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | null>(null);
+  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | null>(null);
   protected readonly result = signal<CatalogImportResponse | null>(null);
   protected readonly canConfirmCurrent = computed(() => {
     const current = this.result();
-    return current?.tipo === 'MATERIAL' && current.estado === 'PREVISUALIZADA' && this.canConfirmMaterial();
+    if (!current || current.estado !== 'PREVISUALIZADA') return false;
+    return current.tipo === 'MATERIAL' ? this.canConfirmMaterial() : this.canConfirmProduct();
+  });
+  protected readonly confirmationAdvertencia = computed(() => {
+    const current = this.result();
+    if (current?.tipo === 'PRODUCTO') {
+      return 'La confirmación incorpora únicamente los productos válidos nuevos; los productos existentes con la misma clave se mantienen sin cambios.';
+    }
+    return 'La confirmación actualizará el catálogo de materiales utilizando las reglas actuales del sistema Anexo 24.';
   });
   private readonly upload = inject(UploadCatalogImportUseCase);
   private readonly confirmMaterial = inject(ConfirmCatalogMaterialImportUseCase);
+  private readonly confirmProduct = inject(ConfirmCatalogProductImportUseCase);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -110,16 +121,20 @@ export class CatalogImportPage {
   protected requestConfirmation(): void {
     const current = this.result();
     if (!current || !this.canConfirmCurrent() || this.isConfirming()) return;
+    const titulo = current.tipo === 'MATERIAL' ? 'Confirmar importación de materiales' : 'Confirmar importación de productos';
     this.confirm.ask({
-      title: 'Confirmar importación de materiales',
-      message: 'La confirmación actualizará el catálogo de materiales utilizando las reglas actuales del sistema Anexo 24.',
+      title: titulo,
+      message: this.confirmationAdvertencia(),
       confirmLabel: 'Confirmar importación',
       kind: 'warning',
     }).subscribe((accepted) => {
       if (!accepted) return;
       this.confirmationError.set(null);
       this.isConfirming.set(true);
-      this.confirmMaterial.execute(current.id).subscribe({
+      const stream = current.tipo === 'MATERIAL'
+        ? this.confirmMaterial.execute(current.id)
+        : this.confirmProduct.execute(current.id);
+      stream.subscribe({
         next: (confirmation) => {
           this.isConfirming.set(false);
           this.confirmation.set(confirmation);
@@ -130,12 +145,18 @@ export class CatalogImportPage {
             filasValidas: confirmation.filasValidas,
             filasInvalidas: confirmation.filasConError,
           } : latest);
-          this.notifications.success('Importación de materiales confirmada correctamente.');
+          const mensaje = current.tipo === 'MATERIAL'
+            ? 'Importación de materiales confirmada correctamente.'
+            : 'Importación de productos confirmada correctamente.';
+          this.notifications.success(mensaje);
         },
         error: (err) => {
           this.isConfirming.set(false);
-          this.confirmationError.set(err?.error?.message || 'No fue posible confirmar la importación de materiales.');
-          this.notifications.error('No fue posible confirmar la importación de materiales.');
+          const mensaje = current.tipo === 'MATERIAL'
+            ? 'No fue posible confirmar la importación de materiales.'
+            : 'No fue posible confirmar la importación de productos.';
+          this.confirmationError.set(err?.error?.message || mensaje);
+          this.notifications.error(mensaje);
         },
       });
     });

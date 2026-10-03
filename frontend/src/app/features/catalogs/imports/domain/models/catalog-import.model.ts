@@ -32,3 +32,12 @@ export interface CatalogMaterialImportConfirmation {
   filasConError: number;
   confirmadaEn: string | null;
 }
+
+export interface CatalogProductImportConfirmation {
+  cargaId: number;
+  estado: 'CONFIRMADA';
+  totalFilas: number;
+  filasValidas: number;
+  filasConError: number;
+  confirmadaEn: string | null;
+}
