@@ -32,6 +32,9 @@ jobs:
       - name: Gate de deriva runtime (Java ↔ grants SQL)
         run: python3 scripts/check-runtime-sql-permissions.py
 
+      - name: Gate de contexto de base en commands SQL
+        run: python3 scripts/check-command-database-context.py
+
   backend:
     runs-on: ubuntu-latest
     needs: sp-first-gate
