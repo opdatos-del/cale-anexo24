@@ -90,6 +90,69 @@ class ExcelCatalogImportParserTest {
         assertThat(result.filasInvalidas()).isEqualTo(1);
     }
 
+    @Test
+    void aceptaClienteXlsxValido() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.CLIENTE, "clientes.xlsx", hash(),
+                workbook(false,
+                        List.of("Clave", "Nombre", "IdFiscal", "TipoNE"),
+                        List.of("CLI001", "Cliente sintético", "XAXX010101000", "01")));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.totalFilas()).isEqualTo(1);
+        assertThat(result.filasValidas()).isEqualTo(1);
+    }
+
+    @Test
+    void aceptaClienteXlsValido() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.CLIENTE, "clientes.xls", hash(),
+                workbook(true,
+                        List.of("Clave", "Nombre", "IdFiscal", "TipoNE"),
+                        List.of("CLI001", "Cliente sintético", "XAXX010101000", "01")));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.totalFilas()).isEqualTo(1);
+    }
+
+    @Test
+    void rechazaClaveClienteMayorA15() throws Exception {
+        String claveLarga = "A".repeat(16);
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.CLIENTE, "clientes.xlsx", hash(),
+                workbook(false,
+                        List.of("Clave", "Nombre", "IdFiscal", "TipoNE"),
+                        List.of(claveLarga, "Cliente grande", "XAXX010101000", "01")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo())
+                .contains("CLAVE_CLIENTE_LARGA");
+        assertThat(result.filasInvalidas()).isEqualTo(1);
+    }
+
+    @Test
+    void rechazaClaveClienteDuplicada() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.CLIENTE, "clientes.xlsx", hash(),
+                workbook(false,
+                        List.of("Clave", "Nombre", "IdFiscal", "TipoNE"),
+                        List.of("CLI001", "Cliente A", "XAXX010101000", "01"),
+                        List.of("CLI001", "Cliente B", "XAXX010101000", "01")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo())
+                .contains("CLAVE_DUPLICADA");
+        assertThat(result.filasInvalidas()).isEqualTo(1);
+    }
+
+    @Test
+    void rechazaIdFiscalVacio() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.CLIENTE, "clientes.xlsx", hash(),
+                workbook(false,
+                        List.of("Clave", "Nombre", "IdFiscal", "TipoNE"),
+                        List.of("CLI001", "Cliente sin fiscal", "", "01")));
+
+        // IdFiscal no es required explícito pero no puede ir vacío por restricción legacy;
+        // el parser lo marca como VALOR_OBLIGATORIO_AUSENTE en cualquier caso.
+        assertThat(result.errores()).extracting(error -> error.codigo())
+                .contains("VALOR_OBLIGATORIO_AUSENTE");
+        assertThat(result.filasInvalidas()).isEqualTo(1);
+    }
+
     private byte[] workbook(boolean legacyXls, List<String> headers, List<String>... rows) throws IOException {
         try (Workbook workbook = legacyXls ? new HSSFWorkbook() : new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
