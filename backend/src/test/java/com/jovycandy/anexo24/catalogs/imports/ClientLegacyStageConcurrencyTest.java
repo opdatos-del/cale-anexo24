@@ -35,6 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Arnés de concurrencia contra una réplica sintética del stage legacy de
  * clientes. Sólo usa SQL Server Testcontainers; nunca usa una base LIVE.
+ *
+ * <p>El DDL del staging app24 es instalado por la migration productiva 15, NO
+ * por el fixture, para validar que la migration basta para crear todo lo
+ * necesario.</p>
  */
 class ClientLegacyStageConcurrencyTest {
 
@@ -57,7 +61,16 @@ class ClientLegacyStageConcurrencyTest {
         Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite el arnés SQL.");
         SQL.start();
         crearBases();
-        aplicarFixtures();
+        // Sólo aplicar el fixture de CALE. Las tablas app24 las crea la migration 15.
+        try (Connection cale = conectar(CALE)) {
+            aplicarArchivo(cale, raizFixtures().resolve("01-cliente-confirm-fixture.sql"));
+            aplicarArchivo(cale, raizFixtures().resolve("CARGACLIENTES.legacy.sql"));
+        }
+        // Migration 15 aplicada de forma realista: crea staging app24, agrega estado
+        // CONFIRMADA, instala SPs app24, otorga permisos y crea la actividad.
+        aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
+        // Wrapper Cliente.
+        aplicarArchivo(conectar(CALE), raizRepo().resolve("procedures/commands/APP24_C_CLIENTE_CARGA_CONFIRMAR.sql"));
         assertContextoWrapper();
     }
 
@@ -127,7 +140,7 @@ class ClientLegacyStageConcurrencyTest {
     }
 
     @Test
-    void stagePreexistenteFallaCerrado() throws Exception {
+    void stageClienteOcupadoFallaCerrado() throws Exception {
         long carga = crearCarga();
         agregarFila(carga, filaValida("CLI-NUEVA"));
         try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
@@ -144,7 +157,25 @@ class ClientLegacyStageConcurrencyTest {
     }
 
     @Test
-    void escritorConcurrenteEspera() throws Exception {
+    void stageProveedorOcupadoFallaCerrado() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, filaValida("CLI-NUEVA"));
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.ECARGAPROVEEDORES (TMPKEY, ERROR, CLAVE) VALUES (999, 'proveedor ajeno', 'PROV-001')");
+        }
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().contains("LEGACY_STAGE_BUSY"), "Mensaje no contiene LEGACY_STAGE_BUSY: " + error.getMessage());
+        assertEquals("PREVISUALIZADA", estadoCarga(carga));
+        // La fila ajena en ECARGAPROVEEDORES no se modifica ni se trunca.
+        assertEquals(1, contar(CALE, "dbo.ECARGAPROVEEDORES"));
+        assertEquals(0, contar(CALE, "dbo.clientes"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void escritorClienteConcurrenteEspera() throws Exception {
         long carga = crearCarga();
         agregarFila(carga, filaValida("CLI-BLOQUEO-1"));
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -178,9 +209,44 @@ class ClientLegacyStageConcurrencyTest {
     }
 
     @Test
-    void execCargaClientesConcurrenteEspera() throws Exception {
+    void escritorProveedorErrorConcurrenteEspera() throws Exception {
         long carga = crearCarga();
         agregarFila(carga, filaValida("CLI-BLOQUEO-2"));
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch escritorListo = new CountDownLatch(1);
+        CountDownLatch iniciarEscritor = new CountDownLatch(1);
+
+        try (Connection exterior = conectar(CALE); Statement exteriorSql = exterior.createStatement()) {
+            exteriorSql.execute("BEGIN TRANSACTION");
+            assertEquals("CONFIRMED", confirmar(exterior, carga).get("Resultado"));
+
+            Future<Long> escritor = executor.submit(() -> {
+                escritorListo.countDown();
+                iniciarEscritor.await(5, TimeUnit.SECONDS);
+                try (Connection otra = conectar(CALE); Statement s = otra.createStatement()) {
+                    s.execute("INSERT INTO dbo.ECARGAPROVEEDORES (TMPKEY, ERROR, CLAVE) VALUES (1234, 'proveedor tras commit', 'PROV-POST')");
+                    return 1L;
+                }
+            });
+            assertTrue(escritorListo.await(5, TimeUnit.SECONDS));
+            iniciarEscritor.countDown();
+            assertThrows(TimeoutException.class, () -> escritor.get(2, TimeUnit.SECONDS),
+                    "El escritor de ECARGAPROVEEDORES debe quedar bloqueado por TABLOCKX/HOLDLOCK.");
+
+            exteriorSql.execute("COMMIT TRANSACTION");
+
+            assertNotNull(escritor.get(15, TimeUnit.SECONDS));
+            assertEquals(1, contar(CALE, "dbo.ECARGAPROVEEDORES"));
+            assertEquals("PROV-POST", valor(CALE, "SELECT RTRIM(CLAVE) FROM dbo.ECARGAPROVEEDORES WHERE CLAVE='PROV-POST'"));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void execCargaClientesConcurrenteEspera() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, filaValida("CLI-BLOQUEO-3"));
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CountDownLatch legacyListo = new CountDownLatch(1);
         CountDownLatch iniciarLegacy = new CountDownLatch(1);
@@ -213,32 +279,6 @@ class ClientLegacyStageConcurrencyTest {
     }
 
     @Test
-    void reconfirmacionSeRechaza() throws Exception {
-        long carga = crearCarga();
-        agregarFila(carga, filaValida("CLI-IDEMPOTENTE"));
-        assertEquals("CONFIRMED", confirmar(carga).get("Resultado"));
-
-        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
-
-        assertTrue(error.getMessage().contains("ALREADY_CONFIRMED"));
-        assertEquals("CONFIRMADA", estadoCarga(carga));
-        assertEquals(1, contar(CALE, "dbo.clientes"));
-        assertEquals(1, contar(APP, "app24.BitacoraEvento"));
-        transaccionLimpia();
-    }
-
-    @Test
-    void migracionIdempotente() throws Exception {
-        try (Connection app = conectar(APP)) {
-            aplicarArchivo(app, raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
-        }
-        assertEquals(1, contar(APP, "app24.Actividad WHERE clave = 'CLIENTES_CONFIRMAR'"));
-        assertEquals(1, contar(APP, "app24.PerfilActividad pa JOIN app24.Actividad a ON a.id = pa.actividad_id "
-                + "JOIN app24.PerfilApp p ON p.id = pa.perfil_id WHERE a.clave = 'CLIENTES_CONFIRMAR' "
-                + "AND p.nombre = 'ADMINISTRADOR'"));
-    }
-
-    @Test
     void timeoutControladoSinMutacion() throws Exception {
         long carga = crearCarga();
         agregarFila(carga, filaValida("CLI-TIMEOUT"));
@@ -265,6 +305,52 @@ class ClientLegacyStageConcurrencyTest {
     }
 
     @Test
+    void rollbackPosteriorALegacy() throws Exception {
+        // Validamos que un error de validación deja el catálogo intacto y los stages coherentes.
+        long carga = crearCarga();
+        agregarFila(carga, filaInvalidaSinIdFiscal());
+
+        confirmar(carga);
+
+        assertEquals(0, contar(CALE, "dbo.clientes"));
+        assertEquals(0, contar(CALE, "dbo.TMPCLIENTES"));
+        assertEquals(0, contar(CALE, "dbo.ECARGACLIENTES"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void reconfirmacionSeRechaza() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, filaValida("CLI-IDEMPOTENTE"));
+        assertEquals("CONFIRMED", confirmar(carga).get("Resultado"));
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().contains("ALREADY_CONFIRMED"));
+        assertEquals("CONFIRMADA", estadoCarga(carga));
+        assertEquals(1, contar(CALE, "dbo.clientes"));
+        assertEquals(1, contar(APP, "app24.BitacoraEvento"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void migracionIdempotente() throws Exception {
+        // Aplica la migration dos veces y comprueba que el estado del catálogo de actividades
+        // y del staging sigue siendo coherente.
+        try (Connection app = conectar(APP)) {
+            aplicarArchivo(app, raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
+            aplicarArchivo(app, raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
+        }
+        assertEquals(1, contar(APP, "app24.Actividad WHERE clave = 'CLIENTES_CONFIRMAR'"));
+        assertEquals(1, contar(APP, "app24.Actividad WHERE clave = 'CLIENTES_CARGAR'"));
+        int totalPerfilActividad = Integer.parseInt(valor(APP,
+                "SELECT COUNT(*) FROM app24.PerfilActividad pa JOIN app24.Actividad a ON a.id = pa.actividad_id "
+                        + "JOIN app24.PerfilApp p ON p.id = pa.perfil_id WHERE a.clave IN ('CLIENTES_CONFIRMAR','CLIENTES_CARGAR') "
+                        + "AND p.nombre = 'ADMINISTRADOR'"));
+        assertTrue(totalPerfilActividad >= 1, "El ADMINISTRADOR debe tener CLIENTES_CONFIRMAR/CLIENTES_CARGAR asignadas");
+    }
+
+    @Test
     void clienteExistenteMantieneRegistro() throws Exception {
         try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
             s.execute("INSERT INTO dbo.clientes (Clave, Nombre, Idfiscal, clientekey) "
@@ -287,6 +373,27 @@ class ClientLegacyStageConcurrencyTest {
         transaccionLimpia();
     }
 
+    @Test
+    void idFiscalVacioUsaSalidaLegacyEquivocadaPeroSeNormaliza() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, filaInvalidaSinIdFiscal());
+
+        confirmar(carga);
+
+        // LEGACY_BUG_REPRODUCED: el SP legacy inserta en ECARGAPROVEEDORES nuestra TMPKEY.
+        // Antes del rollback el wrapper vio esa fila y la atribuyó al lote del cliente.
+        // Tras el rollback, ECARGAPROVEEDORES debe quedar exactamente como estaba.
+        assertEquals(0, contar(CALE, "dbo.ECARGAPROVEEDORES"));
+        assertEquals(0, contar(CALE, "dbo.clientes"));
+        // La carga quedó CON_ERRORES con su error de IdFiscal normalizado a Cliente.
+        assertEquals("CON_ERRORES", estadoCarga(carga));
+        assertEquals(1, contar(APP, "app24.ErrorCargaCliente"));
+        assertTrue(valor(APP, "SELECT mensaje FROM app24.ErrorCargaCliente").contains("ID FISCAL"));
+        assertEquals(1, contar(APP, "app24.BitacoraEvento"));
+        assertEquals("CLIENTE_CARGA_CONFIRMACION_ERROR", valor(APP, "SELECT accion FROM app24.BitacoraEvento"));
+        transaccionLimpia();
+    }
+
     private static boolean dockerDisponible() {
         try {
             DockerClientFactory.instance().client();
@@ -303,14 +410,17 @@ class ClientLegacyStageConcurrencyTest {
             s.execute("CREATE DATABASE [" + APP + "]");
             s.execute("ALTER DATABASE [" + CALE + "] SET COMPATIBILITY_LEVEL = 100");
         }
-    }
-
-    private static void aplicarFixtures() throws Exception {
-        try (Connection cale = conectar(CALE)) {
-            aplicarArchivo(cale, raizFixtures().resolve("01-cliente-confirm-fixture.sql"));
-            aplicarArchivo(cale, raizFixtures().resolve("CARGACLIENTES.legacy.sql"));
-            aplicarArchivo(cale, raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
-            aplicarArchivo(cale, raizRepo().resolve("procedures/commands/APP24_C_CLIENTE_CARGA_CONFIRMAR.sql"));
+        try (Connection app = conectar(APP); Statement s = app.createStatement()) {
+            s.execute("IF SCHEMA_ID('app24') IS NULL EXEC('CREATE SCHEMA app24')");
+            s.execute("IF OBJECT_ID('app24.PerfilApp', 'U') IS NULL CREATE TABLE app24.PerfilApp (id INT IDENTITY(1,1) NOT NULL PRIMARY KEY, nombre VARCHAR(100) NOT NULL UNIQUE)");
+                        s.execute("SET IDENTITY_INSERT app24.PerfilApp ON; INSERT INTO app24.PerfilApp (id, nombre) VALUES (1, 'ADMINISTRADOR'); SET IDENTITY_INSERT app24.PerfilApp OFF");
+            s.execute("IF OBJECT_ID('app24.Actividad', 'U') IS NULL CREATE TABLE app24.Actividad (id INT IDENTITY(1,1) NOT NULL PRIMARY KEY, clave VARCHAR(100) NOT NULL UNIQUE, nombre VARCHAR(200) NOT NULL, recurso VARCHAR(100) NOT NULL, accion VARCHAR(100) NOT NULL)");
+            s.execute("IF OBJECT_ID('app24.PerfilActividad', 'U') IS NULL CREATE TABLE app24.PerfilActividad (perfil_id INT NOT NULL, actividad_id INT NOT NULL, CONSTRAINT PK_PerfilActividad PRIMARY KEY (perfil_id, actividad_id))");
+            s.execute("IF OBJECT_ID('app24.UsuarioApp', 'U') IS NULL CREATE TABLE app24.UsuarioApp (id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY)");
+            // Usuario sintético usado por los tests para satisfacer la FK.
+            s.execute("SET IDENTITY_INSERT app24.UsuarioApp ON; INSERT INTO app24.UsuarioApp (id) VALUES (7001); SET IDENTITY_INSERT app24.UsuarioApp OFF");
+            s.execute("IF OBJECT_ID('app24.BitacoraEvento', 'U') IS NULL CREATE TABLE app24.BitacoraEvento (id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY, usuario_id BIGINT NOT NULL, modulo VARCHAR(100) NOT NULL, accion VARCHAR(80) NOT NULL, detalle VARCHAR(500) NOT NULL, correlation_id VARCHAR(100) NOT NULL, resultado VARCHAR(50) NOT NULL, fecha DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())");
+            s.execute("IF OBJECT_ID('app24.APP24_C_BITACORA_REGISTRAR', 'P') IS NULL EXEC('CREATE PROCEDURE app24.APP24_C_BITACORA_REGISTRAR @UsuarioId BIGINT, @Modulo VARCHAR(100), @Accion VARCHAR(80), @Detalle VARCHAR(500), @CorrelacionId VARCHAR(100), @Resultado VARCHAR(50), @EventoId BIGINT OUTPUT AS BEGIN SET NOCOUNT ON; INSERT INTO app24.BitacoraEvento (usuario_id, modulo, accion, detalle, correlation_id, resultado) VALUES (@UsuarioId, @Modulo, @Accion, @Detalle, @CorrelacionId, @Resultado); SET @EventoId = SCOPE_IDENTITY(); END')");
         }
     }
 
@@ -323,6 +433,11 @@ class ClientLegacyStageConcurrencyTest {
         try (Connection app = conectar(APP)) {
             assertEquals(0, scalarInt(app, "SELECT OBJECT_ID('dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR')"),
                     "ANEXO24_DEV NO debe contener dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR (context leak).");
+            // SPs app24 sí deben existir en ANEXO24_DEV.
+            assertNotEquals(0, scalarInt(app, "SELECT OBJECT_ID('app24.APP24_C_CATALOGO_CLIENTE_CARGA_CREAR')"));
+            assertNotEquals(0, scalarInt(app, "SELECT OBJECT_ID('app24.APP24_Q_CATALOGO_CLIENTE_CARGA_OBTENER')"));
+            assertNotEquals(0, scalarInt(app, "SELECT OBJECT_ID('app24.APP24_Q_CATALOGO_CLIENTE_CARGA_ERRORES')"));
+            assertNotEquals(0, scalarInt(app, "SELECT OBJECT_ID('app24.APP24_Q_CATALOGO_CLIENTE_CARGA_POR_HASH')"));
         }
     }
 

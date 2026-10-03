@@ -8,9 +8,11 @@
  *   * INSERT-only en dbo.clientes: omite silenciosamente clientes cuya CLAVE
  *     ya existe y/o aparece en ECARGACLIENTES.
  *   * Validaciones: claves vacías, duplicados internos, IDFiscal vacío.
+ *   * LEGACY_BUG_REPRODUCED = YES: inserta un error adicional en
+ *     dbo.ECARGAPROVEEDORES cuando Idfiscal viene vacío. ECARGAPROVEEDORES es
+ *     la tabla de errores del módulo Proveedores y el wrapper Cliente debe
+ *     aislarla/observarla sin truncarla.
  *   * Sin NOLOCK ni READ UNCOMMITTED; sin SET TRANSACTION ISOLATION LEVEL custom.
- *   * Bug preservado: también inserta errores en ECARGAPROVEEDORES cuando el
- *     IDFiscal está vacío. El wrapper sólo replica la lógica legacy.
  */
 
 USE [CALE_IMMEX];

@@ -44,6 +44,12 @@ public class ExcelCatalogImportParser {
             "DIVISION", "ENTIDAD", "TIPOM", "NumeroSerie", "MARCA", "MODELO");
     private static final List<String> PRODUCT_COLUMNS = List.of(
             "CVE_PRODUCTO", "NOMBRE", "UNIDAD", "fraccion", "DIVISION", "CVE_PRODUCTO_CLIENTE", "AUXILIAR");
+    private static final List<String> CLIENT_COLUMNS = List.of(
+            "Clave", "Nombre", "IdFiscal", "TipoNE", "Programa", "CalleNumero", "Codigo", "Colonia",
+            "Entidad", "Pais", "Telefono", "Correo", "Fax",
+            "ApellidoPaterno", "ApellidoMaterno", "Calle", "CalleNumeroInterior",
+            "Localidad", "Referencia", "Municipio", "TipoIdentificador", "CodigoPostal");
+    private static final int CLIENT_KEY_MAX_LENGTH = 15;
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -119,9 +125,10 @@ public class ExcelCatalogImportParser {
                 }
                 if (blank) add(errors, error(sheet.getSheetName(), rowNumber + 1, null, "FILA_VACIA", "La fila no contiene datos."));
                 validateBusiness(type, values, sheet.getSheetName(), rowNumber + 1, errors);
-                String key = values.getOrDefault(type == CatalogImportType.MATERIAL ? "ClaveMaterial" : "CVE_PRODUCTO", "");
+                String keyColumn = keyColumn(type);
+                String key = values.getOrDefault(keyColumn, "");
                 if (!key.isBlank() && !seenKeys.add(normalize(key)))
-                    add(errors, error(sheet.getSheetName(), rowNumber + 1, type == CatalogImportType.MATERIAL ? "ClaveMaterial" : "CVE_PRODUCTO",
+                    add(errors, error(sheet.getSheetName(), rowNumber + 1, keyColumn,
                             "CLAVE_DUPLICADA", "La clave se repite en el archivo."));
                 rows.add(new CatalogImportFila(safe(sheet.getSheetName(), 80), rowNumber + 1, Map.copyOf(values)));
             }
@@ -136,15 +143,25 @@ public class ExcelCatalogImportParser {
 
     private void validateBusiness(CatalogImportType type, Map<String, String> values, String sheet,
                                   int row, List<CatalogImportError> errors) {
-        if (type == CatalogImportType.MATERIAL) {
-            validateLength(values, "ClaveMaterial", 5, sheet, row, errors, "CLAVE_MATERIAL_CORTA");
-            validateLengthIfPresent(values, "ClaveMaterialProveedor", 5, sheet, row, errors, "CLAVE_PROVEEDOR_CORTA");
-            validateExactLength(values, "Fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
-        } else {
-            validateLength(values, "CVE_PRODUCTO", 3, sheet, row, errors, "CLAVE_PRODUCTO_CORTA");
-            validateLength(values, "NOMBRE", 3, sheet, row, errors, "NOMBRE_PRODUCTO_CORTO");
-            validateExactLength(values, "fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
-            validateLengthIfPresent(values, "CVE_PRODUCTO_CLIENTE", 3, sheet, row, errors, "CLAVE_CLIENTE_CORTA");
+        switch (type) {
+            case MATERIAL -> {
+                validateLength(values, "ClaveMaterial", 5, sheet, row, errors, "CLAVE_MATERIAL_CORTA");
+                validateLengthIfPresent(values, "ClaveMaterialProveedor", 5, sheet, row, errors, "CLAVE_PROVEEDOR_CORTA");
+                validateExactLength(values, "Fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
+            }
+            case PRODUCTO -> {
+                validateLength(values, "CVE_PRODUCTO", 3, sheet, row, errors, "CLAVE_PRODUCTO_CORTA");
+                validateLength(values, "NOMBRE", 3, sheet, row, errors, "NOMBRE_PRODUCTO_CORTO");
+                validateExactLength(values, "fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
+                validateLengthIfPresent(values, "CVE_PRODUCTO_CLIENTE", 3, sheet, row, errors, "CLAVE_CLIENTE_CORTA");
+            }
+            case CLIENTE -> {
+                // Restricción física del destino: clientes.CLAVE = CHAR(15). Aplicar LEFT(Clave,15) en el
+                // SP legacy hace que claves >15 choquen. Validación preventiva para que nunca lleguen a confirmación.
+                validateMaxLength(values, "Clave", CLIENT_KEY_MAX_LENGTH, sheet, row, errors, "CLAVE_CLIENTE_LARGA");
+                validateLength(values, "Clave", 3, sheet, row, errors, "CLAVE_CLIENTE_CORTA");
+                validateLengthIfPresent(values, "IdFiscal", 1, sheet, row, errors, "ID_FISCAL_VACIO");
+            }
         }
     }
 
@@ -160,10 +177,16 @@ public class ExcelCatalogImportParser {
         if (!value.isBlank() && value.length() < min) add(errors, error(sheet, row, key, code, "El valor informado no alcanza la longitud mínima auditada."));
     }
 
-    private void validateExactLength(Map<String, String> values, String key, int length, String sheet, int row,
-                                    List<CatalogImportError> errors, String code) {
+    private void validateExactLength(Map<String, String> values, String key, int length, String sheet,
+                                    int row, List<CatalogImportError> errors, String code) {
         if (values.getOrDefault(key, "").length() != length)
             add(errors, error(sheet, row, key, code, "La fracción debe tener exactamente 8 caracteres en el contrato legacy."));
+    }
+
+    private void validateMaxLength(Map<String, String> values, String key, int max, String sheet, int row,
+                                   List<CatalogImportError> errors, String code) {
+        if (values.getOrDefault(key, "").length() > max)
+            add(errors, error(sheet, row, key, code, "El valor supera la longitud máxima física del destino (" + max + ")."));
     }
 
     private String canonical(String column, String value) {
@@ -185,12 +208,28 @@ public class ExcelCatalogImportParser {
                 hash, VERSION_CONTRATO, List.copyOf(columns), List.copyOf(rows), List.copyOf(errors), failed);
     }
 
-    private List<String> columns(CatalogImportType type) { return type == CatalogImportType.MATERIAL ? MATERIAL_COLUMNS : PRODUCT_COLUMNS; }
+    private List<String> columns(CatalogImportType type) {
+            return switch (type) {
+                case MATERIAL -> MATERIAL_COLUMNS;
+                case PRODUCTO -> PRODUCT_COLUMNS;
+                case CLIENTE -> CLIENT_COLUMNS;
+            };
+        }
 
     private List<String> required(CatalogImportType type) {
-        return type == CatalogImportType.MATERIAL
-                ? List.of("ClaveMaterial", "UnidadComercial", "Fraccion")
-                : List.of("CVE_PRODUCTO", "NOMBRE", "UNIDAD", "fraccion");
+        return switch (type) {
+            case MATERIAL -> List.of("ClaveMaterial", "UnidadComercial", "Fraccion");
+            case PRODUCTO -> List.of("CVE_PRODUCTO", "NOMBRE", "UNIDAD", "fraccion");
+            case CLIENTE -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
+        };
+    }
+
+    private String keyColumn(CatalogImportType type) {
+        return switch (type) {
+            case MATERIAL -> "ClaveMaterial";
+            case PRODUCTO -> "CVE_PRODUCTO";
+            case CLIENTE -> "Clave";
+        };
     }
 
     private void add(List<CatalogImportError> errors, CatalogImportError error) {

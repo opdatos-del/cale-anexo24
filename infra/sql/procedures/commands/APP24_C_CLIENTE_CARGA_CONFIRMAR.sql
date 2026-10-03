@@ -14,9 +14,13 @@ GO
 --   * INSERT-only en dbo.clientes: omite silenciosamente clientes cuya CLAVE
 --     ya existe y/o aparece en ECARGACLIENTES.
 --   * Validaciones: claves vacías, duplicados internos, IDFiscal vacío.
+--   * BUG LEGACY REPRODUCED: cuando Idfiscal viene vacío, dbo.CARGACLIENTES
+--     inserta la fila de error también en dbo.ECARGAPROVEEDORES (tabla del
+--     módulo de Proveedores). Esta tabla es compartida con dbo.CARGAPROVEEDORES
+--     que la TRUNCATEa al inicio. El wrapper NUNCA la trunca y sólo la bloquea
+--     en modo aislamiento, normalizando las filas generadas por las TMPKEY
+--     de la carga como errores de Cliente en app24.ErrorCargaCliente.
 --   * Sin NOLOCK ni READ UNCOMMITTED; sin SET TRANSACTION ISOLATION LEVEL custom.
---   * Bug documentado — inserta errores también en ECARGAPROVEEDORES cuando
---     el IDFiscal está vacío. No se corrige: el wrapper sólo replica.
 CREATE OR ALTER PROCEDURE dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR
     @CargaId BIGINT
 AS
@@ -51,14 +55,20 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Coordina tanto inserciones directas como ejecuciones no coordinadas de CARGACLIENTES.
+        -- Coordina inserts directos y EJECUTCIONES no coordinadas de CARGACLIENTES.
         SELECT TOP (1) @Bloqueo = TMPCLIENTEKEY
         FROM dbo.TMPCLIENTES WITH (TABLOCKX, HOLDLOCK);
         SELECT TOP (1) @Bloqueo = EPKEY
         FROM dbo.ECARGACLIENTES WITH (TABLOCKX, HOLDLOCK);
+        -- ECARGAPROVEEDORES es compartida con CARGAPROVEEDORES y modificada por
+        -- CARGACLIENTES (bug legacy). La bloqueamos para aislar la operación
+        -- Cliente del módulo Proveedores durante la confirmación.
+        SELECT TOP (1) @Bloqueo = id
+        FROM dbo.ECARGAPROVEEDORES WITH (TABLOCKX, HOLDLOCK);
 
         IF EXISTS (SELECT 1 FROM dbo.TMPCLIENTES)
            OR EXISTS (SELECT 1 FROM dbo.ECARGACLIENTES)
+           OR EXISTS (SELECT 1 FROM dbo.ECARGAPROVEEDORES)
             THROW 51502, 'LEGACY_STAGE_BUSY', 1;
 
         SELECT @Estado = estado,
@@ -149,6 +159,17 @@ BEGIN
         FROM dbo.ECARGACLIENTES error_legacy
         JOIN @Mapa mapa ON mapa.carga_cliente_key = error_legacy.TMPKEY;
 
+        -- Normalización del bug legacy: ECARGAPROVEEDORES recibe filas de ECARGAPROVEEDORES
+        -- con TMPKEY = carga_cliente_key de nuestro lote. Las atribuimos como error Cliente,
+        -- no como error Proveedor (la carga Cliente NUNCA las pidió como tales).
+        INSERT INTO @Errores (hoja, fila, codigo, mensaje)
+        SELECT mapa.hoja, mapa.fila, 'LEGACY_VALIDATION', error_legacy.ERROR
+        FROM dbo.ECARGAPROVEEDORES error_legacy
+        JOIN @Mapa mapa ON mapa.carga_cliente_key = error_legacy.TMPKEY
+        WHERE NOT EXISTS (
+            SELECT 1 FROM @Errores e WHERE e.hoja = mapa.hoja AND e.fila = mapa.fila
+        );
+
         IF EXISTS (SELECT 1 FROM @Errores)
         BEGIN
             ROLLBACK TRANSACTION;
@@ -206,6 +227,8 @@ BEGIN
         DELETE carga_legacy
         FROM dbo.TMPCLIENTES carga_legacy
         JOIN @Mapa mapa ON mapa.carga_cliente_key = carga_legacy.TMPCLIENTEKEY;
+        -- ECARGAPROVEEDORES NO se limpia: pertenece a otro módulo y el wrapper sólo la observó.
+        -- Si CARGACLIENTES no insertó errores ahí (caso sin IdFiscal vacío), no hay nada que limpiar.
 
         SET @ConfirmadaEn = SYSUTCDATETIME();
         UPDATE ANEXO24_DEV.app24.CargaCatalogoCliente

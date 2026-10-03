@@ -38,11 +38,8 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
 
     @Override
     public boolean existsByHash(CatalogImportType type, String hash) {
-        String procedure = type == CatalogImportType.MATERIAL
-                ? "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_POR_HASH"
-                : "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_POR_HASH";
         Map<String, Object> result = appJdbcTemplate.call(connection -> {
-            CallableStatement statement = connection.prepareCall("{call " + procedure + "(?, ?)}");
+            CallableStatement statement = connection.prepareCall("{call " + procedureExists(type) + "(?, ?)}");
             statement.setString(1, hash);
             statement.registerOutParameter(2, Types.BIT);
             return statement;
@@ -52,13 +49,12 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
 
     @Override
     public long save(CatalogImportArchivo archivo, long usuarioId, String correlationId) {
-        String procedure = typeCommand(archivo.tipo());
         try {
             String rows = objectMapper.writeValueAsString(archivo.filas().stream().map(row -> Map.of(
                     "hoja", row.hoja(), "fila", row.numero(), "datos", row.datos())).toList());
             String errors = objectMapper.writeValueAsString(archivo.errores());
             Map<String, Object> result = appJdbcTemplate.call(connection -> {
-                CallableStatement statement = connection.prepareCall("{call " + procedure + "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}");
+                CallableStatement statement = connection.prepareCall("{call " + procedureSave(archivo.tipo()) + "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}");
                 statement.setString(1, archivo.nombre());
                 statement.setString(2, archivo.hash());
                 statement.setLong(3, usuarioId);
@@ -109,7 +105,7 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
     @SuppressWarnings("unchecked")
     public List<CatalogImportError> findErrors(CatalogImportType type, long id, int pagina, int tamano) {
         Map<String, Object> result = appJdbcTemplate.call(connection -> {
-            CallableStatement statement = connection.prepareCall("{call " + typeErrors(type) + "(?, ?, ?)}");
+            CallableStatement statement = connection.prepareCall("{call " + procedureErrors(type) + "(?, ?, ?)}");
             statement.setLong(1, id); statement.setInt(2, pagina); statement.setInt(3, tamano); return statement;
         }, List.of(new SqlParameter("CargaId", Types.BIGINT), new SqlParameter("Pagina", Types.INTEGER),
                 new SqlParameter("Tamano", Types.INTEGER), errorResultSet("errores")));
@@ -118,11 +114,8 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> callDetail(CatalogImportType type, long id, int pagina, int tamano) {
-        String procedure = type == CatalogImportType.MATERIAL
-                ? "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_OBTENER"
-                : "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_OBTENER";
         return appJdbcTemplate.call(connection -> {
-            CallableStatement statement = connection.prepareCall("{call " + procedure + "(?, ?, ?)}");
+            CallableStatement statement = connection.prepareCall("{call " + procedureDetail(type) + "(?, ?, ?)}");
             statement.setLong(1, id); statement.setInt(2, pagina); statement.setInt(3, tamano); return statement;
         }, List.of(new SqlParameter("CargaId", Types.BIGINT), new SqlParameter("Pagina", Types.INTEGER),
                 new SqlParameter("Tamano", Types.INTEGER),
@@ -139,14 +132,36 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
                 rs.getString("codigo"), rs.getString("mensaje")));
     }
 
-    private String typeCommand(CatalogImportType type) {
-        return type == CatalogImportType.MATERIAL ? "app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR"
-                : "app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR";
+    private String procedureExists(CatalogImportType type) {
+        return switch (type) {
+            case MATERIAL -> "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_POR_HASH";
+            case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_POR_HASH";
+            case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_POR_HASH";
+        };
     }
 
-    private String typeErrors(CatalogImportType type) {
-        return type == CatalogImportType.MATERIAL ? "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_ERRORES"
-                : "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_ERRORES";
+    private String procedureSave(CatalogImportType type) {
+        return switch (type) {
+            case MATERIAL -> "app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR";
+            case PRODUCTO -> "app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR";
+            case CLIENTE -> "app24.APP24_C_CATALOGO_CLIENTE_CARGA_CREAR";
+        };
+    }
+
+    private String procedureDetail(CatalogImportType type) {
+        return switch (type) {
+            case MATERIAL -> "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_OBTENER";
+            case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_OBTENER";
+            case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_OBTENER";
+        };
+    }
+
+    private String procedureErrors(CatalogImportType type) {
+        return switch (type) {
+            case MATERIAL -> "app24.APP24_Q_CATALOGO_MATERIAL_CARGA_ERRORES";
+            case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_ERRORES";
+            case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_ERRORES";
+        };
     }
 
     @SuppressWarnings("unchecked")
