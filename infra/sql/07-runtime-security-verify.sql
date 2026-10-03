@@ -145,7 +145,8 @@ INSERT INTO @esperado (esquema, objeto) VALUES
     ('dbo', 'APP24_Q_TIPOS_MATERIAL_LISTAR'),
     ('dbo', 'APP24_Q_UNIDADES_LISTAR'),
     ('dbo', 'APP24_Q_VENCIMIENTOS_LISTAR'),
-    ('dbo', 'APP24_C_PEDIMENTO_CONFIRMAR');
+    ('dbo', 'APP24_C_PEDIMENTO_CONFIRMAR'),
+    ('dbo', 'APP24_C_MATERIAL_CARGA_CONFIRMAR');
 
 IF EXISTS (
     SELECT s.name, o.name

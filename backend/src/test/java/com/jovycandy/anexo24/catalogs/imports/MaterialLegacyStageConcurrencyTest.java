@@ -196,6 +196,33 @@ class MaterialLegacyStageConcurrencyTest {
     }
 
     @Test
+    void confirmacionBloqueadaTieneTimeoutControladoYSinMutacion() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, filaValida("MAT-TIMEOUT", "KG"));
+
+        try (Connection ocupante = conectar(CALE); Statement ocupanteSql = ocupante.createStatement()) {
+            ocupanteSql.execute("BEGIN TRANSACTION");
+            ocupanteSql.execute("SELECT TOP (1) CARGAMATERIALKEY FROM dbo.CARGAMATERIAL WITH (TABLOCKX, HOLDLOCK)");
+
+            long inicio = System.nanoTime();
+            SQLException error = assertThrows(SQLException.class, () -> confirmarConTimeout(carga, 1));
+            long esperaMilisegundos = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicio);
+
+            assertTrue(esperaMilisegundos < TimeUnit.SECONDS.toMillis(10),
+                    "El timeout JDBC debe evitar espera indefinida: " + esperaMilisegundos + " ms");
+            assertTrue(error instanceof java.sql.SQLTimeoutException
+                            || "HYT00".equalsIgnoreCase(error.getSQLState())
+                            || error.getMessage().toLowerCase().contains("timed out"),
+                    "Se esperaba timeout controlado: " + error.getMessage());
+            assertEquals("PREVISUALIZADA", estadoCarga(carga));
+            assertEquals(0, contar(CALE, "dbo.MATERIAL"));
+            assertEquals(0, contar(CALE, "dbo.FACTORESMP"));
+        }
+
+        transaccionLimpia();
+    }
+
+    @Test
     void execLegacyConcurrenteEsperaAlCommitExterno() throws Exception {
         long carga = crearCarga();
         agregarFila(carga, filaValida("MAT-BLOQUEO-2", "KG"));
@@ -374,6 +401,15 @@ class MaterialLegacyStageConcurrencyTest {
                 resultado.put("ConfirmadaEn", rs.getString("ConfirmadaEn"));
                 return resultado;
             }
+        }
+    }
+
+    private void confirmarConTimeout(long cargaId, int timeoutSegundos) throws SQLException {
+        try (Connection cale = conectar(CALE);
+             CallableStatement cs = cale.prepareCall("{call dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR(?)}")) {
+            cs.setQueryTimeout(timeoutSegundos);
+            cs.setLong(1, cargaId);
+            cs.execute();
         }
     }
 

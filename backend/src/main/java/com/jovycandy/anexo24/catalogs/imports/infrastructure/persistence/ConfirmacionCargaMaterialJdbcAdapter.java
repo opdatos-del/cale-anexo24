@@ -8,6 +8,7 @@ import com.jovycandy.anexo24.shared.exception.RecursoNoEncontradoException;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.SqlReturnResultSet;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.CallableStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.List;
@@ -27,6 +29,7 @@ public class ConfirmacionCargaMaterialJdbcAdapter implements ConfirmacionCargaMa
 
     static final String PROCEDIMIENTO = "dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR";
     private static final String RESULTADO = "confirmacion";
+    private static final int TIMEOUT_CONFIRMACION_SEGUNDOS = 30;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -41,6 +44,8 @@ public class ConfirmacionCargaMaterialJdbcAdapter implements ConfirmacionCargaMa
         try {
             resultado = jdbcTemplate.call(connection -> {
                 CallableStatement statement = connection.prepareCall("{call " + PROCEDIMIENTO + "(?)}");
+                // Evita solicitudes colgadas si WebForms retiene la etapa legacy global.
+                statement.setQueryTimeout(TIMEOUT_CONFIRMACION_SEGUNDOS);
                 statement.setLong(1, cargaId);
                 return statement;
             }, List.of(
@@ -64,6 +69,7 @@ public class ConfirmacionCargaMaterialJdbcAdapter implements ConfirmacionCargaMa
 
     /** Traduce los errores controlados del SP a la convención HTTP del proyecto. */
     static RuntimeException traducir(DataAccessException exception) {
+        if (esTiempoAgotado(exception)) return new EstadoIncompatibleException();
         Integer codigo = codigoSql(exception);
         if (codigo == null) return exception;
         return switch (codigo) {
@@ -73,6 +79,14 @@ public class ConfirmacionCargaMaterialJdbcAdapter implements ConfirmacionCargaMa
             case 51505, 51506, 51507 -> new ConfirmacionNoProcesableException();
             default -> exception;
         };
+    }
+
+    private static boolean esTiempoAgotado(Throwable error) {
+        for (Throwable actual = error; actual != null; actual = actual.getCause()) {
+            if (actual instanceof QueryTimeoutException || actual instanceof SQLTimeoutException) return true;
+            if (actual instanceof SQLException sql && "HYT00".equalsIgnoreCase(sql.getSQLState())) return true;
+        }
+        return false;
     }
 
     private static Integer codigoSql(Throwable error) {
