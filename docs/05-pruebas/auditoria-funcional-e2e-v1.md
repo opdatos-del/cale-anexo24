@@ -223,15 +223,29 @@ Browser:
 
 | ID | Severidad | Ruta | Pasos | Esperado | Actual | Evidencia | Front/back | Causa probable | Fix recomendado |
 |---|---|---|---|---|---|---|---|---|---|
-| FUN-E2E-001 | P3 | `/reportes` (Compulsa, Rectificaciones, Análisis) | Generar y observar documentos | Sin relleno | API JSON conserva padding (`"160-3750-6001741     "`); UI lo recorta (`formatOperationText`) y no hay export textual | Sweep API + fila UI + `openpyxl` (exportables sin padding) | Backend (proyección legacy); sin impacto visible | Columnas `char` legacy | Opcional: `TRIM` en proyección si negocio lo confirma (fuera de discovery) |
-| FUN-E2E-002 | P2 | `/reportes` (Análisis de descargas) | Ver columna “Partida salida” | Valor consistente | `"4.0"` visible en celda (columna sin formatter) | Fila 0 de la tabla: `["6001720","—","190-3302-6002960","4.0",…]` | Backend/DTO | Tipo del campo en la vista legacy sin normalizar | Normalizar a entero/numérico en DTO o formatter de la columna |
-| FUN-E2E-003 | P1 | `/catalogos/importaciones` | Entrar con perfil `READ_ONLY` (sin `MATERIALES_CARGAR`/`PRODUCTOS_CARGAR`) | `/forbidden` | La página carga (título “Importar materiales y productos”) | RBAC browser: `finalUrl=/catalogos/importaciones`, `h1` del import; backend sí bloquea POST (403) | Frontend (guard) | `permissionGuard` evalúa `route.data['permission']` heredado de `/catalogos` (`CATALOGOS_AUX_CONSULTAR`) cuando el hijo define sólo `permissions` | En el guard: si `permissions` está presente, exigir `hasAnyPermission(...permissions)` e ignorar `permission` heredado; o declarar el hijo con `permission` propio |
-| FUN-E2E-004 | P3 | API reportes textuales | `GET /api/v1/reportes/{compulsa,rectificaciones,vencimientos,dirigidos,analisis-descargas,operaciones-bloqueadas}/exportacion` | 404/405 controlado | 500 `ERROR_INTERNO` + correlationId | Sweep API (6/6 con ese patrón) | Backend | No existe endpoint; `NoResourceFoundException` de Spring cae en el catch-all `@ExceptionHandler(Exception.class)` (el handler sólo traduce la `RecursoNoEncontradoException` propia) | Mapear `NoResourceFoundException` a 404 en el handler global; la UI no expone estos paths |
+| FUN-E2E-001 | P3 (OPEN) | `/reportes` (Compulsa, Rectificaciones, Análisis) | Generar y observar documentos | Sin relleno | API JSON conserva padding (`"160-3750-6001741     "`); UI lo recorta (`formatOperationText`) y no hay export textual | Sweep API + fila UI + `openpyxl` (exportables sin padding) | Backend (proyección legacy); sin impacto visible | Columnas `char` legacy | Opcional: `TRIM` en proyección si negocio lo confirma (fuera de discovery) |
+| FUN-E2E-002 | P2 (**FIXED / VERIFIED** `8b7a4fc`) | `/reportes` (Análisis de descargas) | Ver columna “Partida salida” | Valor consistente | `"4.0"` visible en celda (columna sin formatter) | Fila 0 de la tabla: `["6001720","—","190-3302-6002960","4.0",…]` | Frontend (formatter) | Tipo del campo en la vista legacy sin normalizar | Corregido: `formatOperationPartida` aplicado a `partidaEntrada`/`partidaSalida` |
+| FUN-E2E-003 | P1 (**FIXED / VERIFIED** `fd98364`) | `/catalogos/importaciones` | Entrar con perfil `READ_ONLY` (sin `MATERIALES_CARGAR`/`PRODUCTOS_CARGAR`) | `/forbidden` | La página carga (título “Importar materiales y productos”) | RBAC browser: `finalUrl=/catalogos/importaciones`, `h1` del import; backend sí bloquea POST (403) | Frontend (guard) | `permissionGuard` evalúa `route.data['permission']` heredado de `/catalogos` (`CATALOGOS_AUX_CONSULTAR`) cuando el hijo define sólo `permissions` | Corregido: `permissions` presente es autoritativo e ignora `permission` heredado |
+| FUN-E2E-004 | P3 (OPEN) | API reportes textuales | `GET /api/v1/reportes/{compulsa,rectificaciones,vencimientos,dirigidos,analisis-descargas,operaciones-bloqueadas}/exportacion` | 404/405 controlado | 500 `ERROR_INTERNO` + correlationId | Sweep API (6/6 con ese patrón) | Backend | No existe endpoint; `NoResourceFoundException` de Spring cae en el catch-all `@ExceptionHandler(Exception.class)` (el handler sólo traduce la `RecursoNoEncontradoException` propia) | Mapear `NoResourceFoundException` a 404 en el handler global; la UI no expone estos paths |
 
 No se confirmaron hallazgos `P0`. Observaciones menores sin clasificar:
 requests `ERR_ABORTED` en filtros de catálogo (cancelaciones del cliente al
 sobre-escribir la consulta, sin error de usuario) y el primer clic
 instrumentado del drawer mobile (no reproducible con interacción real).
+
+## Fase de correcciones (rama `feature/e2e-v1-fixes`)
+
+Base: `ca57bce` (test/functional-e2e-v1). Alcance: sólo P1/P2; P3 quedan
+abiertos y diferidos.
+
+| Finding | Commit | Cambio | Tests | Verificación browser (regresión focalizada) |
+|---|---|---|---|---|
+| FUN-E2E-003 (P1) | `fd98364` `fix(auth): respetar permisos específicos de rutas hijas` | `permission.guard.ts`: si `permissions` está presente y no vacío es autoritativo (`hasAnyPermission`) e ignora `permission` heredado; si no, evalúa `permission`; sin configuración → `/forbidden` | `permission.guard.spec.ts` (9 casos, incluye el caso heredado del bug A–H) | 8/8: readonly `/catalogos`, `/catalogos/datos-generales`, `/catalogos/socios-comerciales` = PASS; readonly `/catalogos/importaciones` → `/forbidden`; perfiles `MATERIALES_CARGAR` y `PRODUCTOS_CARGAR` → página carga; `NO_PERMISSION` → `/forbidden`; smoke tablet/mobile 4/4 |
+| FUN-E2E-002 (P2) | `8b7a4fc` `fix(reports): normalizar visualización de partidas` | `formatOperationPartida` (quita sufijo `.0+` sólo con parte entera numérica; conserva `004`, `4.5`, `A4`, vacíos → `—`) y `format: 'partida'` en `partidaEntrada`/`partidaSalida` de Análisis de descargas; cantidades intactas | `operation-formatters.spec.ts` (5 casos) + `report-list.page.spec.ts` (2 casos: `2.0`→`2`, `4.0`→`4`, `4.5` cantidad intacta, `A4`/nulo) | `/reportes` → Análisis de descargas → Generar (200): 3 filas muestreadas, 0 celdas con sufijo `.0`; sin errores de consola; smoke tablet/mobile PASS |
+
+Resultado de la fase: `P0 open = 0`, `P1 open = 0`, `P2 open = 0`,
+`P3 open = 2` (FUN-E2E-001, FUN-E2E-004 diferidos). API sin cambios;
+backend sin cambios de código.
 
 ## Gaps de auditoría restantes
 
@@ -272,4 +286,18 @@ RESPONSIVE = 40/40 sin overflow ni errores
 P0 = 0 | P1 = 1 | P2 = 1 | P3 = 2
 READY_FOR_FIX_PHASE = YES
 READY_TO_INTEGRATE_DEV = pendiente de revisión (rama de pruebas, sin CI por regla)
+```
+
+## Estado tras la fase de correcciones
+
+```text
+E2E_V1_FIX_PHASE = COMPLETE (feature/e2e-v1-fixes, desde ca57bce)
+FUN-E2E-003 (P1) = FIXED / VERIFIED (fd98364; 8/8 RBAC + smoke)
+FUN-E2E-002 (P2) = FIXED / VERIFIED (8b7a4fc; 0 celdas con .0 en UI)
+FUN-E2E-001 (P3) = OPEN (API-only, sin impacto visible)
+FUN-E2E-004 (P3) = OPEN (API-only, endpoint no expuesto en UI)
+P0 open = 0 | P1 open = 0 | P2 open = 0 | P3 open = 2
+frontend = 131/131 tests, lint, build PASS
+backend = test/build PASS (sin cambios de código)
+SP_FIRST = PASS | RUNTIME_PERMISSION_GATE = PASS
 ```
