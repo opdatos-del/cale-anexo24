@@ -10,7 +10,7 @@ import { AuthService } from '@core/auth/auth.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
-import { formatLocalDateForApi, formatOperationDate, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
+import { formatLocalDateForApi, formatOperationDate, formatOperationPartida, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
 import { ExportReportUseCase } from '@features/reports/application/use-cases/export-report.use-case';
 import { SearchReportUseCase } from '@features/reports/application/use-cases/search-report.use-case';
@@ -26,7 +26,7 @@ interface ReportOption {
 interface ReportColumn {
   key: string;
   label: string;
-  format?: 'date' | 'quantity';
+  format?: 'date' | 'quantity' | 'partida';
 }
 
 const REPORTS: ReportOption[] = [
@@ -92,8 +92,8 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'descargo', label: 'Descargo' }, { key: 'dirigido', label: 'Dirigido' },
   ],
   'analisis-descargas': [
-    { key: 'pedimentoEntrada', label: 'Pedimento entrada' }, { key: 'partidaEntrada', label: 'Partida entrada' },
-    { key: 'pedimentoSalida', label: 'Pedimento salida' }, { key: 'partidaSalida', label: 'Partida salida' },
+    { key: 'pedimentoEntrada', label: 'Pedimento entrada' }, { key: 'partidaEntrada', label: 'Partida entrada', format: 'partida' },
+    { key: 'pedimentoSalida', label: 'Pedimento salida' }, { key: 'partidaSalida', label: 'Partida salida', format: 'partida' },
     { key: 'material', label: 'Material' }, { key: 'producto', label: 'Producto' },
     { key: 'fechaSalida', label: 'Fecha salida', format: 'date' }, { key: 'fechaVencimiento', label: 'Vencimiento', format: 'date' },
     { key: 'cantidadIncorporada', label: 'Incorporada', format: 'quantity' },
@@ -316,6 +316,7 @@ export class ReportListPage {
     const value = row[column.key] ?? null;
     if (column.format === 'date') return formatOperationDate(typeof value === 'string' ? value : null);
     if (column.format === 'quantity') return formatOperationQuantity(value);
+    if (column.format === 'partida') return formatOperationPartida(value);
     return formatOperationText(typeof value === 'string' ? value : value?.toString() ?? null);
   }
 

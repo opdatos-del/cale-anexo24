@@ -29,3 +29,21 @@ export function formatOperationQuantity(value: number | string | null | undefine
 export function formatOperationText(value: string | null | undefined): string {
   return value?.trim() || '—';
 }
+
+/**
+ * Normaliza números de partida legacy sin perder ceros significativos.
+ *
+ * Sólo elimina el sufijo decimal compuesto exclusivamente por ceros cuando la
+ * parte entera es numérica («4.0» → «4», «004.0» → «004»); conserva valores
+ * como «4.5», «004» o «A4» tal cual.
+ */
+export function formatOperationPartida(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '—';
+
+  const text = value.trim();
+  if (!text) return '—';
+
+  const entero = /^(\d+)\.0+$/.exec(text);
+  return entero ? entero[1] : text;
+}
