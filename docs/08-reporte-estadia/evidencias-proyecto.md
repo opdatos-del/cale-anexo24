@@ -555,6 +555,54 @@ Gaps adicionales declarados:
 
 ---
 
+## Fase — Evidencia visual y anexos RC1
+
+**Fecha / fase:** preparación de entrega, ramas `docs/reporte-estadia-annexes`
+(borrador del reporte integrado a `dev` previamente, `dev` = `cb1e918`, CI run
+`37125329238` SUCCESS).
+
+**Problema técnico abordado:** el reporte requería evidencia visual y anexos
+reproducibles sin exponer datos empresariales ni afirmar uso productivo.
+
+**Método utilizado:** capturas reproducibles con Playwright/Edge headless en
+entorno local (`1440x900`), sesión JWT sintética (usuario “Anexos Demo”);
+interceptación de los GET sensibles con respuestas sintéticas o páginas vacías
+para listados; fixtures `.xlsx` 100 % sintéticos validados con `openpyxl`;
+uploads de los fixtures contra staging (`ANEXO24_DEV`) sin confirmaciones;
+revisión de privacidad por muestreo visual de las capturas de mayor riesgo.
+
+**Resultados:**
+
+- 22 capturas sanitizadas en `docs/08-reporte-estadia/anexos/capturas/`
+  (login, dashboard, catálogos, operaciones, flujos de carga, reportes,
+  administración).
+- 5 fixtures sintéticos validados en `docs/08-reporte-estadia/anexos/fixtures/`
+  (apertura, hojas, headers y filas verificados; sin datos sensibles).
+- Índice de anexos actualizado (`anexos-candidatos.md`) y figuras candidatas
+  para el cuerpo (`figuras-candidatas.md`, 7 figuras).
+- Diagramas revisados: arquitectura y flujo de carga `USE`; ERv3 `USE` como
+  propuesta; ERv1/v2 `NOT_NEEDED`; flujo de confirmación y hexagonal
+  `REGENERATE`.
+
+**Flags:**
+
+```text
+ANNEX_SCREENSHOTS_COMPLETE = YES
+SYNTHETIC_FIXTURES_COMPLETE = YES
+PRIVACY_REVIEW = PASS
+FINAL_BUSINESS_CONCLUSION_PENDING = YES
+```
+
+**Limitaciones:** las capturas de listados muestran datos sintéticos o estados
+vacíos (no datos LIVE); los uploads de evidencia crearon cargas sintéticas en
+staging `app24` (retenidas para auditoría, sin confirmación).
+
+**Artefactos producidos:** `docs/08-reporte-estadia/anexos/` (capturas y
+fixtures), `figuras-candidatas.md`, `anexos-candidatos.md` actualizado. No se
+modificó funcionalidad ni SQL; `CALE_IMMEX` sin escrituras.
+
+---
+
 ## Fase — Congelación RC1 (integración documental y punto de referencia)
 
 **Fecha / fase:** cierre de entrega. Ramas `docs/v1-delivery-preparation`
