@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CatalogImportResponse, CatalogImportType } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogImportApiService {
@@ -17,5 +17,9 @@ export class CatalogImportApiService {
   get(type: CatalogImportType, id: number): Observable<CatalogImportResponse> {
     const endpoint = type === 'MATERIAL' ? 'materiales' : 'productos';
     return this.http.get<CatalogImportResponse>(`/api/v1/catalogos/importaciones/${endpoint}/${id}`);
+  }
+
+  confirmMaterial(cargaId: number): Observable<CatalogMaterialImportConfirmation> {
+    return this.http.post<CatalogMaterialImportConfirmation>(`/api/v1/catalogos/importaciones/materiales/${cargaId}/confirmacion`, {});
   }
 }

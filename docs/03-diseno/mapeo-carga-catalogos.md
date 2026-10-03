@@ -2,19 +2,16 @@
 
 ## 1. Alcance y frontera
 
-Esta entrega cubre únicamente la ruta segura:
+Materiales cubre ruta controlada:
 
 ```text
-archivo Excel → parser → validación estructural → staging app24 → errores → preview
+archivo Excel → parser → staging app24 → preview → confirmación explícita
+→ dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR → dbo.CARGA_MATERIALES
 ```
 
-Aplica a **Materiales** y **Productos**. No confirma altas ni modificaciones en
-`CALE_IMMEX`, no ejecuta los procedimientos legacy de carga y no escribe en los
-stages legacy durante la previsualización.
-
-La capacidad funcional queda como `PARTIAL`: el staging, la validación y la
-preview están disponibles; la confirmación autoritativa queda para una feature
-separada.
+Productos permanecen en preview. La previsualización no toca `CALE_IMMEX`. La
+confirmación de materiales usa locks de tabla, rechaza stage legacy ocupado,
+delega reglas a `CARGA_MATERIALES` y no ejecuta SQL funcional desde Java.
 
 ## 2. Auditoría legacy read-only
 
@@ -78,13 +75,14 @@ Cada carga conserva archivo, SHA-256 único, usuario, fecha, estado, totales,
 versión de contrato y correlación. Cada fila queda aislada por `carga_id`; los
 errores conservan fila, columna, código, mensaje y valor enmascarado.
 
-Estados V1:
+Estados materiales:
 
 - `PREVISUALIZADA`;
-- `CON_ERRORES`.
+- `CON_ERRORES`;
+- `CONFIRMADA`.
 
-El procesamiento es síncrono. No se introducen estados artificiales ni existe
-estado `CONFIRMADA` en esta feature.
+`13-material-confirmar-state-permission.sql` agrega `CONFIRMADA` y permiso
+separado. El procesamiento es síncrono.
 
 ## 5. SP-first
 
@@ -92,7 +90,7 @@ Los adapters Java sólo invocan SP versionados:
 
 | Catálogo | Command | Queries |
 |---|---|---|
-| Materiales | `APP24_C_CATALOGO_MATERIAL_CARGA_CREAR` | `APP24_Q_CATALOGO_MATERIAL_CARGA_POR_HASH`, `APP24_Q_CATALOGO_MATERIAL_CARGA_OBTENER`, `APP24_Q_CATALOGO_MATERIAL_CARGA_ERRORES` |
+| Materiales | `APP24_C_CATALOGO_MATERIAL_CARGA_CREAR`; `dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR` → `dbo.CARGA_MATERIALES` | `APP24_Q_CATALOGO_MATERIAL_CARGA_POR_HASH`, `APP24_Q_CATALOGO_MATERIAL_CARGA_OBTENER`, `APP24_Q_CATALOGO_MATERIAL_CARGA_ERRORES` |
 | Productos | `APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR` | `APP24_Q_CATALOGO_PRODUCTO_CARGA_POR_HASH`, `APP24_Q_CATALOGO_PRODUCTO_CARGA_OBTENER`, `APP24_Q_CATALOGO_PRODUCTO_CARGA_ERRORES` |
 
 La reconciliación LIVE confirmó los ocho objetos en `ANEXO24_DEV`, con la
@@ -108,6 +106,7 @@ idempotentes. No contiene `DROP`, usuarios, contraseñas ni referencias a
 Endpoints:
 
 - `POST/GET /api/v1/catalogos/importaciones/materiales`;
+- `POST /api/v1/catalogos/importaciones/materiales/{id}/confirmacion`;
 - `GET /api/v1/catalogos/importaciones/materiales/{id}/errores`;
 - `POST/GET /api/v1/catalogos/importaciones/productos`;
 - `GET /api/v1/catalogos/importaciones/productos/{id}/errores`.
@@ -115,13 +114,15 @@ Endpoints:
 Permisos exactos:
 
 - `MATERIALES_CARGAR`;
+- `MATERIALES_CONFIRMAR`;
 - `PRODUCTOS_CARGAR`.
 
 La ruta moderna es `/catalogos/importaciones`, agrupada bajo Catálogos. La UI
 permite seleccionar `.xls` y `.xlsx`, muestra loading, validación, totales,
-preview, errores y retry. No ofrece botón de confirmación; informa que la
-confirmación operativa aún no está habilitada. En mobile usa scroll controlado de
-tabla y no carga todas las filas fuera de la página.
+preview, errores y retry. Una carga material `PREVISUALIZADA` muestra
+confirmación explícita sólo con `MATERIALES_CONFIRMAR`, con aviso de efecto sobre
+catálogo. En mobile usa scroll controlado de tabla y no carga todas las filas
+fuera de la página.
 
 ## 7. Seguridad y escrituras
 
@@ -129,16 +130,18 @@ tabla y no carga todas las filas fuera de la página.
   tests de controller.
 - La autorización con cada permiso específico está cubierta por tests.
 - El hash evita duplicar silenciosamente una carga activa.
-- `CALE_IMMEX` no recibe escrituras.
-- `CARGA_MATERIALES`, `CARGA_PRODUCTOS`, `CARGAMATERIAL`, `tmpproductos`,
-  `MATERIAL` y `PRODUCTOS` no se escriben desde V1.
-- La bitácora usa las acciones controladas existentes `CARGA_VALIDADA` y
-  `CARGA_CON_ERRORES`.
+- La confirmación LIVE permanece pendiente de autorización; no se ejecutó write
+  LIVE durante esta feature.
+- Sólo wrapper técnico puede escribir `CargaMaterial`/`ECargaMaterial`; éste
+  delega cambio autoritativo a `CARGA_MATERIALES`.
+- Bitácora registra `MATERIAL_CARGA_CONFIRMADA` o
+  `MATERIAL_CARGA_CONFIRMACION_ERROR` con carga, conteos y correlación.
 
 ## 8. Estado de paridad
 
-- `LEGACY-054 Materiales`: `MISSING → PARTIAL`.
+- `LEGACY-054 Materiales`: `PARTIAL → IMPLEMENTED_REDESIGNED`.
 - `LEGACY-055 Productos`: `MISSING → PARTIAL`.
 
-El cambio representa staging, parser, validación, errores, preview, hash, RBAC y
-durabilidad. No representa confirmación de negocio.
+Materiales incluye staging, parser, preview, RBAC separado, confirmación
+controlada, rollback y bitácora; `LIVE_MUTATION_ACCEPTANCE = PENDING`. Productos
+no representa confirmación de negocio.

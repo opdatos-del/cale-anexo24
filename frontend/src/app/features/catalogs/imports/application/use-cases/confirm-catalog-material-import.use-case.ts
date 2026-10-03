@@ -1,0 +1,13 @@
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { CatalogMaterialImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportRepository } from '@features/catalogs/imports/domain/repositories/catalog-import.repository';
+
+@Injectable({ providedIn: 'root' })
+export class ConfirmCatalogMaterialImportUseCase {
+  private readonly repository = inject(CatalogImportRepository);
+
+  execute(cargaId: number): Observable<CatalogMaterialImportConfirmation> {
+    return this.repository.confirmMaterial(cargaId);
+  }
+}

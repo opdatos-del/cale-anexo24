@@ -14,7 +14,7 @@ export interface CatalogImportResponse {
   tipo: CatalogImportType;
   archivo: string;
   hash: string;
-  estado: 'PREVISUALIZADA' | 'CON_ERRORES';
+  estado: 'PREVISUALIZADA' | 'CON_ERRORES' | 'CONFIRMADA';
   totalFilas: number;
   filasValidas: number;
   filasInvalidas: number;
@@ -22,4 +22,13 @@ export interface CatalogImportResponse {
   filas: Record<string, string>[];
   totalPersistido: number;
   errores: CatalogImportError[];
+}
+
+export interface CatalogMaterialImportConfirmation {
+  cargaId: number;
+  estado: 'CONFIRMADA';
+  totalFilas: number;
+  filasValidas: number;
+  filasConError: number;
+  confirmadaEn: string | null;
 }
