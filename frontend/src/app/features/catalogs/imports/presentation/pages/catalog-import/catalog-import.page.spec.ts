@@ -6,8 +6,9 @@ import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
 import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-material-import.use-case';
 import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
+import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-client-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
-import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { CatalogImportPage } from './catalog-import.page';
 
 const RESPONSE_MATERIAL: CatalogImportResponse = {
@@ -34,6 +35,15 @@ const RESPONSE_PRODUCTO: CatalogImportResponse = {
   filas: [{ CveProducto: 'PROD-1' }],
 };
 
+const RESPONSE_CLIENTE: CatalogImportResponse = {
+  ...RESPONSE_MATERIAL,
+  id: 11,
+  tipo: 'CLIENTE',
+  archivo: 'clientes.xlsx',
+  columnas: ['Clave'],
+  filas: [{ Clave: 'CLI-001' }],
+};
+
 const CONFIRMATION_MATERIAL: CatalogMaterialImportConfirmation = {
   cargaId: 7,
   estado: 'CONFIRMADA',
@@ -52,6 +62,15 @@ const CONFIRMATION_PRODUCTO: CatalogProductImportConfirmation = {
   confirmadaEn: '2026-10-03T12:00:00',
 };
 
+const CONFIRMATION_CLIENTE: CatalogClientImportConfirmation = {
+  cargaId: 11,
+  estado: 'CONFIRMADA',
+  totalFilas: 1,
+  filasValidas: 1,
+  filasConError: 0,
+  confirmadaEn: '2026-10-03T12:00:00',
+};
+
 interface PageHarness {
   result: { set(value: CatalogImportResponse): void; (): CatalogImportResponse | null };
   isConfirming: () => boolean;
@@ -63,12 +82,14 @@ function configure(options: {
   upload?: ReturnType<typeof vi.fn>;
   confirmMaterial?: ReturnType<typeof vi.fn>;
   confirmProduct?: ReturnType<typeof vi.fn>;
+  confirmClient?: ReturnType<typeof vi.fn>;
   dialogResult?: boolean;
 } = {}) {
-  const permissions = options.permissions ?? ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'];
+  const permissions = options.permissions ?? ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR'];
   const upload = options.upload ?? vi.fn(() => of(RESPONSE_MATERIAL));
   const confirmMaterial = options.confirmMaterial ?? vi.fn(() => of(CONFIRMATION_MATERIAL));
   const confirmProduct = options.confirmProduct ?? vi.fn(() => of(CONFIRMATION_PRODUCTO));
+  const confirmClient = options.confirmClient ?? vi.fn(() => of(CONFIRMATION_CLIENTE));
   const dialog = { ask: vi.fn(() => of(options.dialogResult ?? true)) };
   const notifications = { error: vi.fn(), success: vi.fn() };
   TestBed.configureTestingModule({
@@ -77,6 +98,7 @@ function configure(options: {
       { provide: UploadCatalogImportUseCase, useValue: { execute: upload } },
       { provide: ConfirmCatalogMaterialImportUseCase, useValue: { execute: confirmMaterial } },
       { provide: ConfirmCatalogProductImportUseCase, useValue: { execute: confirmProduct } },
+      { provide: ConfirmCatalogClientImportUseCase, useValue: { execute: confirmClient } },
       { provide: ConfirmService, useValue: dialog },
       { provide: NotificationService, useValue: notifications },
       { provide: AuthService, useValue: { hasPermission: (permission: string) => permissions.includes(permission) } },
@@ -90,6 +112,7 @@ function configure(options: {
     upload,
     confirmMaterial,
     confirmProduct,
+    confirmClient,
     dialog,
     notifications,
   };
@@ -180,6 +203,40 @@ describe('CatalogImportPage', () => {
     expect(confirmProduct).toHaveBeenCalledWith(9);
     expect(harness.result()?.estado).toBe('CONFIRMADA');
     expect(notifications.success).toHaveBeenCalledWith('Importación de productos confirmada correctamente.');
+  });
+
+  it('muestra Confirmar importación para clientes previsualizados con permiso y advierte que no actualiza existentes', () => {
+    const { fixture, harness } = configure({ permissions: ['CLIENTES_CARGAR', 'CLIENTES_CONFIRMAR'] });
+    harness.result.set(RESPONSE_CLIENTE);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Confirmar importación');
+    expect(fixture.nativeElement.textContent).toContain('La confirmación incorpora únicamente los clientes válidos nuevos');
+  });
+
+  it('confirma clientes invocando el caso de uso de clientes', () => {
+    const { fixture, harness, confirmClient, notifications } = configure({ permissions: ['CLIENTES_CARGAR', 'CLIENTES_CONFIRMAR'] });
+    harness.result.set(RESPONSE_CLIENTE);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(confirmClient).toHaveBeenCalledWith(11);
+    expect(harness.result()?.estado).toBe('CONFIRMADA');
+    expect(notifications.success).toHaveBeenCalledWith('Importación de clientes confirmada correctamente.');
+  });
+
+  it('muestra un error recuperable si falla la confirmación de clientes', () => {
+    const { fixture, harness, notifications } = configure({
+      permissions: ['CLIENTES_CARGAR', 'CLIENTES_CONFIRMAR'],
+      confirmClient: vi.fn(() => throwError(() => ({ error: { message: 'La carga ya no es confirmable' } }))),
+    });
+    harness.result.set(RESPONSE_CLIENTE);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(harness.result()?.estado).toBe('PREVISUALIZADA');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('La carga ya no es confirmable');
+    expect(notifications.error).toHaveBeenCalledWith('No fue posible confirmar la importación de clientes.');
   });
 
   it('muestra carga mientras confirma materiales y evita solicitudes duplicadas', () => {

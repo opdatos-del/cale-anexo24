@@ -44,4 +44,31 @@ describe('CatalogImportApiService', () => {
     request.flush({ cargaId: 11, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-03T12:00:00' });
     http.verify();
   });
+
+  it('confirma una carga de clientes en el endpoint específico', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.confirmClient(13).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/clientes/13/confirmacion');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({ cargaId: 13, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-03T12:00:00' });
+    http.verify();
+  });
+
+  it('sube clientes al endpoint de clientes', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+    const file = new File(['xlsx'], 'clientes.xlsx');
+
+    service.upload('CLIENTE', file).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/clientes');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.get('archivo')).toBe(file);
+    request.flush({});
+    http.verify();
+  });
 });
