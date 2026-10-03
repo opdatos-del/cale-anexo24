@@ -455,3 +455,64 @@ usarse en runtime.
 **Artefactos producidos:** `infra/sql/procedures/queries/APP24_Q_F4_LISTAR.sql`;
 `docs/03-diseno/mapeo-reportes-extendidos.md` (sección F4 V1);
 `docs/01-requerimientos/matriz-paridad-legacy-v1.md` (LEGACY-041).
+
+---
+
+## Fase — Cierre técnico V1 (auditoría E2E de la app nueva + correcciones + inventario)
+
+**Fecha / fase:** cierre V1. Ramas `test/functional-e2e-v1` y
+`feature/e2e-v1-fixes` integradas a `dev` por fast-forward (`3c00e19`);
+consolidación documental en `release/v1-technical-closure`.
+
+**Problema técnico abordado:** verificar de punta a punta la aplicación nueva
+(no el legacy), corregir los hallazgos P1/P2 encontrados y determinar si V1
+queda técnicamente listo para entrega bajo los contratos actuales, separando
+pendientes técnicos de decisiones de negocio y de evidencia externa.
+
+**Método utilizado:** sweep E2E interactivo con Playwright/Edge headless sobre
+backend aislado `18082` y frontend `4300` con proxy, autenticando con JWT
+HS256 efímeros (TTL 30 min, no impresos) por perfil de permisos y fixtures
+sintéticos `E2E_*`; validación de XLSX descargados con `openpyxl`; RBAC por API
+y browser; regresión focalizada post-fix y post-merge; verificación read-only
+de objetos SQL LIVE (`sys.objects` vía sqlcmd, sin DDL); gates locales SP-FIRST,
+runtime permission, backend `test build` y frontend `test lint build`; CI de
+`dev`.
+
+**Resultados:**
+
+- E2E: rutas 20/21 PASS (el único desvío era el hallazgo P1); API 25/25
+  esperado (23×200, 401 esperado, 400 esperado, 0×5xx); reportes 11/11 con
+  paginación real en 6 y empty states limpios en los vacíos; uploads staging
+  con hash y duplicados 409 en pedimentos/materiales/productos/facturación, sin
+  ninguna confirmación ejecutada; exports operativos descargados y abiertos;
+  responsive 40/40 sin overflow ni errores de consola/página.
+- Hallazgos: `FUN-E2E-003` (P1, guard de rutas hijas permitía
+  `/catalogos/importaciones` con perfil de sólo lectura) y `FUN-E2E-002` (P2,
+  partidas `"4.0"` visibles) corregidos con tests y verificados; `FUN-E2E-001`
+  y `FUN-E2E-004` (P3) diferidos y documentados.
+- Integración: CI `dev` en run `37123546803` SUCCESS; regresión post-merge
+  4/4 RBAC y partidas sin sufijo `.0`.
+- Inventario de despliegue LIVE: `CALE_IMMEX` 24/24 SP, `ANEXO24_DEV` 35/35 SP
+  y 18/18 tablas `app24`; 0 missing / 0 extra.
+- Snapshot de matriz recalculado fila por fila: 5 equivalentes + 26 rediseñadas
+  + 12 parciales + 6 faltantes + 5 bloqueadas + 6 consolidadas + 19 desconocidas
+  = 79; corrige el agregado anterior (11/20) que no reflejaba `LEGACY-041`
+  `PARTIAL`.
+
+**Métricas:** frontend 131/131 tests; backend `test build` PASS con ITs;
+SP-FIRST violations 0; runtime permission CALE 24/24, APP 35/35;
+`P0_TECHNICAL_ACTIONABLE_REMAINING = 0`; `P1_TECHNICAL_ACTIONABLE_REMAINING = 0`;
+pendientes de negocio 4 temas / 25 ítems; evidencia externa 12; POST_V1 9;
+P3 2; `CALE_IMMEX` writes 0 y SP mutables ejecutados 0 durante la fase.
+
+**Limitaciones:** login con credenciales reales queda
+`OPERATOR_ACCEPTANCE_PENDING`; CRUD de administración no se mutó en E2E; el
+fixture sintético de pedimentos no referencia un material real (`PED-003`
+esperado y correcto); los P3 `FUN-E2E-001/004` permanecen abiertos por decisión.
+
+**Artefactos producidos:** `docs/05-pruebas/auditoria-funcional-e2e-v1.md`;
+`docs/05-pruebas/v1-technical-closure.md`; specs nuevas
+(`permission.guard.spec.ts`, `operation-formatters.spec.ts`,
+`report-list.page.spec.ts`); fixes `permission.guard.ts`,
+`operation-formatters.ts` y `report-list.page.ts`; corrección de conteos en
+`docs/01-requerimientos/matriz-paridad-legacy-v1.md`.
