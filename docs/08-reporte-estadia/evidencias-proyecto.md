@@ -603,6 +603,58 @@ modificó funcionalidad ni SQL; `CALE_IMMEX` sin escrituras.
 
 ---
 
+## Fase — Borrador DOCX V1 del reporte de estadía
+
+**Fecha / fase:** preparación de entrega, rama `docs/reporte-estadia-docx-draft-v1`
+(`dev` = `93d06fd`, CI run `37125892427` SUCCESS).
+
+**Problema técnico abordado:** construir el primer borrador DOCX completo sobre
+la plantilla institucional **R-ADC-08-07** (revisada junto con
+`Tutorial-Reporte-Estadia.pdf`), usando únicamente las fuentes Markdown
+consolidadas y la evidencia ya sanitizada, sin desarrollar funcionalidad nueva.
+
+**Método utilizado:** generador reproducible `scripts/report/generate_docx.py`
+(plantilla oficial como base, render de Markdown a estilos Heading 1/2, tabla
+de contenido como campo actualizable, tablas con borde y figuras centradas con
+pie de figura); render PNG de los diagramas HTML en modo impresión
+(`scripts/report/render-diagrams.mjs`); control de calidad con reapertura del
+DOCX (`python-docx` + verificación ZIP) y revisión de secretos/rutas/datos
+sensibles en el texto final.
+
+**Resultados:**
+
+- `R-ADC-08-07_Reporte_Estadia_Borrador_V1.docx` (~5 MB) con 9 capítulos según la
+  estructura oficial (Resumen, 1–8), 33 subtítulos, 30 imágenes embebidas
+  (7 figuras de cuerpo + 23 de anexos), 6 tablas y ~5,100 palabras.
+- Anexos A–F organizados (arquitectura, interfaces, operaciones, cargas,
+  reportes/bitácora y evidencia de pruebas/fixtures).
+- QA: ZIP íntegro, sin corrupción; sin secretos, tokens, IPs, rutas locales ni
+  credenciales; tabla de contenido como campo `TOC` (requiere F9 en Word).
+
+**Flags:**
+
+```text
+ACADEMIC_DRAFT = YES
+FINAL_BUSINESS_CONCLUSION_PENDING = YES
+READY_FOR_FINAL_CONCLUSIONS = NO
+```
+
+**Limitaciones:** no hay Word ni LibreOffice en el entorno local, por lo que no
+fue posible renderizar a PDF para inspección visual de páginas (control
+estructural y de imágenes únicamente); la portada conserva “pendiente de
+completar” para nombres de estudiantes y asesores; permanecen dos textos
+institucionales de la plantilla (hoja R-VIN-03-05 y carta de liberación) que se
+sustituyen por documentos escaneados; la numeración de tablas del capítulo de
+resultados queda como mejora de formato para la versión final.
+
+**Artefactos producidos:**
+`docs/08-reporte-estadia/R-ADC-08-07_Reporte_Estadia_Borrador_V1.docx`;
+`scripts/report/generate_docx.py`; `scripts/report/render-diagrams.mjs`;
+`scripts/report/README.md`; `docs/08-reporte-estadia/anexos/figuras/`
+(2 diagramas renderizados).
+
+---
+
 ## Fase — Congelación RC1 (integración documental y punto de referencia)
 
 **Fecha / fase:** cierre de entrega. Ramas `docs/v1-delivery-preparation`

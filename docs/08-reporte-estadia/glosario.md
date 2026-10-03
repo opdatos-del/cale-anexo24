@@ -18,5 +18,5 @@
 | Gate | Verificación automatizada de CI (SP-FIRST, permisos runtime, pruebas, build) que condiciona la integración. |
 | Paridad legacy | Cobertura por capacidad del sistema anterior, clasificada con evidencia (equivalente, rediseñada, parcial, faltante, bloqueada, consolidada, desconocida). |
 | RC1 | Punto de referencia congelado `v1.0.0-rc1` (no release productiva). |
-| `opdatos` | Identidad SQL runtime autorizada del proyecto; el hardening de mínimo privilegio queda diferido. |
+| Identidad SQL runtime | Cuenta de aplicación con la que el backend accede a las bases; su endurecimiento a mínimo privilegio queda diferido como mejora futura. |
 | Testcontainers | Infraestructura de pruebas que levanta SQL Server efímero para integration tests. |

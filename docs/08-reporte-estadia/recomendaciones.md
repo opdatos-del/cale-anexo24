@@ -30,10 +30,10 @@ Separadas por horizonte. No convierten mejoras futuras en requisitos actuales.
 
 ## Post-V1 / mejora continua
 
-9. **Hardening de identidad SQL (diferido):** migrar del usuario runtime
-   `opdatos` a un usuario de mínimo privilegio (`anexo24_app`) cuando el
-   proyecto lo autorice; los scripts existen como propuesta y no se ejecutan.
-   No es requisito actual ni bloquea V1.
+9. **Hardening de identidad SQL (diferido):** migrar del usuario runtime actual
+   a un usuario de mínimo privilegio (`anexo24_app`) cuando el proyecto lo
+   autorice; los scripts existen como propuesta y no se ejecutan. No es
+   requisito actual ni bloquea V1.
 10. Observabilidad ampliada: métricas de uso, tablero operativo y alertas
     sobre bitácora/errores de carga (sujeto a decisión).
 11. Mantenimiento: actualización de dependencias, presupuesto de bundle del

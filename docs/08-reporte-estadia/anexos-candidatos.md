@@ -58,6 +58,7 @@ datos sintéticos o estados vacíos; los fixtures son 100 % sintéticos.
 | A13 | Cronología de fases | `docs/08-reporte-estadia/evidencias-proyecto.md` | Disponible |
 | A14 | Cierre técnico | `docs/05-pruebas/v1-technical-closure.md`, `decisiones-alcance-v1.md` | Disponible |
 | A15 | Empaquetado/despliegue | `docs/05-pruebas/deployment-readiness-v1.md` | Disponible |
+| A16 | Borrador DOCX V1 | `docs/08-reporte-estadia/R-ADC-08-07_Reporte_Estadia_Borrador_V1.docx` | Generado (regenerable con `scripts/report/`) | Entrega académica |
 
 ## Diagramas — revisión de legibilidad (Parte L)
 
@@ -76,5 +77,6 @@ datos sintéticos o estados vacíos; los fixtures son 100 % sintéticos.
 ANNEX_SCREENSHOTS_COMPLETE = YES (22 capturas sanitizadas)
 SYNTHETIC_FIXTURES_COMPLETE = YES (5 fixtures validados)
 PRIVACY_REVIEW = PASS (mocks sintéticos + muestreo visual de capturas de riesgo)
+DOCX_DRAFT = YES (ACADEMIC_DRAFT; regenerable desde Markdown)
 FINAL_BUSINESS_CONCLUSION_PENDING = YES
 ```
