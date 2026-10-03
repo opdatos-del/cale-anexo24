@@ -4,8 +4,8 @@
 
 Este documento conserva la matriz detallada de **las 79 capacidades** (tabla §3) y añade la decisión final de implementación después de auditar SP legacy y APP24.
 
-- `IMPLEMENTABLE_NOW = 0` para capacidades **nuevas**, después de forensics V2.
-- `IMPLEMENTABLE_AFTER_APPROVAL = 5`: confirmación de materiales, productos, clientes, proveedores y agentes reutiliza lógica legacy demostrada, pero requiere ownership coordinado de stages globales.
+- `IMPLEMENTABLE_NOW = 1`: confirmación de materiales. La prueba SQL efímera V3 demostró aislamiento con locks de motor, stage ocupado fail-closed y rollback.
+- `IMPLEMENTABLE_AFTER_APPROVAL = 4`: productos, clientes, proveedores y agentes aún requieren la misma prueba de aislamiento específica.
 - Capacidades `IMPLEMENTED_*` y `CONSOLIDATE` son `ALREADY_COVERED`; no son candidatos a duplicar.
 - Los pendientes se separan en `IMPLEMENTABLE_AFTER_APPROVAL`, `BUSINESS_DECISION_REQUIRED`, `EXTERNAL_CONTRACT_REQUIRED` o `POST_V1`.
 - Forensics V2 releyó LIVE de forma autorizada como `opdatos`: `CALE_IMMEX=24` y `ANEXO24_DEV=35` SP APP24; el delta repo/LIVE previo queda cerrado en 59.
@@ -382,7 +382,7 @@ existencia de una carpeta.
 
 | Capability | Estado anterior | Hallazgo por definición LIVE | Estado V2 |
 |---|---|---|---|
-| LEGACY-054 Materiales | `PARTIAL` / no reusable | `CARGA_MATERIALES` valida, reemplaza claves y crea `FACTORESMP`; staging moderno tiene las 30 columnas requeridas | `IMPLEMENTABLE_AFTER_APPROVAL` |
+| LEGACY-054 Materiales | `PARTIAL` / no reusable | `CARGA_MATERIALES` valida, reemplaza claves y crea `FACTORESMP`; staging moderno tiene las 30 columnas requeridas; `TABLOCKX,HOLDLOCK` aisló escritor y `EXEC` legacy en SQL efímero | `IMPLEMENTABLE_NOW` (`LIVE_MUTATION_ACCEPTANCE=PENDING`) |
 | LEGACY-055 Productos | `PARTIAL` / no reusable | `CARGA_PRODUCTOS` valida y agrega claves inexistentes; staging moderno tiene las 7 columnas requeridas | `IMPLEMENTABLE_AFTER_APPROVAL` |
 | LEGACY-056 Socios comerciales | `MISSING` | `CARGACLIENTES`, `CARGAPROVEEDORES` y `CARGAAgentes` son altas de catálogo separadas, no facturación | `IMPLEMENTABLE_AFTER_APPROVAL` |
 | LEGACY-029/030 Descargos | `BLOCKED_BUSINESS` por algoritmo desconocido | `DESCARGASALIDAPEPS → DESCDIRIGIDA → SALDOSDIRIGIDOS` encapsula algoritmo y targets | `BUSINESS_DECISION_REQUIRED` para aprobar reutilización legacy |

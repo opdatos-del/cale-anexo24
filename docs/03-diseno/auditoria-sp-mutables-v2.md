@@ -42,7 +42,7 @@ Cada candidate conserva dos ejes independientes:
 
 | FEATURE | SP | BUSINESS_LOGIC | INTEGRATION_MODE | LEGACY_STAGE | TARGETS | TESTED_SYNTHETIC | CONTRACT | IMPLEMENTABLE_NOW | BLOCKER |
 |---|---|---|---|---|---|---|---|---|---|
-| Materiales confirmación | `CARGA_MATERIALES` | `BUSINESS_LOGIC_CONFIRMED` | `REQUIRES_SQL_WRAPPER` | `CargaMaterial`, `ECargaMaterial` globales | `MATERIAL`, `FACTORESMP` | NO | Validaciones, reemplazo por clave, factores y errores demostrados | NO | Propiedad/exclusión del stage global legacy no acordada |
+| Materiales confirmación | `CARGA_MATERIALES` | `BUSINESS_LOGIC_CONFIRMED` | `REQUIRES_SQL_WRAPPER` | `CargaMaterial`, `ECargaMaterial` globales | `MATERIAL`, `FACTORESMP` | YES — Testcontainers, 7 casos | Validaciones, reemplazo por clave, factores y errores demostrados; wrapper con locks de motor | YES | Aceptación de mutación LIVE pendiente |
 | Productos confirmación | `CARGA_PRODUCTOS` | `BUSINESS_LOGIC_CONFIRMED` | `REQUIRES_SQL_WRAPPER` | `tmpproductos`, `ECargaProducto` globales | `PRODUCTOS` | NO | Validaciones e inserción sólo de claves inexistentes demostradas | NO | Misma exclusión de stage global |
 | Clientes | `CARGACLIENTES` | `BUSINESS_LOGIC_CONFIRMED` | `REQUIRES_SQL_WRAPPER` | `TMPCLIENTES`, `ECARGACLIENTES` globales | `clientes` | NO | Inserta sólo claves nuevas; valida vacío, duplicado e ID fiscal | NO | Stage global; además escribe por error en `ECARGAPROVEEDORES` para ID fiscal |
 | Proveedores | `CARGAPROVEEDORES` | `BUSINESS_LOGIC_CONFIRMED` | `REQUIRES_SQL_WRAPPER` | `TMPPROVEEDORES`, `ECARGAPROVEEDORES` globales | `Proveedores` | NO | Inserta sólo claves nuevas; valida vacío, duplicado e ID fiscal | NO | Stage global y contrato UI/layout pendiente |
@@ -82,11 +82,9 @@ No tiene `TRY/CATCH`, transacción ni resultset contractual.
 reutilizarse solamente detrás de wrapper SQL: cargar stage, ejecutar legacy,
 snapshot de errores, limpiar stage y auditar. Java no debe insertar en stage.
 
-**Bloqueador actual.** `CargaMaterial` y `ECargaMaterial` son globales. Un
-`sp_getapplock` de la aplicación no coordina procesos Web Forms legacy que no lo
-toman. Borrar/cargar esas tablas sin acuerdo operativo puede perder una carga
-legacy concurrente. Requiere ventana exclusiva o mecanismo aprobado de
-coordinación entre ambos sistemas.
+**Concurrencia V3.** Relectura LIVE de `OBJECT_DEFINITION`, `sys.sql_modules` y dependencias encontró como único módulo referente a `dbo.CARGA_MATERIALES`; no contiene `NOLOCK`, `READ UNCOMMITTED`, aislamiento especial, `TABLOCK`, `HOLDLOCK`, `sp_getapplock` ni SQL dinámico. El harness `MaterialLegacyStageConcurrencyTest` carga fuente legacy exacto y prueba dos conexiones SQL Server: `TABLOCKX,HOLDLOCK` bloquea un `INSERT` legacy y `EXEC dbo.CARGA_MATERIALES` hasta `COMMIT`; stage no vacío falla `LEGACY_STAGE_BUSY` sin modificarlo; rollback revierte catálogo; segunda confirmación no reejecuta legacy. `LEGACY_STAGE_CONCURRENCY = SAFE_WITH_DB_LOCKS` para escritores/ejecutores observados. No prueba clientes externos que hagan SQL no auditado con `NOLOCK`.
+
+**Estado.** `MATERIALES_CONFIRM_IMPLEMENTABLE = YES`; `LIVE_MUTATION_ACCEPTANCE = PENDING`. El wrapper técnico autorizado no reemplaza reglas: bloquea, verifica vacío, copia staging, llama `CARGA_MATERIALES`, hace snapshot de errores y actualiza staging/bitácora.
 
 ### `dbo.CARGA_PRODUCTOS`
 
@@ -158,7 +156,7 @@ construye BCP hacia ruta fija y ejecuta `xp_cmdshell`.
 | `UNKNOWN` | CTM y contratos especiales restantes |
 
 ```text
-MATERIALES_CONFIRM_IMPLEMENTABLE = IMPLEMENTABLE_AFTER_APPROVAL
+MATERIALES_CONFIRM_IMPLEMENTABLE = IMPLEMENTABLE_NOW
 PRODUCTOS_CONFIRM_IMPLEMENTABLE  = IMPLEMENTABLE_AFTER_APPROVAL
 PEPS_ALGORITHM_IN_SP             = YES
 NEW_BUSINESS_SP_REQUIRED          = NO
