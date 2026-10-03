@@ -149,12 +149,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 8 | 1 | 0 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 4 | 1 | 4 | 1 | 0 | 2 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
-| Reportes y consolidados | 18 | 0 | 5 | 4 | 0 | 2 | 5 | 2 |
+| Reportes y consolidados | 18 | 0 | 5 | 5 | 0 | 2 | 5 | 1 |
 | Interfaces/importación | 10 | 0 | 1 | 3 | 2 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **26** | **11** | **6** | **5** | **6** | **20** |
+| **Total** | **79** | **5** | **26** | **12** | **6** | **5** | **6** | **19** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -196,11 +196,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 26`
-- `PARTIAL = 11`
+- `PARTIAL = 12`
 - `MISSING = 6`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 20`
+- `UNKNOWN = 19`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -208,7 +208,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 20 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 19 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.
