@@ -4,5 +4,6 @@ package com.jovycandy.anexo24.catalogs.imports.domain.model;
 public enum CatalogImportType {
     MATERIAL,
     PRODUCTO,
-    CLIENTE
+    CLIENTE,
+    PROVEEDOR
 }

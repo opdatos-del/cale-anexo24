@@ -1,4 +1,4 @@
-export type CatalogImportType = 'MATERIAL' | 'PRODUCTO' | 'CLIENTE';
+export type CatalogImportType = 'MATERIAL' | 'PRODUCTO' | 'CLIENTE' | 'PROVEEDOR';
 
 export interface CatalogImportError {
   hoja: string | null;
@@ -43,6 +43,15 @@ export interface CatalogProductImportConfirmation {
 }
 
 export interface CatalogClientImportConfirmation {
+  cargaId: number;
+  estado: 'CONFIRMADA';
+  totalFilas: number;
+  filasValidas: number;
+  filasConError: number;
+  confirmadaEn: string | null;
+}
+
+export interface CatalogProviderImportConfirmation {
   cargaId: number;
   estado: 'CONFIRMADA';
   totalFilas: number;

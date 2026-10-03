@@ -76,6 +76,7 @@ class RuntimeIdentityDeploymentScriptsIT {
             "APP24_C_MATERIAL_CARGA_CONFIRMAR",
             "APP24_C_PRODUCTO_CARGA_CONFIRMAR",
             "APP24_C_CLIENTE_CARGA_CONFIRMAR",
+            "APP24_C_PROVEEDOR_CARGA_CONFIRMAR",
     };
 
     private static final String[] APP_SP = {
@@ -101,6 +102,10 @@ class RuntimeIdentityDeploymentScriptsIT {
             "APP24_Q_CATALOGO_CLIENTE_CARGA_OBTENER",
             "APP24_Q_CATALOGO_CLIENTE_CARGA_ERRORES",
             "APP24_C_CATALOGO_CLIENTE_CARGA_CREAR",
+            "APP24_Q_CATALOGO_PROVEEDOR_CARGA_POR_HASH",
+            "APP24_Q_CATALOGO_PROVEEDOR_CARGA_OBTENER",
+            "APP24_Q_CATALOGO_PROVEEDOR_CARGA_ERRORES",
+            "APP24_C_CATALOGO_PROVEEDOR_CARGA_CREAR",
     };
 
     private static final String CUERPO_COMMAND = """
@@ -193,9 +198,9 @@ class RuntimeIdentityDeploymentScriptsIT {
         // Idempotencia: segunda aplicación no falla ni altera los conteos.
         aplicar04();
         aplicar05();
-        assertEquals(27, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
-        assertEquals(39, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
-        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=27 APP=39");
+        assertEquals(28, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
+        assertEquals(43, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
+        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=28 APP=43");
     }
 
     @Test

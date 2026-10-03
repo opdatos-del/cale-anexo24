@@ -1,10 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-material-import.use-case';
 import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
 import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-client-import.use-case';
+import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
@@ -17,7 +19,7 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
     <main class="min-h-full bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
       <header class="mx-auto mb-6 w-full max-w-7xl">
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Catálogos · staging V1</p>
-        <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Importar materiales, productos y clientes</h1>
+        <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Importar materiales, productos, clientes y proveedores</h1>
         <p class="mt-2 text-sm text-slate-500">Valida y previsualiza archivos. Las importaciones de catálogos con permiso de confirmar pueden aplicar las reglas vigentes del sistema Anexo 24.</p>
       </header>
 
@@ -26,10 +28,11 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
           @if (canUploadMaterial()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'MATERIAL'" [class.bg-blue-50]="type() === 'MATERIAL'" [attr.aria-selected]="type() === 'MATERIAL'" (click)="selectType('MATERIAL')">Materiales</button> }
           @if (canUploadProduct()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'PRODUCTO'" [class.bg-blue-50]="type() === 'PRODUCTO'" [attr.aria-selected]="type() === 'PRODUCTO'" (click)="selectType('PRODUCTO')">Productos</button> }
           @if (canUploadClient()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'CLIENTE'" [class.bg-blue-50]="type() === 'CLIENTE'" [attr.aria-selected]="type() === 'CLIENTE'" (click)="selectType('CLIENTE')">Clientes</button> }
+          @if (canUploadProvider()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'PROVEEDOR'" [class.bg-blue-50]="type() === 'PROVEEDOR'" [attr.aria-selected]="type() === 'PROVEEDOR'" (click)="selectType('PROVEEDOR')">Proveedores</button> }
         </div>
 
         <div class="flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 class="m-0 text-sm font-semibold text-slate-800">Selecciona un archivo</h2><p class="mb-0 mt-1 text-xs text-slate-500">.xls o .xlsx · máximo 10 MiB · contrato derivado de CargaMaterial, tmpproductos y TMPCLIENTES</p></div>
+          <div><h2 class="m-0 text-sm font-semibold text-slate-800">Selecciona un archivo</h2><p class="mb-0 mt-1 text-xs text-slate-500">.xls o .xlsx · máximo 10 MiB · contrato derivado de los stages legacy</p></div>
           <label class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
             <mat-icon aria-hidden="true">upload_file</mat-icon> Elegir archivo
             <input class="sr-only" type="file" accept=".xls,.xlsx" (change)="onFileSelected($event)" />
@@ -75,9 +78,11 @@ export class CatalogImportPage {
   protected readonly canUploadMaterial = computed(() => this.auth.hasPermission('MATERIALES_CARGAR'));
   protected readonly canUploadProduct = computed(() => this.auth.hasPermission('PRODUCTOS_CARGAR'));
   protected readonly canUploadClient = computed(() => this.auth.hasPermission('CLIENTES_CARGAR'));
+  protected readonly canUploadProvider = computed(() => this.auth.hasPermission('PROVEEDORES_CARGAR'));
   protected readonly canConfirmMaterial = computed(() => this.auth.hasPermission('MATERIALES_CONFIRMAR'));
   protected readonly canConfirmProduct = computed(() => this.auth.hasPermission('PRODUCTOS_CONFIRMAR'));
   protected readonly canConfirmClient = computed(() => this.auth.hasPermission('CLIENTES_CONFIRMAR'));
+  protected readonly canConfirmProvider = computed(() => this.auth.hasPermission('PROVEEDORES_CONFIRMAR'));
   protected readonly type = signal<CatalogImportType>(this.resolveInitialType());
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly selectionError = signal<string | null>(null);
@@ -85,22 +90,22 @@ export class CatalogImportPage {
   protected readonly isConfirming = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly confirmationError = signal<string | null>(null);
-  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | null>(null);
+  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation | null>(null);
   protected readonly result = signal<CatalogImportResponse | null>(null);
   protected readonly canConfirmCurrent = computed(() => {
     const current = this.result();
     if (!current || current.estado !== 'PREVISUALIZADA') return false;
-    if (current.tipo === 'MATERIAL') return this.canConfirmMaterial();
-    if (current.tipo === 'PRODUCTO') return this.canConfirmProduct();
-    return this.canConfirmClient();
+    switch (current.tipo) {
+      case 'MATERIAL': return this.canConfirmMaterial();
+      case 'PRODUCTO': return this.canConfirmProduct();
+      case 'CLIENTE': return this.canConfirmClient();
+      case 'PROVEEDOR': return this.canConfirmProvider();
+    }
   });
   protected readonly confirmationAdvertencia = computed(() => {
     const current = this.result();
-    if (current?.tipo === 'PRODUCTO') {
-      return 'La confirmación incorpora únicamente los productos válidos nuevos; los productos existentes con la misma clave se mantienen sin cambios.';
-    }
-    if (current?.tipo === 'CLIENTE') {
-      return 'La confirmación incorpora únicamente los clientes válidos nuevos; los clientes existentes con la misma clave se mantienen sin cambios.';
+    if (current?.tipo === 'PRODUCTO' || current?.tipo === 'CLIENTE' || current?.tipo === 'PROVEEDOR') {
+      return 'La confirmación incorpora únicamente los registros válidos nuevos; los existentes con la misma clave se mantienen sin cambios.';
     }
     return 'La confirmación actualizará el catálogo de materiales utilizando las reglas actuales del sistema Anexo 24.';
   });
@@ -108,13 +113,15 @@ export class CatalogImportPage {
   private readonly confirmMaterial = inject(ConfirmCatalogMaterialImportUseCase);
   private readonly confirmProduct = inject(ConfirmCatalogProductImportUseCase);
   private readonly confirmClient = inject(ConfirmCatalogClientImportUseCase);
+  private readonly confirmProvider = inject(ConfirmCatalogProviderImportUseCase);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
   private resolveInitialType(): CatalogImportType {
     if (this.auth.hasPermission('MATERIALES_CARGAR')) return 'MATERIAL';
     if (this.auth.hasPermission('PRODUCTOS_CARGAR')) return 'PRODUCTO';
-    return 'CLIENTE';
+    if (this.auth.hasPermission('CLIENTES_CARGAR')) return 'CLIENTE';
+    return 'PROVEEDOR';
   }
 
   selectType(type: CatalogImportType): void {
@@ -137,7 +144,7 @@ export class CatalogImportPage {
   protected requestConfirmation(): void {
     const current = this.result();
     if (!current || !this.canConfirmCurrent() || this.isConfirming()) return;
-    const titulo = current.tipo === 'MATERIAL' ? 'Confirmar importación de materiales' : current.tipo === 'PRODUCTO' ? 'Confirmar importación de productos' : 'Confirmar importación de clientes';
+    const titulo = `Confirmar importación de ${this.tituloTipo(current.tipo)}`;
     this.confirm.ask({
       title: titulo,
       message: this.confirmationAdvertencia(),
@@ -147,11 +154,9 @@ export class CatalogImportPage {
       if (!accepted) return;
       this.confirmationError.set(null);
       this.isConfirming.set(true);
-      const stream = current.tipo === 'MATERIAL'
-        ? this.confirmMaterial.execute(current.id)
-        : current.tipo === 'PRODUCTO' ? this.confirmProduct.execute(current.id) : this.confirmClient.execute(current.id);
+      const stream = this.streamConfirmacion(current.tipo, current.id);
       stream.subscribe({
-        next: (confirmation) => {
+        next: (confirmation: CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation) => {
           this.isConfirming.set(false);
           this.confirmation.set(confirmation);
           this.result.update((latest) => latest && latest.id === current.id ? {
@@ -161,21 +166,42 @@ export class CatalogImportPage {
             filasValidas: confirmation.filasValidas,
             filasInvalidas: confirmation.filasConError,
           } : latest);
-          const mensaje = current.tipo === 'MATERIAL'
-            ? 'Importación de materiales confirmada correctamente.'
-            : current.tipo === 'PRODUCTO' ? 'Importación de productos confirmada correctamente.' : 'Importación de clientes confirmada correctamente.';
-          this.notifications.success(mensaje);
+          this.notifications.success(this.mensajeConfirmacion(current.tipo));
         },
-        error: (err) => {
+        error: (err: { error?: { message?: string } }) => {
           this.isConfirming.set(false);
-          const mensaje = current.tipo === 'MATERIAL'
-            ? 'No fue posible confirmar la importación de materiales.'
-            : current.tipo === 'PRODUCTO' ? 'No fue posible confirmar la importación de productos.' : 'No fue posible confirmar la importación de clientes.';
+          const mensaje = this.mensajeErrorConfirmacion(current.tipo);
           this.confirmationError.set(err?.error?.message || mensaje);
           this.notifications.error(mensaje);
         },
       });
     });
+  }
+
+  private tituloTipo(tipo: CatalogImportType): string {
+    switch (tipo) {
+      case 'MATERIAL': return 'materiales';
+      case 'PRODUCTO': return 'productos';
+      case 'CLIENTE': return 'clientes';
+      case 'PROVEEDOR': return 'proveedores';
+    }
+  }
+
+  private mensajeConfirmacion(tipo: CatalogImportType): string {
+    return `Importación de ${this.tituloTipo(tipo)} confirmada correctamente.`;
+  }
+
+  private mensajeErrorConfirmacion(tipo: CatalogImportType): string {
+    return `No fue posible confirmar la importación de ${this.tituloTipo(tipo)}.`;
+  }
+
+  private streamConfirmacion(tipo: CatalogImportType, cargaId: number): Observable<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation> {
+    switch (tipo) {
+      case 'MATERIAL': return this.confirmMaterial.execute(cargaId);
+      case 'PRODUCTO': return this.confirmProduct.execute(cargaId);
+      case 'CLIENTE': return this.confirmClient.execute(cargaId);
+      case 'PROVEEDOR': return this.confirmProvider.execute(cargaId);
+    }
   }
 
   private submit(file: File): void {

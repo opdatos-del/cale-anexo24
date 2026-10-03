@@ -49,7 +49,14 @@ public class ExcelCatalogImportParser {
             "Entidad", "Pais", "Telefono", "Correo", "Fax",
             "ApellidoPaterno", "ApellidoMaterno", "Calle", "CalleNumeroInterior",
             "Localidad", "Referencia", "Municipio", "TipoIdentificador", "CodigoPostal");
+    // Mismas columnas que el stage TMPPROVEEDORES auditado en CALE_IMMEX LIVE 2026-10-03.
+    private static final List<String> PROVIDER_COLUMNS = List.of(
+            "Clave", "Nombre", "IdFiscal", "TipoNE", "Programa", "CalleNumero", "Codigo", "Colonia",
+            "Entidad", "Pais", "Telefono", "Correo", "Fax",
+            "ApellidoPaterno", "ApellidoMaterno", "Calle", "CalleNumeroInterior",
+            "Localidad", "Referencia", "Municipio", "TipoIdentificador", "CodigoPostal");
     private static final int CLIENT_KEY_MAX_LENGTH = 15;
+    private static final int PROVIDER_KEY_MAX_LENGTH = 15;
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -162,6 +169,12 @@ public class ExcelCatalogImportParser {
                 validateLength(values, "Clave", 3, sheet, row, errors, "CLAVE_CLIENTE_CORTA");
                 validateLengthIfPresent(values, "IdFiscal", 1, sheet, row, errors, "ID_FISCAL_VACIO");
             }
+            case PROVEEDOR -> {
+                // Proveedores.CLAVE = CHAR(15). LEFT(Clave,15) en el SP legacy hace que claves >15 choquen.
+                validateMaxLength(values, "Clave", PROVIDER_KEY_MAX_LENGTH, sheet, row, errors, "CLAVE_PROVEEDOR_LARGA");
+                validateLength(values, "Clave", 3, sheet, row, errors, "CLAVE_PROVEEDOR_CORTA");
+                validateLengthIfPresent(values, "IdFiscal", 1, sheet, row, errors, "ID_FISCAL_VACIO");
+            }
         }
     }
 
@@ -213,6 +226,7 @@ public class ExcelCatalogImportParser {
                 case MATERIAL -> MATERIAL_COLUMNS;
                 case PRODUCTO -> PRODUCT_COLUMNS;
                 case CLIENTE -> CLIENT_COLUMNS;
+                case PROVEEDOR -> PROVIDER_COLUMNS;
             };
         }
 
@@ -221,6 +235,7 @@ public class ExcelCatalogImportParser {
             case MATERIAL -> List.of("ClaveMaterial", "UnidadComercial", "Fraccion");
             case PRODUCTO -> List.of("CVE_PRODUCTO", "NOMBRE", "UNIDAD", "fraccion");
             case CLIENTE -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
+            case PROVEEDOR -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
         };
     }
 
@@ -229,6 +244,7 @@ public class ExcelCatalogImportParser {
             case MATERIAL -> "ClaveMaterial";
             case PRODUCTO -> "CVE_PRODUCTO";
             case CLIENTE -> "Clave";
+            case PROVEEDOR -> "Clave";
         };
     }
 

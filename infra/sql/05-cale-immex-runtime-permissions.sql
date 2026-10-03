@@ -6,7 +6,7 @@
 --   * exige que el login anexo24_app exista a nivel servidor (no lo crea);
 --   * crea el user CALE_IMMEX.anexo24_app FOR LOGIN si falta;
 --   * crea el rol cale_immex_runtime si falta y agrega al user como miembro;
---   * otorga EXECUTE por objeto (nunca por schema) a los 27 entry points
+--   * otorga EXECUTE por objeto (nunca por schema) a los 28 entry points
 --     consumidos por Java (validado por scripts/check-runtime-sql-permissions.py).
 --
 -- Qué NO hace (política del proyecto):
@@ -121,8 +121,8 @@ BEGIN
 END
 GO
 
--- 5. EXECUTE por objeto: 27 entry points consumidos por Java (queries read-only
---    + commands autoritativos de pedimentos, confirmación de materiales, productos y clientes). Nunca EXECUTE por schema.
+-- 5. EXECUTE por objeto: 28 entry points consumidos por Java (queries read-only
+--    + commands autoritativos de pedimentos, confirmación de materiales, productos, clientes y proveedores). Nunca EXECUTE por schema.
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_AGENTES_ADUANALES_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_ALMACENES_LISTAR TO cale_immex_runtime;
@@ -150,6 +150,7 @@ GRANT EXECUTE ON OBJECT::dbo.APP24_C_PEDIMENTO_CONFIRMAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_C_PRODUCTO_CARGA_CONFIRMAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR TO cale_immex_runtime;
+GRANT EXECUTE ON OBJECT::dbo.APP24_C_PROVEEDOR_CARGA_CONFIRMAR TO cale_immex_runtime;
 GO
 
 PRINT 'Permisos mínimos cale_immex_runtime aplicados a anexo24_app.';
