@@ -1,0 +1,77 @@
+/*
+ * Réplica textual del SP legacy dbo.CARGA_PRODUCTOS auditado READ-ONLY
+ * contra CALE_IMMEX LIVE el 2026-10-03. Se carga en SQL Testcontainers
+ * para preservar el comportamiento real durante la prueba de aislamiento.
+ *
+ * Notas preservadas:
+ *   * Sin TRY/CATCH, sin transacción, sin NOLOCK.
+ *   * DELETE FROM ECARGAPRODUCTO al inicio.
+ *   * INSERT-only en dbo.productos: omite silenciosamente productos cuya
+ *     CVE_PRODUCTO ya existe (no actualiza ni reporta como error).
+ *   * Dependencias externas: dbo.VALIDUNIT y dbo.ENTIDAD (funciones).
+ */
+
+USE [CALE_IMMEX];
+GO
+
+CREATE PROCEDURE dbo.CARGA_PRODUCTOS
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM ECARGAPRODUCTO;
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'LA UNIDAD COMERCIAL NO ESTA EN EL CATALOGO DE UNIDADES'
+    FROM dbo.tmpproductos
+    WHERE dbo.VALIDUNIT(UNIDAD) NOT IN (SELECT CVE_UNIDAD FROM UNIDAD);
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'LA LONGITUD DE LA FRACCION ES ERRONEA'
+    FROM dbo.tmpproductos
+    WHERE LEN(ISNULL(fraccion, '')) <> 8;
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'LA LONGITUD DE LA CLAVE DEL PRODUCTO ES ERRONEA'
+    FROM dbo.tmpproductos
+    WHERE LEN(ISNULL(CVE_PRODUCTO, '')) < 3;
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'LA LONGITUD DE LA [CLAVE CLIENTE] DEL PRODUCTO ES ERRONEA'
+    FROM dbo.tmpproductos
+    WHERE LEN(ISNULL(CVE_PRODUCTO_CLIENTE, '')) < 3
+      AND ISNULL(CVE_PRODUCTO_CLIENTE, '') <> '';
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'LA LONGITUD DE LA DESCRIPCION ES ERRONEA'
+    FROM dbo.tmpproductos
+    WHERE LEN(ISNULL(nombre, '')) < 3;
+
+    INSERT INTO ECARGAPRODUCTO (CARGAPRODUCTOKEY, ERROR)
+    SELECT tmpPRODUCTOKEY, 'CLAVE REPETIDA MAS DE 1 VEZ'
+    FROM dbo.tmpproductos
+    WHERE CVE_PRODUCTO IN (
+        SELECT CVE_PRODUCTO FROM (
+            SELECT COUNT(*) AS REPETICIONES, CVE_PRODUCTO
+            FROM dbo.tmpproductos
+            GROUP BY CVE_PRODUCTO
+        ) xx WHERE xx.REPETICIONES > 1
+    );
+
+    DECLARE @PRODUCTOKEY BIGINT;
+    SELECT @PRODUCTOKEY = ISNULL((SELECT MAX(PRODUCTOKEY) FROM productos), 0) + 1;
+
+    INSERT INTO productos (PRODUCTOKEY, CVE_PRODUCTO, NOMBRE, UNIDAD, fraccion, CVE_PRODUCTO_CLIENTE, ALMACENKEY, AUXILIAR)
+    SELECT ROW_NUMBER() OVER (ORDER BY CVE_PRODUCTO DESC) + @PRODUCTOKEY,
+           CVE_PRODUCTO,
+           NOMBRE,
+           dbo.ValidUnit(UNIDAD),
+           fraccion,
+           CVE_PRODUCTO_CLIENTE,
+           dbo.ENTIDAD(DIVISION),
+           ISNULL(AUXILIAR, '')
+    FROM dbo.Tmpproductos
+    WHERE CVE_PRODUCTO NOT IN (SELECT DISTINCT CVE_PRODUCTO FROM productos)
+      AND tmpPRODUCTOKEY NOT IN (SELECT CargaProductoKey FROM dbo.ECargaProducto);
+END;
+GO

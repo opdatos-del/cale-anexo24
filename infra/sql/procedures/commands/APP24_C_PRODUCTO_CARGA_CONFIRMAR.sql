@@ -1,3 +1,10 @@
+USE [CALE_IMMEX];
+GO
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- Confirmación técnica de una carga de productos mediante el staging legacy existente.
 -- El catálogo autoritativo continúa siendo dbo.productos y sólo dbo.CARGA_PRODUCTOS
 -- aplica sus reglas de negocio. No crea tablas ni lógica paralela de catálogo.
