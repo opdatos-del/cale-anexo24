@@ -28,3 +28,42 @@ archivos ni datos empresariales aquí. Sin secretos.
   el layout contractual está documentado en los mapeos y pruebas citadas.
 - Capturas UI y evidencia de aceptación de operador son los dos gaps de anexo
   pendientes; ver §Cobertura documental en `evidencias-proyecto.md`.
+
+## Checklist de capturas UI (prioridad A5)
+
+Capturas a recolectar con datos no sensibles o estados vacíos/sintéticos. No se
+versionan en esta fase; esta lista es el plan de recolección.
+
+| # | Pantalla | Estado a capturar | Nota |
+|---|---|---|---|
+| 1 | `/login` | formulario vacío y validación visible | sin credenciales reales |
+| 2 | `/dashboard` | vista con permisos de administrador | datos agregados no sensibles |
+| 3 | `/materiales` | listado + filtro aplicado | dataset LIVE es reducido |
+| 4 | `/productos` | listado con paginación | — |
+| 5 | `/estructuras` | empty state | dataset vacío |
+| 6 | `/catalogos` | catálogos auxiliares | — |
+| 7 | `/catalogos/datos-generales` | ficha read-only | datos de empresa: usar captura autorizada o difuminar |
+| 8 | `/catalogos/socios-comerciales` | listado | evitar datos sensibles de terceros |
+| 9 | `/operaciones/entradas` | consulta con periodo | — |
+| 10 | `/operaciones/salidas` | consulta con paginación | — |
+| 11 | `/operaciones/materiales-utilizados` | consulta | — |
+| 12 | `/operaciones/activos-fijos` | consulta | — |
+| 13 | `/operaciones/pedimentos` | resultado `CON_ERRORES` de fixture sintético | nunca capturar confirmación real |
+| 14 | `/reportes` | selector + un reporte generado | preferir F4 vacío o entradas |
+| 15 | `/facturacion` | carga `VALIDADA` de fixture sintético | sin confirmación |
+| 16 | `/usuarios` | listado | preferir usuario sintético |
+| 17 | `/perfiles` | perfiles y permisos | — |
+| 18 | `/bitacora` | listado con filtros | ocultar datos personales reales |
+
+## Fixtures sintéticos requeridos (documentados, no versionados aún)
+
+| Fixture | Contrato de referencia | Uso |
+|---|---|---|
+| Pedimento válido sintético | `docs/03-diseno/mapeo-carga-pedimentos.md` | captura de preview/errores; requiere material del catálogo para preview limpio |
+| Pedimento con errores | mismo contrato | captura de errores por fila/columna |
+| Material sintético | `docs/05-pruebas/catalog-imports-staging-v1.md` | captura `PREVISUALIZADA` |
+| Producto sintético | mismo documento | captura `PREVISUALIZADA` |
+| Facturación sintética (hoja `FACTURAS`) | plantilla activa del sistema | captura `VALIDADA` |
+
+No recuperar los `E2E_*` temporales borrados; regenerar con nombres estables y
+sin timestamps cuando se recolecten anexos.

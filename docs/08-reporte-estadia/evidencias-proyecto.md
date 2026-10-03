@@ -270,8 +270,9 @@ frontend: 113 tests PASS · lint PASS · build PASS · parent-relative imports =
 backend:  SQL IT 15 PASSED / 0 skipped / 0 failed · concurrencia 2 PASSED
 SP-FIRST: violations = 0
 paridad:  LEGACY-016/019/057 → IMPLEMENTED_REDESIGNED; LEGACY-017 sigue PARTIAL
-          total 79 = 5 equivalentes + 26 rediseñadas + 11 parciales + 6 faltantes
-                     + 5 bloqueadas + 6 consolidadas + 20 desconocidas
+          total 79 = 5 equivalentes + 26 rediseñadas + 12 parciales + 6 faltantes
+                     + 5 bloqueadas + 6 consolidadas + 19 desconocidas
+                     (recuento corregido en el cierre técnico V1: LEGACY-041 en PARTIAL)
 ```
 
 **Limitaciones:** el runtime sigue siendo `opdatos` (`TARGET_LEAST_PRIVILEGE_MIGRATION =
@@ -343,10 +344,15 @@ frontend                   = 113/113 tests PASS · lint PASS · build PASS
 PedimentoConfirmacionSqlIT = 15/15 PASS · 0 skipped · 0 failed
 concurrencia MAX+1         = 2/2 PASS · 0 skipped · 0 failed
 SP-FIRST                   = violations = 0
-paridad vigente            = 5 equivalentes + 26 rediseñadas + 11 parciales
+paridad vigente            = 5 equivalentes + 26 rediseñadas + 12 parciales
                              + 6 faltantes + 5 bloqueadas + 6 consolidadas
-                             + 20 desconocidas = 79
+                             + 19 desconocidas = 79
 ```
+
+Nota de corrección (cierre técnico V1): el conteo anterior de parciales y
+desconocidas quedó desactualizado al no reflejar `LEGACY-041` en `PARTIAL`; el
+recuento fila por fila vigente es `12 parciales / 19 desconocidas` (ver
+`docs/05-pruebas/v1-technical-closure.md`).
 
 El detalle de las decisiones de negocio pendientes y las métricas de cierre
 viven en `docs/01-requerimientos/cierre-alcance-v1.md`.
@@ -546,3 +552,40 @@ Gaps adicionales declarados:
    confirmación, Dashboard, PED-005/006) — sin ellas no se redactan
    conclusiones de alcance cerrado.
 4. Capturas de pantalla UI no recolectadas como anexo.
+
+---
+
+## Fase — Congelación RC1 (integración documental y punto de referencia)
+
+**Fecha / fase:** cierre de entrega. Ramas `docs/v1-delivery-preparation`
+integrada a `dev` por fast-forward; rama `docs/reporte-estadia-v1` para el
+borrador del reporte.
+
+**Problema técnico abordado:** integrar el paquete documental de entrega
+(decisiones ejecutivas, anexos candidatos, cobertura documental) y congelar un
+punto de referencia verificable de V1 sin mover el alcance funcional.
+
+**Método utilizado:** fast-forward de `dev` sobre la rama documental, CI de
+`dev`, verificación del snapshot consolidado (recuento de matriz fila por fila),
+creación de tag anotado sobre `origin/dev` y arranque del borrador del reporte
+de estadía a partir de evidencia consolidada.
+
+**Resultados:**
+
+- `dev` = `fb77be0` con CI run `37124761648` SUCCESS (sp-first-gate, backend,
+  frontend).
+- Tag `v1.0.0-rc1` = `ecb2e3510ea63ea0b3b76597df3848c090f169fe` (anotado, no
+  release productiva).
+- Snapshot verificado: 79 capacidades (5/26/12/6/5/6/19),
+  `P0/P1_technical_remaining = 0`, SQL LIVE 24/24 + 35/35 + 18/18, E2E con
+  P0/P1/P2 = 0 y P3 = 2.
+- Paquete ejecutivo de decisiones y checklist de capturas/fixtures listos.
+
+**Limitaciones:** desarrollo funcional V1 congelado hasta recibir decisión de
+negocio o evidencia externa; aceptación de operador pendiente; sin evidencia de
+uso productivo.
+
+**Artefactos producidos:** `docs/01-requerimientos/decisiones-alcance-v1.md`
+(paquete ejecutivo); `docs/08-reporte-estadia/anexos-candidatos.md`
+(checklist de capturas y fixtures); borrador del reporte en
+`docs/08-reporte-estadia/`.
