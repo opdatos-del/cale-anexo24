@@ -516,3 +516,33 @@ esperado y correcto); los P3 `FUN-E2E-001/004` permanecen abiertos por decisión
 `report-list.page.spec.ts`); fixes `permission.guard.ts`,
 `operation-formatters.ts` y `report-list.page.ts`; corrección de conteos en
 `docs/01-requerimientos/matriz-paridad-legacy-v1.md`.
+
+---
+
+## Cobertura documental del reporte de estadía
+
+Estado de la evidencia disponible por capítulo (fuente consolidada: este
+archivo + documentos citados). Los gaps marcados son reales y no se cubren con
+resultados inventados.
+
+| Capítulo | Evidencia disponible | Estado |
+|---|---|---|
+| Introducción / Antecedentes | `antecedentes.md`, `alcance.md`; fases tempranas de este archivo (auditorías legacy, descubrimiento SQL) | Cubierto |
+| Problema | `planteamiento-problema.md`; fases de auditoría read-only y bloqueos de negocio | Cubierto |
+| Objetivos | `objetivos.md`; criterios de salida en `v1-technical-closure.md` | Cubierto |
+| Método | Fases de este archivo (método por fase); `docs/05-pruebas/plan-pruebas.md`; gates SP-FIRST/runtime | Cubierto |
+| Resultados | Matriz de paridad recalculada; `v1-technical-closure.md` (módulos, reportes, uploads, SQL LIVE); `auditoria-funcional-e2e-v1.md`; runs CI | Cubierto |
+| Conclusiones | Pendiente de redacción final | GAP intencional: depende de respuestas de negocio (`decisiones-alcance-v1.md`) |
+| Anexos | `anexos-candidatos.md` (15 candidatos) | Parcial: faltan capturas UI versionadas y fixtures XLSX (regenerables) |
+
+Gaps adicionales declarados:
+
+1. Aceptación de operador pendiente: login con credenciales reales
+   (`OPERATOR_ACCEPTANCE_PENDING`) y sesión de validación con usuarios de
+   negocio.
+2. Sin evidencia de uso en producción real: toda la verificación es en
+   ambiente DEV/local con datos LIVE de solo lectura y staging sintético.
+3. Respuestas de negocio pendientes (Saldos, Descargos/PEPS, Facturación
+   confirmación, Dashboard, PED-005/006) — sin ellas no se redactan
+   conclusiones de alcance cerrado.
+4. Capturas de pantalla UI no recolectadas como anexo.
