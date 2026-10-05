@@ -68,6 +68,10 @@ public class ExcelCatalogImportParser {
     private static final int AGENT_DOMICILIO_MAX_LENGTH = 60;
     private static final int AGENT_RFC_MAX_LENGTH = 20;
     private static final int AGENT_PATENTE_LENGTH = 4;
+    private static final String MENSAJE_FRACCION_INVALIDA =
+            "La fracción debe tener exactamente 8 caracteres en el contrato legacy.";
+    private static final String MENSAJE_PATENTE_INVALIDA =
+            "La patente debe tener exactamente " + AGENT_PATENTE_LENGTH + " caracteres en el contrato legacy.";
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -165,12 +169,12 @@ public class ExcelCatalogImportParser {
             case MATERIAL -> {
                 validateLength(values, "ClaveMaterial", 5, sheet, row, errors, "CLAVE_MATERIAL_CORTA");
                 validateLengthIfPresent(values, "ClaveMaterialProveedor", 5, sheet, row, errors, "CLAVE_PROVEEDOR_CORTA");
-                validateExactLength(values, "Fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
+                validateExactLength(values, "Fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA", MENSAJE_FRACCION_INVALIDA);
             }
             case PRODUCTO -> {
                 validateLength(values, "CVE_PRODUCTO", 3, sheet, row, errors, "CLAVE_PRODUCTO_CORTA");
                 validateLength(values, "NOMBRE", 3, sheet, row, errors, "NOMBRE_PRODUCTO_CORTO");
-                validateExactLength(values, "fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA");
+                validateExactLength(values, "fraccion", 8, sheet, row, errors, "FRACCION_INVALIDA", MENSAJE_FRACCION_INVALIDA);
                 validateLengthIfPresent(values, "CVE_PRODUCTO_CLIENTE", 3, sheet, row, errors, "CLAVE_CLIENTE_CORTA");
             }
             case CLIENTE -> {
@@ -195,7 +199,7 @@ public class ExcelCatalogImportParser {
                 validateMaxLength(values, "Domicilio", AGENT_DOMICILIO_MAX_LENGTH, sheet, row, errors, "DOMICILIO_AGENTE_LARGO");
                 validateMaxLength(values, "Rfc", AGENT_RFC_MAX_LENGTH, sheet, row, errors, "RFC_AGENTE_LARGO");
                 // El legacy exige LEN(Patente) = 4; se adelanta para no generar CON_ERRORES.
-                validateExactLength(values, "Patente", AGENT_PATENTE_LENGTH, sheet, row, errors, "PATENTE_AGENTE_INVALIDA");
+                validateExactLength(values, "Patente", AGENT_PATENTE_LENGTH, sheet, row, errors, "PATENTE_AGENTE_INVALIDA", MENSAJE_PATENTE_INVALIDA);
             }
         }
     }
@@ -213,9 +217,9 @@ public class ExcelCatalogImportParser {
     }
 
     private void validateExactLength(Map<String, String> values, String key, int length, String sheet,
-                                    int row, List<CatalogImportError> errors, String code) {
+                                     int row, List<CatalogImportError> errors, String code, String message) {
         if (values.getOrDefault(key, "").length() != length)
-            add(errors, error(sheet, row, key, code, "La fracción debe tener exactamente 8 caracteres en el contrato legacy."));
+            add(errors, error(sheet, row, key, code, message));
     }
 
     private void validateMaxLength(Map<String, String> values, String key, int max, String sheet, int row,

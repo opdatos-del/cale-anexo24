@@ -143,7 +143,10 @@ CREATE OR ALTER PROCEDURE app24.APP24_C_CATALOGO_AGENTE_CARGA_CREAR
 AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON;
-    IF @Archivo IS NULL OR @Hash IS NULL OR LEN(@Hash) <> 64 OR @UsuarioId IS NULL OR @Estado NOT IN ('PREVISUALIZADA','CON_ERRORES','CONFIRMADA')
+    -- Invariante: la creación de staging sólo admite PREVISUALIZADA o CON_ERRORES.
+    -- CONFIRMADA es un estado exclusivamente terminal y lo establece el wrapper autoritativo
+    -- dbo.APP24_C_AGENTE_CARGA_CONFIRMAR tras delegar en dbo.CARGAAgentes.
+    IF @Archivo IS NULL OR @Hash IS NULL OR LEN(@Hash) <> 64 OR @UsuarioId IS NULL OR @Estado NOT IN ('PREVISUALIZADA','CON_ERRORES')
        OR @TotalFilas < 0 OR @FilasValidas < 0 OR @FilasValidas > @TotalFilas OR @VersionContrato IS NULL OR @CorrelationId IS NULL
        OR ISJSON(@FilasJson) <> 1 OR ISJSON(@ErroresJson) <> 1 THROW 51320, 'PARAMETRO_INVALIDO', 1;
     BEGIN TRY
@@ -159,7 +162,7 @@ BEGIN
         DECLARE @Accion VARCHAR(40) = CASE WHEN @Estado='PREVISUALIZADA' THEN 'CARGA_VALIDADA' ELSE 'CARGA_CON_ERRORES' END,
                 @Resultado VARCHAR(20) = CASE WHEN @Estado='PREVISUALIZADA' THEN 'EXITO' ELSE 'FALLO' END,
                 @Detalle VARCHAR(500) = CONCAT('agentes carga=',@CargaId), @EventoId BIGINT;
-        EXEC app24.APP24_C_BITACORA_REGISTRAR @UsuarioId=@UsuarioId,@Modulo='CATALOGOS',@Accion=@Accion,@Detalle=@Detalle,@CorrelationId=@CorrelationId,@Resultado=@Resultado,@EventoId=@EventoId OUTPUT;
+        EXEC app24.APP24_C_BITACORA_REGISTRAR @UsuarioId=@UsuarioId,@Modulo='CATALOGOS',@Accion=@Accion,@Detalle=@Detalle,@CorrelacionId=@CorrelationId,@Resultado=@Resultado,@EventoId=@EventoId OUTPUT;
         COMMIT TRANSACTION;
     END TRY BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK TRANSACTION; THROW; END CATCH;
 END;

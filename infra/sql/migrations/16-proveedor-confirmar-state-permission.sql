@@ -141,7 +141,10 @@ CREATE OR ALTER PROCEDURE app24.APP24_C_CATALOGO_PROVEEDOR_CARGA_CREAR
 AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON;
-    IF @Archivo IS NULL OR @Hash IS NULL OR LEN(@Hash) <> 64 OR @UsuarioId IS NULL OR @Estado NOT IN ('PREVISUALIZADA','CON_ERRORES','CONFIRMADA')
+    -- Invariante: la creación de staging sólo admite PREVISUALIZADA o CON_ERRORES.
+    -- CONFIRMADA es un estado exclusivamente terminal y lo establece el wrapper autoritativo
+    -- dbo.APP24_C_PROVEEDOR_CARGA_CONFIRMAR tras delegar en el SP legacy.
+    IF @Archivo IS NULL OR @Hash IS NULL OR LEN(@Hash) <> 64 OR @UsuarioId IS NULL OR @Estado NOT IN ('PREVISUALIZADA','CON_ERRORES')
        OR @TotalFilas < 0 OR @FilasValidas < 0 OR @FilasValidas > @TotalFilas OR @VersionContrato IS NULL OR @CorrelationId IS NULL
        OR ISJSON(@FilasJson) <> 1 OR ISJSON(@ErroresJson) <> 1 THROW 51310, 'PARAMETRO_INVALIDO', 1;
     BEGIN TRY
