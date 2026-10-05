@@ -485,4 +485,155 @@ class ActaLegacyStageConcurrencyTest {
                 + "\"DescargaDirigida\":\"" + descargaDirigida + "\","
                 + "\"ValorComercial\":\"" + valorComercial + "\"}";
     }
+
+    @Test
+    void actakeyBigIntNoDesbordaAlBloquearStage() throws Exception {
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("SET IDENTITY_INSERT dbo.ACTA ON");
+            s.execute("INSERT INTO dbo.ACTA (actakey, Folio, fecha, clave, linea, cantidad, umc, descargadirigida, VALORCOMERCIAL) "
+                    + "VALUES (3000000000, 'AJENA-BIG', '2026-10-05', 'P001', 1, 1, 'PIEZ', '', 1)");
+            s.execute("SET IDENTITY_INSERT dbo.ACTA OFF");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("ACC-BIG", "2026-10-05", "P001", 1, "1", "PIEZ", "", "1"), 2);
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().contains("LEGACY_STAGE_BUSY"),
+                "actakey > INT_MAX no debe desbordar; se esperaba LEGACY_STAGE_BUSY: " + error.getMessage());
+        assertTrue(!error.getMessage().toLowerCase().contains("overflow"), error.getMessage());
+        assertEquals(1, contar(CALE, "dbo.ACTA"), "El stage ajeno con actakey grande no debe tocarse.");
+        transaccionLimpia();
+    }
+
+    @Test
+    void tipoDeVariableDeLockFielAMetadataLive() throws Exception {
+        String definicion = Files.readString(raizRepo().resolve("procedures/commands/APP24_C_ACTA_CARGA_CONFIRMAR.sql"));
+        assertTrue(definicion.contains("@BloqueoActa BIGINT"), "@BloqueoActa debe ser BIGINT (dbo.ACTA.actakey).");
+        assertTrue(definicion.contains("@BloqueoGenerador INT"), "@BloqueoGenerador debe ser INT (dbo.GENERADORES.consecutivo).");
+        assertTrue(!definicion.contains("@Bloqueo INT"), "Ninguna variable de lock debe reutilizarse con un tipo mas estrecho.");
+        assertTrue(definicion.contains("NULLIF(JSON_VALUE"), "El stage debe preservar NULL con NULLIF.");
+        assertTrue(definicion.contains("GLOBAL_PENDING_PSALIDAS_SWEEP"), "El side effect global debe quedar documentado.");
+    }
+
+    @Test
+    void blancosNullableSeMantienenNull() throws Exception {
+        long carga = crearCarga();
+        String json = "{"
+                + "\"Folio\":\"ACC-NULL\","
+                + "\"Fecha\":\"\","
+                + "\"Clave\":\"\","
+                + "\"Linea\":\"\","
+                + "\"Cantidad\":\"\","
+                + "\"Umc\":\"\","
+                + "\"DescargaDirigida\":\"\","
+                + "\"ValorComercial\":\"\"}";
+        agregarFila(carga, json, 2);
+
+        assertEquals("CONFIRMED", confirmar(carga).get("Resultado"));
+
+        assertEquals(1, contar(CALE, "dbo.SALIDAS"));
+        assertEquals(1, contar(CALE, "dbo.PSALIDAS"));
+        assertEquals("1", valor(CALE, "SELECT CASE WHEN Fecha IS NULL THEN 1 ELSE 0 END FROM dbo.SALIDAS"));
+        assertEquals("1", valor(CALE, "SELECT CASE WHEN Cantidad IS NULL THEN 1 ELSE 0 END FROM dbo.PSALIDAS"));
+        assertEquals("1", valor(CALE, "SELECT CASE WHEN Val_pesos IS NULL THEN 1 ELSE 0 END FROM dbo.PSALIDAS"));
+        assertEquals("1", valor(CALE, "SELECT CASE WHEN descargaDirigida IS NULL THEN 1 ELSE 0 END FROM dbo.PSALIDAS"));
+        assertEquals("1", valor(CALE, "SELECT CASE WHEN partida IS NULL THEN 1 ELSE 0 END FROM dbo.PSALIDAS"));
+        assertEquals(0, contar(CALE, "dbo.DIRIGIDO"), "Un descargaDirigida NULL no entra al sweep.");
+        assertEquals("0", valor(CALE, "SELECT COUNT(*) FROM dbo.SALIDAS WHERE Fecha = '1900-01-01'"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void dirigidoIncluyePsalidaPreexistentePendiente() throws Exception {
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Documento, Fecha, Tipo_operacion, Cve_pedimento, Cve_cliente, Aduana, Agente, Pais, TC, bloqueado) "
+                    + "VALUES (900, 'OTRO-FOLIO', GETDATE(), 'PEDIMENTO', 'ABC', '-', '-', '-', '-', 0, 0)");
+            s.execute("INSERT INTO dbo.PSALIDAS (Psalidakey, Clave, descargaDirigida, Salidalink, partida) "
+                    + "VALUES (950, 'AJENA', 'DIR-PRE', 900, 9)");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("ACC-SWEEP", "2026-10-05", "P001", 1, "1", "PIEZ", "DIR-SWEEP", "1"), 2);
+
+        assertEquals("CONFIRMED", confirmar(carga).get("Resultado"));
+
+        assertEquals(2, contar(CALE, "dbo.PSALIDAS"));
+        assertEquals(2, contar(CALE, "dbo.DIRIGIDO"), "El global sweep debe incluir la PSALIDAS pendiente ajena.");
+        assertEquals("1", valor(CALE, "SELECT COUNT(*) FROM dbo.DIRIGIDO WHERE documento = 'DIR-PRE'"));
+        assertEquals("1", valor(CALE, "SELECT COUNT(*) FROM dbo.DIRIGIDO WHERE documento = 'DIR-SWEEP'"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void folioConDosSalidasDesperdiciosRevierte() throws Exception {
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Documento, Fecha, Tipo_operacion, Cve_pedimento, Cve_cliente, Aduana, Agente, Pais, TC, bloqueado) VALUES "
+                    + "(1, 'ACC-AMB', GETDATE(), 'DESPERDICIOS', 'DESP', '-', '-', '-', '-', 0, 0), "
+                    + "(2, 'ACC-AMB', GETDATE(), 'DESPERDICIOS', 'DESP', '-', '-', '-', '-', 0, 0)");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("ACC-AMB", "2026-10-05", "P001", 1, "1", "PIEZ", "", "1"), 2);
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().toLowerCase().contains("more than 1"), error.getMessage());
+        assertEquals("PREVISUALIZADA", estadoCarga(carga));
+        assertEquals(0, contar(CALE, "dbo.ACTA"), "El stage ACTA no queda consumido.");
+        assertEquals(0, contar(CALE, "dbo.PSALIDAS"), "No deben crearse partidas.");
+        assertEquals(0, contar(CALE, "dbo.DIRIGIDO"), "No deben crearse filas DIRIGIDO.");
+        assertEquals("ACTA_CARGA_CONFIRMACION_ERROR", valor(APP, "SELECT accion FROM app24.BitacoraEvento"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void folioConDosPsalidasMismaPartidaRevierte() throws Exception {
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Documento, Fecha, Tipo_operacion, Cve_pedimento, Cve_cliente, Aduana, Agente, Pais, TC, bloqueado) "
+                    + "VALUES (10, 'ACC-PART', GETDATE(), 'DESPERDICIOS', 'DESP', '-', '-', '-', '-', 0, 0)");
+            s.execute("INSERT INTO dbo.PSALIDAS (Psalidakey, Clave, descargaDirigida, Salidalink, partida) VALUES "
+                    + "(20, 'A', '', 10, 1), (21, 'B', '', 10, 1)");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("ACC-PART", "2026-10-05", "P001", 1, "1", "PIEZ", "", "1"), 2);
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().toLowerCase().contains("more than 1"), error.getMessage());
+        assertEquals("PREVISUALIZADA", estadoCarga(carga));
+        assertEquals(2, contar(CALE, "dbo.PSALIDAS"), "El rollback conserva las partidas preexistentes.");
+        assertEquals(0, contar(CALE, "dbo.DIRIGIDO"), "No deben crearse filas DIRIGIDO.");
+        assertEquals("ACTA_CARGA_CONFIRMACION_ERROR", valor(APP, "SELECT accion FROM app24.BitacoraEvento"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void escritorGeneradoresConcurrenteEspera() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, renglon("ACC-GEN", "2026-10-05", "P001", 1, "1", "PIEZ", "", "1"), 2);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch listo = new CountDownLatch(1);
+        CountDownLatch iniciar = new CountDownLatch(1);
+        try (Connection exterior = conectar(CALE); Statement exteriorSql = exterior.createStatement()) {
+            exteriorSql.execute("BEGIN TRANSACTION");
+            assertEquals("CONFIRMED", confirmar(exterior, carga).get("Resultado"));
+            Future<Integer> escritor = executor.submit(() -> {
+                listo.countDown();
+                iniciar.await(5, TimeUnit.SECONDS);
+                try (Connection otra = conectar(CALE); Statement s = otra.createStatement()) {
+                    s.execute("INSERT INTO dbo.GENERADORES (tabla, consecutivo) VALUES ('EXTERNO', 42)");
+                    return 1;
+                }
+            });
+            assertTrue(listo.await(5, TimeUnit.SECONDS));
+            iniciar.countDown();
+            assertThrows(TimeoutException.class, () -> escritor.get(2, TimeUnit.SECONDS),
+                    "El escritor de GENERADORES debe permanecer bloqueado por TABLOCKX/HOLDLOCK.");
+            exteriorSql.execute("COMMIT TRANSACTION");
+            assertEquals(1, escritor.get(15, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(1, contar(CALE, "dbo.GENERADORES WHERE tabla = 'EXTERNO'"), "El escritor externo no se pierde.");
+        transaccionLimpia();
+    }
 }

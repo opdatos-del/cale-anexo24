@@ -102,3 +102,48 @@ el orden relativo de las tablas compartidas.
 
 Estado: branch feature/operations-acts-import-v1 creada desde origin/dev (2e4b8d8).
 Implementacion pendiente de ejecucion.
+
+## 7. Contrato A.1 - side effects y ambiguedades heredadas (2026-10-05)
+
+    SP_EXISTING_REUSABLE = YES
+    LEGACY_SIDE_EFFECTS_DOCUMENTED = YES
+
+    ACTA_DIRIGIDO_SIDE_EFFECT = GLOBAL_PENDING_PSALIDAS_SWEEP
+
+El cierre de dbo.CARGAACTAS NO esta limitado al folio ACTA procesado. Inserta en
+dbo.DIRIGIDO TODA fila de dbo.PSALIDAS con DESCARGADIRIGIDA <> '' que aun no exista en
+dbo.DIRIGIDO:
+
+    INSERT INTO DIRIGIDO (...)
+    SELECT ... FROM PSALIDAS
+    WHERE DESCARGADIRIGIDA <> '' AND PSALIDAKEY NOT IN (SELECT PSALIDAKEY FROM DIRIGIDO)
+
+Es un barrido global de PSALIDAS pendientes. Es comportamiento de negocio legacy: no se
+corrige, no se limita en el wrapper y no se reimplementa. Debe registrarse en la
+aceptacion operativa, porque confirmar un acta puede crear filas DIRIGIDO de PSALIDAS
+ajenas al acta.
+
+Riesgos heredados (fail closed, no se "arreglan" en el SP):
+
+- SALIDAS scalar ambiguity: la salida de desperdicios se busca con un subquery escalar por
+  DOCUMENTO + TIPO_OPERACION='DESPERDICIOS'. Si el folio tiene DOS salidas de desperdicios,
+  SQL Server lanza "subquery returned more than 1 value"; el wrapper revierte y deja la
+  carga en PREVISUALIZADA con evento de fallo registrado.
+- PSALIDAS scalar ambiguity: la partida se busca con un subquery escalar por DOCUMENTO +
+  PARTIDA. Si devuelve mas de una fila, ocurre el mismo fallo cerrado con rollback.
+
+Ambos caminos se cubren en ActaLegacyStageConcurrencyTest
+(folioConDosSalidasDesperdiciosRevierte, folioConDosPsalidasMismaPartidaRevierte). No se
+clasifican como blocker: el camino normal es ejecutable en Testcontainers.
+
+Preservacion de NULL: el wrapper materializa celdas modernas vacias como NULL legacy
+(NULLIF(JSON_VALUE(...), '')) para que '' no se convierta en 0 / 1900-01-01 cuando la
+columna LIVE es nullable.
+
+Variables de lock tipadas segun metadata LIVE (nunca reutilizar un tipo mas estrecho):
+@BloqueoActa BIGINT (actakey), @BloqueoSalida/@BloqueoPsalida NUMERIC(18,0),
+@BloqueoDirigido BIGINT (dirigidokey), @BloqueoGenerador INT (consecutivo).
+
+VALORCOMERCIAL: el stage LIVE es NUMERIC(18,10); el legacy declara
+@VALORCOMERCIAL NUMERIC(18,4) y termina en PSALIDAS.Val_pesos NUMERIC(18,4).
+LEGACY_VALORCOMERCIAL_EFFECTIVE_SCALE = 4 (reduccion de precision del legacy, no del parser).

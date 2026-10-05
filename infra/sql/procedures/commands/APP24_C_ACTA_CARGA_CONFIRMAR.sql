@@ -15,6 +15,16 @@ GO
 --   - claves por MAX()+1 en SALIDAS/PSALIDAS/DIRIGIDO;
 --   - side effect de negocio: DELETE FROM dbo.GENERADORES WHERE TABLA='ACTA'.
 --
+-- LEGACY_SIDE_EFFECTS_DOCUMENTED = YES
+--   ACTA_DIRIGIDO_SIDE_EFFECT = GLOBAL_PENDING_PSALIDAS_SWEEP
+--   El cierre de dbo.CARGAACTAS no esta limitado al folio del acta procesado:
+--   inserta en dbo.DIRIGIDO TODA dbo.PSALIDAS con DESCARGADIRIGIDA <> '' que aun
+--   no exista en dbo.DIRIGIDO. Es un global sweep de PSALIDAS pendientes y es
+--   comportamiento de negocio legacy; NO se corrige, no se limita y no se reimplementa.
+--   Ambiguedades heredadas (fail closed, no se arreglan): los subquery escalares de
+--   SALIDAS (DOCUMENTO + TIPO_OPERACION='DESPERDICIOS') y de PSALIDAS (DOCUMENTO +
+--   PARTIDA) lanzan error si devuelven mas de una fila.
+--
 -- Orden determinista de locks dentro de la MISMA transaccion:
 --   1. dbo.ACTA (stage exclusivo)
 --   2. dbo.SALIDAS   3. dbo.PSALIDAS   4. dbo.DIRIGIDO   5. dbo.GENERADORES
@@ -22,6 +32,13 @@ GO
 -- IMPORTACIONES -> PARTIDAS -> SALIDAS -> PSALIDAS -> DIRIGIDO de
 -- dbo.APP24_C_PEDIMENTO_CONFIRMAR. GENERADORES se agrega al final porque CARGAACTAS
 -- lo modifica (DELETE) y debe participar atomicamente en la transaccion.
+--
+-- Variables de lock tipadas segun metadata LIVE (nunca reutilizar un tipo mas estrecho):
+--   dbo.ACTA.actakey          = BIGINT         -> @BloqueoActa BIGINT
+--   dbo.SALIDAS.SalidaKey     = NUMERIC(18,0)  -> @BloqueoSalida NUMERIC(18,0)
+--   dbo.PSALIDAS.Psalidakey   = NUMERIC(18,0)  -> @BloqueoPsalida NUMERIC(18,0)
+--   dbo.DIRIGIDO.dirigidokey  = BIGINT         -> @BloqueoDirigido BIGINT
+--   dbo.GENERADORES.consecutivo = INT          -> @BloqueoGenerador INT
 CREATE OR ALTER PROCEDURE dbo.APP24_C_ACTA_CARGA_CONFIRMAR
     @CargaId BIGINT
 AS
@@ -36,10 +53,11 @@ BEGIN
             @UsuarioId BIGINT,
             @CorrelacionId VARCHAR(40),
             @ConfirmadaEn DATETIME2(3),
-            @Bloqueo INT,
+            @BloqueoActa BIGINT,
             @BloqueoSalida NUMERIC(18,0),
             @BloqueoPsalida NUMERIC(18,0),
             @BloqueoDirigido BIGINT,
+            @BloqueoGenerador INT,
             @TotalFilas INT,
             @DetalleBitacora VARCHAR(500),
             @EventoId BIGINT;
@@ -48,13 +66,13 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- Coordina inserts directos y EXEC no coordinados de CARGAACTAS.
-        SELECT TOP (1) @Bloqueo = actakey FROM dbo.ACTA WITH (TABLOCKX, HOLDLOCK);
+        SELECT TOP (1) @BloqueoActa = actakey FROM dbo.ACTA WITH (TABLOCKX, HOLDLOCK);
         IF EXISTS (SELECT 1 FROM dbo.ACTA) THROW 51602, 'LEGACY_STAGE_BUSY', 1;
 
         SELECT TOP (1) @BloqueoSalida = SalidaKey FROM dbo.SALIDAS WITH (TABLOCKX, HOLDLOCK);
         SELECT TOP (1) @BloqueoPsalida = Psalidakey FROM dbo.PSALIDAS WITH (TABLOCKX, HOLDLOCK);
         SELECT TOP (1) @BloqueoDirigido = dirigidokey FROM dbo.DIRIGIDO WITH (TABLOCKX, HOLDLOCK);
-        SELECT TOP (1) @Bloqueo = consecutivo FROM dbo.GENERADORES WITH (TABLOCKX, HOLDLOCK);
+        SELECT TOP (1) @BloqueoGenerador = consecutivo FROM dbo.GENERADORES WITH (TABLOCKX, HOLDLOCK);
 
         SELECT @Estado = estado,
                @UsuarioId = usuario_id,
@@ -68,15 +86,17 @@ BEGIN
         IF EXISTS (SELECT 1 FROM ANEXO24_DEV.app24.ErrorCargaActa WHERE carga_id = @CargaId) THROW 51606, 'CARGA_CON_ERRORES', 1;
         IF NOT EXISTS (SELECT 1 FROM ANEXO24_DEV.app24.CargaActaFila WHERE carga_id = @CargaId) THROW 51607, 'CARGA_SIN_FILAS', 1;
 
+        -- Preserva NULL: una celda moderna vacia (''/ausente) se materializa como NULL
+        -- legacy cuando la columna LIVE es nullable. NULLIF evita 0 / 1900-01-01 sinteticos.
         INSERT INTO dbo.ACTA (Folio, fecha, clave, linea, cantidad, umc, descargadirigida, VALORCOMERCIAL)
-        SELECT JSON_VALUE(f.datos_json, '$.Folio'),
-               CONVERT(DATETIME, JSON_VALUE(f.datos_json, '$.Fecha'), 126),
-               JSON_VALUE(f.datos_json, '$.Clave'),
-               CONVERT(INT, JSON_VALUE(f.datos_json, '$.Linea')),
-               CONVERT(FLOAT, JSON_VALUE(f.datos_json, '$.Cantidad')),
-               JSON_VALUE(f.datos_json, '$.Umc'),
-               JSON_VALUE(f.datos_json, '$.DescargaDirigida'),
-               CONVERT(NUMERIC(18,10), JSON_VALUE(f.datos_json, '$.ValorComercial'))
+        SELECT NULLIF(JSON_VALUE(f.datos_json, '$.Folio'), ''),
+               CONVERT(DATETIME, NULLIF(JSON_VALUE(f.datos_json, '$.Fecha'), ''), 126),
+               NULLIF(JSON_VALUE(f.datos_json, '$.Clave'), ''),
+               CONVERT(INT, NULLIF(JSON_VALUE(f.datos_json, '$.Linea'), '')),
+               CONVERT(FLOAT, NULLIF(JSON_VALUE(f.datos_json, '$.Cantidad'), '')),
+               NULLIF(JSON_VALUE(f.datos_json, '$.Umc'), ''),
+               NULLIF(JSON_VALUE(f.datos_json, '$.DescargaDirigida'), ''),
+               CONVERT(NUMERIC(18,10), NULLIF(JSON_VALUE(f.datos_json, '$.ValorComercial'), ''))
         FROM ANEXO24_DEV.app24.CargaActaFila f
         WHERE f.carga_id = @CargaId
         ORDER BY f.fila;
