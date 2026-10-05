@@ -24,4 +24,10 @@ export const OPERATIONS_ROUTES: Routes = [
     data: { permission: 'PEDIMENTOS_CARGAR' },
     loadChildren: () => import('./pediments/pediments.routes').then((routes) => routes.PEDIMENTS_ROUTES),
   },
+  {
+    path: 'actas',
+    canActivate: [permissionGuard],
+    data: { permission: 'ACTAS_CARGAR' },
+    loadChildren: () => import('./actas/actas.routes').then((routes) => routes.ACTAS_ROUTES),
+  },
 ];

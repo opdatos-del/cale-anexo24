@@ -22,6 +22,8 @@ import { FixedAssetRepository } from '@features/operations/fixed-assets/domain/r
 import { HttpFixedAssetRepository } from '@features/operations/fixed-assets/infrastructure/repositories/http-fixed-asset.repository';
 import { PedimentRepository } from '@features/operations/pediments/domain/repositories/pediment.repository';
 import { HttpPedimentRepository } from '@features/operations/pediments/infrastructure/repositories/http-pediment.repository';
+import { ActaImportRepository } from '@features/operations/actas/domain/repositories/acta-import.repository';
+import { HttpActaImportRepository } from '@features/operations/actas/infrastructure/repositories/http-acta-import.repository';
 import { CatalogImportRepository } from '@features/catalogs/imports/domain/repositories/catalog-import.repository';
 import { HttpCatalogImportRepository } from '@features/catalogs/imports/infrastructure/repositories/http-catalog-import.repository';
 import { AuditLogRepository } from '@features/administration/audit-log/domain/repositories/audit-log.repository';
@@ -46,6 +48,7 @@ export const appConfig: ApplicationConfig = {
     { provide: UsedMaterialRepository, useClass: HttpUsedMaterialRepository },
     { provide: FixedAssetRepository, useClass: HttpFixedAssetRepository },
     { provide: PedimentRepository, useClass: HttpPedimentRepository },
+    { provide: ActaImportRepository, useClass: HttpActaImportRepository },
     { provide: CatalogImportRepository, useClass: HttpCatalogImportRepository },
     { provide: AuditLogRepository, useClass: HttpAuditLogRepository },
     { provide: ReportRepository, useClass: HttpReportRepository },
