@@ -66,7 +66,7 @@ class SubmaquilaLegacyStageConcurrencyTest {
         crearBases();
         try (Connection cale = conectar(CALE)) {
             aplicarArchivo(cale, raizFixtures().resolve("01-submaquila-confirm-fixture.sql"));
-            aplicarArchivo(cale, raizFixtures().resolve("CARGA_SUBMAQUILA.legacy.sql"));
+            aplicarArchivo(cale, raizFixtures().resolve("CARGA_SUBMAQUILA.expected-contract.sql"));
         }
         aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/18-submaquila-staging-confirmation-v1.sql"));
         aplicarArchivo(conectar(CALE), raizRepo().resolve("procedures/commands/APP24_C_SUBMAQUILA_CARGA_CONFIRMAR.sql"));
