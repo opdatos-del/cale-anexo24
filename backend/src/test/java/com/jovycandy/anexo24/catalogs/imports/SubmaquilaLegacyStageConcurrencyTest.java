@@ -357,7 +357,139 @@ class SubmaquilaLegacyStageConcurrencyTest {
         assertEquals(2, contar(CALE, "dbo.SALIDAS"), "No debe quedar ninguna salida creada por la carga.");
         assertEquals(0, contar(CALE, "dbo.PSALIDAS"));
         assertEquals(0, contar(CALE, "dbo.TMPSUBMAQUILA"));
-        assertEquals(0, contar(APP, "app24.BitacoraEvento"));
+        // El intento fallido queda trazado sin ocultar el error original.
+        assertEquals(1, contar(APP, "app24.BitacoraEvento"));
+        assertEquals("SUBMAQUILA_CARGA_CONFIRMACION_ERROR", valor(APP, "SELECT accion FROM app24.BitacoraEvento"));
+        assertEquals("FALLO", valor(APP, "SELECT resultado FROM app24.BitacoraEvento"));
+        assertTrue(valor(APP, "SELECT detalle FROM app24.BitacoraEvento").contains("fase=LEGACY_CONFIRMATION"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void salidaPreexistenteUnicaReviertePorSalidalink() throws Exception {
+        // Escenario preciso: UNA sola salida preexistente con el mismo DOCUMENTO. El legacy
+        // inserta otra salida para el folio (no deduplica), de modo que el subquery escalar
+        // de SALIDALINK vería dos filas. El wrapper revierte la salida nueva y conserva la
+        // original intacta.
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Tipo_operacion, Documento, Fecha, Cve_pedimento, Transfiere) "
+                    + "VALUES (50, 'PEDIMENTO', 'F-701', GETDATE(), 'ABC', 'Original')");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("F-701", "2026-10-05", "SUBMAQ Uno", "P001", "1", 1));
+
+        SQLException error = assertThrows(SQLException.class, () -> confirmar(carga));
+
+        assertTrue(error.getMessage().toLowerCase().contains("more than 1"),
+                "Se esperaba el error del subquery escalar del legacy: " + error.getMessage());
+        assertEquals("PREVISUALIZADA", estadoCarga(carga));
+        assertEquals(1, contar(CALE, "dbo.SALIDAS"), "La salida original debe quedar intacta.");
+        assertEquals("Original", valor(CALE, "SELECT RTRIM(Transfiere) FROM dbo.SALIDAS"));
+        assertEquals(0, contar(CALE, "dbo.PSALIDAS"));
+        assertEquals(0, contar(CALE, "dbo.TMPSUBMAQUILA"));
+        assertEquals(1, contar(APP, "app24.BitacoraEvento"));
+        assertEquals("SUBMAQUILA_CARGA_CONFIRMACION_ERROR", valor(APP, "SELECT accion FROM app24.BitacoraEvento"));
+        transaccionLimpia();
+    }
+
+    @Test
+    void escritorSalidasConcurrenteEspera() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, renglon("F-310", "2026-10-05", "SUBMAQ Uno", "P001", "1", 1));
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch listo = new CountDownLatch(1);
+        CountDownLatch iniciar = new CountDownLatch(1);
+
+        try (Connection exterior = conectar(CALE); Statement exteriorSql = exterior.createStatement()) {
+            exteriorSql.execute("BEGIN TRANSACTION");
+            assertEquals("CONFIRMED", confirmar(exterior, carga).get("Resultado"));
+
+            Future<Long> escritor = executor.submit(() -> {
+                listo.countDown();
+                iniciar.await(5, TimeUnit.SECONDS);
+                try (Connection otra = conectar(CALE); Statement s = otra.createStatement()) {
+                    s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Tipo_operacion, Documento, Fecha, Cve_pedimento, Transfiere) "
+                            + "SELECT ISNULL(MAX(SalidaKey),0)+1, 'PEDIMENTO', 'F-EXT', GETDATE(), 'ABC', 'Externo' FROM dbo.SALIDAS");
+                    return 1L;
+                }
+            });
+            assertTrue(listo.await(5, TimeUnit.SECONDS));
+            iniciar.countDown();
+            assertThrows(TimeoutException.class, () -> escritor.get(2, TimeUnit.SECONDS),
+                    "El escritor de SALIDAS debe permanecer bloqueado por TABLOCKX/HOLDLOCK.");
+
+            exteriorSql.execute("COMMIT TRANSACTION");
+
+            assertNotNull(escritor.get(15, TimeUnit.SECONDS));
+            assertEquals(2, contar(CALE, "dbo.SALIDAS"));
+            assertEquals(1, Integer.parseInt(valor(CALE,
+                    "SELECT COUNT(*) FROM dbo.SALIDAS WHERE Documento = 'F-EXT'")));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void escritorPsalidasConcurrenteEspera() throws Exception {
+        long carga = crearCarga();
+        agregarFila(carga, renglon("F-320", "2026-10-05", "SUBMAQ Uno", "P001", "1", 1));
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CountDownLatch listo = new CountDownLatch(1);
+        CountDownLatch iniciar = new CountDownLatch(1);
+
+        try (Connection exterior = conectar(CALE); Statement exteriorSql = exterior.createStatement()) {
+            exteriorSql.execute("BEGIN TRANSACTION");
+            assertEquals("CONFIRMED", confirmar(exterior, carga).get("Resultado"));
+
+            Future<Long> escritor = executor.submit(() -> {
+                listo.countDown();
+                iniciar.await(5, TimeUnit.SECONDS);
+                try (Connection otra = conectar(CALE); Statement s = otra.createStatement()) {
+                    s.execute("INSERT INTO dbo.PSALIDAS (Psalidakey, Clave, partida) "
+                            + "SELECT ISNULL(MAX(Psalidakey),0)+1, 'EXT', 1 FROM dbo.PSALIDAS");
+                    return 1L;
+                }
+            });
+            assertTrue(listo.await(5, TimeUnit.SECONDS));
+            iniciar.countDown();
+            assertThrows(TimeoutException.class, () -> escritor.get(2, TimeUnit.SECONDS),
+                    "El escritor de PSALIDAS debe permanecer bloqueado por TABLOCKX/HOLDLOCK.");
+
+            exteriorSql.execute("COMMIT TRANSACTION");
+
+            assertNotNull(escritor.get(15, TimeUnit.SECONDS));
+            assertEquals(2, contar(CALE, "dbo.PSALIDAS"));
+            assertEquals(1, Integer.parseInt(valor(CALE,
+                    "SELECT COUNT(*) FROM dbo.PSALIDAS WHERE Clave = 'EXT'")));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void clavesMaxMasUnoContinuasSinReusoNiColision() throws Exception {
+        // Claves preexistentes que el legacy debe respetar al calcular MAX()+1.
+        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
+            s.execute("INSERT INTO dbo.SALIDAS (SalidaKey, Tipo_operacion, Documento, Fecha, Cve_pedimento, Transfiere) "
+                    + "VALUES (100, 'PEDIMENTO', 'PRE-100', GETDATE(), 'ABC', 'Previo')");
+            s.execute("INSERT INTO dbo.PSALIDAS (Psalidakey, Clave, partida) VALUES (500, 'PREVIA', 1)");
+        }
+        long carga = crearCarga();
+        agregarFila(carga, renglon("F-910", "2026-10-05", "SUBMAQ Uno", "P001", "1", 1), 2);
+        agregarFila(carga, renglon("F-911", "2026-10-05", "SUBMAQ Uno", "P001", "1", 1), 3);
+
+        assertEquals("CONFIRMED", confirmar(carga).get("Resultado"));
+
+        // Dos salidas nuevas numeradas en secuencia desde MAX previo + 1 => 101 y 102.
+        assertEquals(3, contar(CALE, "dbo.SALIDAS"));
+        assertEquals("101", valor(CALE, "SELECT MIN(SalidaKey) FROM dbo.SALIDAS WHERE SalidaKey > 100"));
+        assertEquals("102", valor(CALE, "SELECT MAX(SalidaKey) FROM dbo.SALIDAS"));
+        // Dos partidas nuevas desde MAX previo + 1 => 501 y 502.
+        assertEquals("501", valor(CALE, "SELECT MIN(Psalidakey) FROM dbo.PSALIDAS WHERE Psalidakey > 500"));
+        assertEquals("502", valor(CALE, "SELECT MAX(Psalidakey) FROM dbo.PSALIDAS"));
+        // Sin reuso ni colisión: las claves son únicas.
+        assertEquals(3, Integer.parseInt(valor(CALE, "SELECT COUNT(DISTINCT SalidaKey) FROM dbo.SALIDAS")));
+        assertEquals(3, Integer.parseInt(valor(CALE, "SELECT COUNT(DISTINCT Psalidakey) FROM dbo.PSALIDAS")));
         transaccionLimpia();
     }
 

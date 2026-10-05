@@ -26,6 +26,11 @@ GO
 --   * Sin NOLOCK, sin TRY/CATCH, sin transacción propia, sin resultado de negocio.
 --   * dbo.TMPSUBMAQUILA no es compartida: se aísla con TABLOCKX+HOLDLOCK y
 --     fail-closed para cursorizar inserciones o ejecuciones no coordinadas.
+--   * dbo.SALIDAS y dbo.PSALIDAS se aíslan con TABLOCKX+HOLDLOCK porque el legacy
+--     asigna claves por MAX(SALIDAKEY)+1 y MAX(PSALIDAKEY)+1: sin ese lock, otro
+--     writer concurrente (p. ej. CARGA_FACTURAS, CARGAACTAS, CARGACONSTANCIAS,
+--     CARGAPEDIMENTOS o APP24_C_PEDIMENTO_CONFIRMAR) podría calcular el mismo MAX
+--     y provocar colisión de clave primaria o reutilización de clave.
 --   * Restricciones físicas auditadas de dbo.TMPSUBMAQUILA (compat level 100):
 --     TMPSKEY BIGINT IDENTITY PK, FOLIO VARCHAR(50), FECHA DATE,
 --     SUBMAQUILADOR VARCHAR(50), CLAVE VARCHAR(50), CANTIDAD NUMERIC(18,4),
@@ -51,6 +56,8 @@ BEGIN
             @CorrelacionId VARCHAR(40),
             @ConfirmadaEn DATETIME2(3),
             @Bloqueo BIGINT,
+            @BloqueoSalida NUMERIC(18,0),
+            @BloqueoPsalida NUMERIC(18,0),
             @TotalFilas INT,
             @DetalleBitacora VARCHAR(500),
             @EventoId BIGINT;
@@ -64,6 +71,18 @@ BEGIN
 
         IF EXISTS (SELECT 1 FROM dbo.TMPSUBMAQUILA)
            THROW 51502, 'LEGACY_STAGE_BUSY', 1;
+
+        -- Orden determinista de locks dentro de la MISMA transacción:
+        --   1. dbo.TMPSUBMAQUILA  (stage del contrato submaquila)
+        --   2. dbo.SALIDAS        (clave por MAX(SalidaKey)+1)
+        --   3. dbo.PSALIDAS       (clave por MAX(PsalidaKey)+1)
+        -- El orden relativo SALIDAS -> PSALIDAS coincide con el orden global
+        -- IMPORTACIONES -> PARTIDAS -> SALIDAS -> PSALIDAS -> DIRIGIDO de
+        -- dbo.APP24_C_PEDIMENTO_CONFIRMAR, de modo que dos wrappers nunca toman
+        -- estas tablas en orden inverso. La asignación TOP (1) evita devolver
+        -- result sets intermedios y garantiza el lock real de tabla del motor.
+        SELECT TOP (1) @BloqueoSalida = SalidaKey FROM dbo.SALIDAS WITH (TABLOCKX, HOLDLOCK);
+        SELECT TOP (1) @BloqueoPsalida = Psalidakey FROM dbo.PSALIDAS WITH (TABLOCKX, HOLDLOCK);
 
         SELECT @Estado = estado,
                @UsuarioId = usuario_id,
@@ -146,6 +165,32 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+
+        -- Trazabilidad del intento fallido (p. ej. SALIDALINK ambiguo). Se ejecuta
+        -- sólo si ya se conocen usuario y correlación (si el fallo ocurre antes de
+        -- leerlos, no se inventan). Nunca oculta el error original: el registro de
+        -- bitácora va en su propio TRY/CATCH y se relanza con THROW vacío.
+        DECLARE @DetalleFallo VARCHAR(500) = CONCAT('cargaId=', @CargaId, ';fase=LEGACY_CONFIRMATION');
+        DECLARE @EventoFallo BIGINT = NULL;
+        IF @UsuarioId IS NOT NULL AND @CorrelacionId IS NOT NULL
+        BEGIN
+            BEGIN TRY
+                EXEC ANEXO24_DEV.app24.APP24_C_BITACORA_REGISTRAR
+                    @UsuarioId = @UsuarioId,
+                    @Modulo = 'OPERACIONES_SUBMAQUILA',
+                    @Accion = 'SUBMAQUILA_CARGA_CONFIRMACION_ERROR',
+                    @Detalle = @DetalleFallo,
+                    @CorrelacionId = @CorrelacionId,
+                    @Resultado = 'FALLO',
+                    @EventoId = @EventoFallo OUTPUT;
+            END TRY
+            BEGIN CATCH
+                SET @EventoFallo = NULL;
+            END CATCH;
+        END;
+        -- Terminador explícito: la sentencia previa a THROW debe cerrar con ';'.
+        SET @DetalleFallo = @DetalleFallo;
+
         THROW;
     END CATCH;
 END;
