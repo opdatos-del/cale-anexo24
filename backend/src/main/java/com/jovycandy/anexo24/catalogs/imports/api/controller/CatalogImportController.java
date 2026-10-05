@@ -78,6 +78,14 @@ public class CatalogImportController {
         return cargar(CatalogImportType.PROVEEDOR, file, principal, request);
     }
 
+    @PostMapping(value = "/agentes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('AGENTES_CARGAR')")
+    public ResponseEntity<CatalogImportResponse> agentes(@RequestPart("archivo") MultipartFile file,
+                                                          @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+                                                          HttpServletRequest request) {
+        return cargar(CatalogImportType.AGENTE, file, principal, request);
+    }
+
     @GetMapping("/materiales/{id}")
     @PreAuthorize("hasAuthority('MATERIALES_CARGAR')")
     public ResponseEntity<CatalogImportResponse> obtenerMaterial(@PathVariable long id,
@@ -110,6 +118,14 @@ public class CatalogImportController {
         return obtener(CatalogImportType.PROVEEDOR, id, pagina, tamano);
     }
 
+    @GetMapping("/agentes/{id}")
+    @PreAuthorize("hasAuthority('AGENTES_CARGAR')")
+    public ResponseEntity<CatalogImportResponse> obtenerAgente(@PathVariable long id,
+                                                                 @RequestParam(defaultValue = "1") int pagina,
+                                                                 @RequestParam(defaultValue = "100") int tamano) {
+        return obtener(CatalogImportType.AGENTE, id, pagina, tamano);
+    }
+
     @GetMapping("/materiales/{id}/errores")
     @PreAuthorize("hasAuthority('MATERIALES_CARGAR')")
     public ResponseEntity<List<CatalogImportResponse.Error>> erroresMaterial(@PathVariable long id,
@@ -140,6 +156,14 @@ public class CatalogImportController {
                                                                                @RequestParam(defaultValue = "1") int pagina,
                                                                                @RequestParam(defaultValue = "100") int tamano) {
         return errores(CatalogImportType.PROVEEDOR, id, pagina, tamano);
+    }
+
+    @GetMapping("/agentes/{id}/errores")
+    @PreAuthorize("hasAuthority('AGENTES_CARGAR')")
+    public ResponseEntity<List<CatalogImportResponse.Error>> erroresAgente(@PathVariable long id,
+                                                                            @RequestParam(defaultValue = "1") int pagina,
+                                                                            @RequestParam(defaultValue = "100") int tamano) {
+        return errores(CatalogImportType.AGENTE, id, pagina, tamano);
     }
 
     private ResponseEntity<CatalogImportResponse> cargar(CatalogImportType type, MultipartFile file,

@@ -5,5 +5,6 @@ public enum CatalogImportType {
     MATERIAL,
     PRODUCTO,
     CLIENTE,
-    PROVEEDOR
+    PROVEEDOR,
+    AGENTE
 }

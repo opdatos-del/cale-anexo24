@@ -98,4 +98,31 @@ describe('CatalogImportApiService', () => {
     request.flush({ cargaId: 17, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-03T12:00:00' });
     http.verify();
   });
+
+  it('sube agentes aduanales al endpoint de agentes', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+    const file = new File(['xlsx'], 'agentes.xlsx');
+
+    service.upload('AGENTE', file).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/agentes');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.get('archivo')).toBe(file);
+    request.flush({});
+    http.verify();
+  });
+
+  it('confirma una carga de agentes aduanales en el endpoint específico', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.confirmAgent(19).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/agentes/19/confirmacion');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({ cargaId: 19, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-05T12:00:00' });
+    http.verify();
+  });
 });

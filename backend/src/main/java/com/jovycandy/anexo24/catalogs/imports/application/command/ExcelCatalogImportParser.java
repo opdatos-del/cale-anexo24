@@ -55,8 +55,19 @@ public class ExcelCatalogImportParser {
             "Entidad", "Pais", "Telefono", "Correo", "Fax",
             "ApellidoPaterno", "ApellidoMaterno", "Calle", "CalleNumeroInterior",
             "Localidad", "Referencia", "Municipio", "TipoIdentificador", "CodigoPostal");
+    // Mismas columnas que el stage TMPagentes auditado en CALE_IMMEX LIVE 2026-10-05.
+    private static final List<String> AGENT_COLUMNS = List.of(
+            "Clave", "Nombre", "Domicilio", "Rfc", "Patente");
     private static final int CLIENT_KEY_MAX_LENGTH = 15;
     private static final int PROVIDER_KEY_MAX_LENGTH = 15;
+    // Restricciones físicas auditadas de dbo.TMPagentes y dbo.agentes (ambos CHAR):
+    //   Clave CHAR(10) NOT NULL, Nombre CHAR(40), Domicilio CHAR(60),
+    //   Rfc CHAR(20), Patente CHAR(10). Sin ensanchamiento stage -> destino.
+    private static final int AGENT_KEY_MAX_LENGTH = 10;
+    private static final int AGENT_NOMBRE_MAX_LENGTH = 40;
+    private static final int AGENT_DOMICILIO_MAX_LENGTH = 60;
+    private static final int AGENT_RFC_MAX_LENGTH = 20;
+    private static final int AGENT_PATENTE_LENGTH = 4;
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -175,6 +186,17 @@ public class ExcelCatalogImportParser {
                 validateLength(values, "Clave", 3, sheet, row, errors, "CLAVE_PROVEEDOR_CORTA");
                 validateLengthIfPresent(values, "IdFiscal", 1, sheet, row, errors, "ID_FISCAL_VACIO");
             }
+            case AGENTE -> {
+                // Agentes: TMPagentes.Clave/agentes.Clave = CHAR(10). LEFT(Clave,10) evita el error de
+                // truncado del INSERT legacy; la validación reproduce el mismo límite en el parser.
+                validateMaxLength(values, "Clave", AGENT_KEY_MAX_LENGTH, sheet, row, errors, "CLAVE_AGENTE_LARGA");
+                validateLengthIfPresent(values, "Clave", 1, sheet, row, errors, "CLAVE_AGENTE_VACIA");
+                validateMaxLength(values, "Nombre", AGENT_NOMBRE_MAX_LENGTH, sheet, row, errors, "NOMBRE_AGENTE_LARGO");
+                validateMaxLength(values, "Domicilio", AGENT_DOMICILIO_MAX_LENGTH, sheet, row, errors, "DOMICILIO_AGENTE_LARGO");
+                validateMaxLength(values, "Rfc", AGENT_RFC_MAX_LENGTH, sheet, row, errors, "RFC_AGENTE_LARGO");
+                // El legacy exige LEN(Patente) = 4; se adelanta para no generar CON_ERRORES.
+                validateExactLength(values, "Patente", AGENT_PATENTE_LENGTH, sheet, row, errors, "PATENTE_AGENTE_INVALIDA");
+            }
         }
     }
 
@@ -227,6 +249,7 @@ public class ExcelCatalogImportParser {
                 case PRODUCTO -> PRODUCT_COLUMNS;
                 case CLIENTE -> CLIENT_COLUMNS;
                 case PROVEEDOR -> PROVIDER_COLUMNS;
+            case AGENTE -> AGENT_COLUMNS;
             };
         }
 
@@ -236,6 +259,7 @@ public class ExcelCatalogImportParser {
             case PRODUCTO -> List.of("CVE_PRODUCTO", "NOMBRE", "UNIDAD", "fraccion");
             case CLIENTE -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
             case PROVEEDOR -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
+            case AGENTE -> List.of("Clave", "Nombre", "Patente");
         };
     }
 
@@ -245,6 +269,7 @@ public class ExcelCatalogImportParser {
             case PRODUCTO -> "CVE_PRODUCTO";
             case CLIENTE -> "Clave";
             case PROVEEDOR -> "Clave";
+            case AGENTE -> "Clave";
         };
     }
 

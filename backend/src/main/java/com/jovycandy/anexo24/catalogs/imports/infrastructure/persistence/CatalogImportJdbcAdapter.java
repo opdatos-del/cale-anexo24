@@ -138,6 +138,7 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
             case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_POR_HASH";
             case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_POR_HASH";
             case PROVEEDOR -> "app24.APP24_Q_CATALOGO_PROVEEDOR_CARGA_POR_HASH";
+            case AGENTE -> "app24.APP24_Q_CATALOGO_AGENTE_CARGA_POR_HASH";
         };
     }
 
@@ -147,6 +148,7 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
             case PRODUCTO -> "app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR";
             case CLIENTE -> "app24.APP24_C_CATALOGO_CLIENTE_CARGA_CREAR";
             case PROVEEDOR -> "app24.APP24_C_CATALOGO_PROVEEDOR_CARGA_CREAR";
+            case AGENTE -> "app24.APP24_C_CATALOGO_AGENTE_CARGA_CREAR";
         };
     }
 
@@ -156,6 +158,7 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
             case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_OBTENER";
             case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_OBTENER";
             case PROVEEDOR -> "app24.APP24_Q_CATALOGO_PROVEEDOR_CARGA_OBTENER";
+            case AGENTE -> "app24.APP24_Q_CATALOGO_AGENTE_CARGA_OBTENER";
         };
     }
 
@@ -165,6 +168,7 @@ public class CatalogImportJdbcAdapter implements CatalogImportRepository {
             case PRODUCTO -> "app24.APP24_Q_CATALOGO_PRODUCTO_CARGA_ERRORES";
             case CLIENTE -> "app24.APP24_Q_CATALOGO_CLIENTE_CARGA_ERRORES";
             case PROVEEDOR -> "app24.APP24_Q_CATALOGO_PROVEEDOR_CARGA_ERRORES";
+            case AGENTE -> "app24.APP24_Q_CATALOGO_AGENTE_CARGA_ERRORES";
         };
     }
 

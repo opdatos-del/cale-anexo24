@@ -8,8 +8,9 @@ import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/
 import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
 import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-client-import.use-case';
 import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
+import { ConfirmCatalogAgentImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-agent-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
-import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { CatalogImportPage } from './catalog-import.page';
 
 const RESPONSE_MATERIAL: CatalogImportResponse = {
@@ -90,6 +91,24 @@ const CONFIRMATION_PROVEEDOR: CatalogProviderImportConfirmation = {
   confirmadaEn: '2026-10-03T12:00:00',
 };
 
+const RESPONSE_AGENTE: CatalogImportResponse = {
+  ...RESPONSE_MATERIAL,
+  id: 15,
+  tipo: 'AGENTE',
+  archivo: 'agentes.xlsx',
+  columnas: ['Clave', 'Nombre', 'Domicilio', 'Rfc', 'Patente'],
+  filas: [{ Clave: 'AGE-001', Nombre: 'Agente Uno', Domicilio: 'Calle 1', Rfc: 'AAA010101', Patente: '1234' }],
+};
+
+const CONFIRMATION_AGENTE: CatalogAgentImportConfirmation = {
+  cargaId: 15,
+  estado: 'CONFIRMADA',
+  totalFilas: 1,
+  filasValidas: 1,
+  filasConError: 0,
+  confirmadaEn: '2026-10-05T12:00:00',
+};
+
 interface PageHarness {
   result: { set(value: CatalogImportResponse): void; (): CatalogImportResponse | null };
   isConfirming: () => boolean;
@@ -103,6 +122,7 @@ function configure(options: {
   confirmProduct?: ReturnType<typeof vi.fn>;
   confirmClient?: ReturnType<typeof vi.fn>;
   confirmProvider?: ReturnType<typeof vi.fn>;
+  confirmAgent?: ReturnType<typeof vi.fn>;
   dialogResult?: boolean;
 } = {}) {
   const permissions = options.permissions ?? ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR'];
@@ -111,6 +131,7 @@ function configure(options: {
   const confirmProduct = options.confirmProduct ?? vi.fn(() => of(CONFIRMATION_PRODUCTO));
   const confirmClient = options.confirmClient ?? vi.fn(() => of(CONFIRMATION_CLIENTE));
   const confirmProvider = options.confirmProvider ?? vi.fn(() => of(CONFIRMATION_PROVEEDOR));
+  const confirmAgent = options.confirmAgent ?? vi.fn(() => of(CONFIRMATION_AGENTE));
   const dialog = { ask: vi.fn(() => of(options.dialogResult ?? true)) };
   const notifications = { error: vi.fn(), success: vi.fn() };
   TestBed.configureTestingModule({
@@ -121,6 +142,7 @@ function configure(options: {
       { provide: ConfirmCatalogProductImportUseCase, useValue: { execute: confirmProduct } },
       { provide: ConfirmCatalogClientImportUseCase, useValue: { execute: confirmClient } },
       { provide: ConfirmCatalogProviderImportUseCase, useValue: { execute: confirmProvider } },
+      { provide: ConfirmCatalogAgentImportUseCase, useValue: { execute: confirmAgent } },
       { provide: ConfirmService, useValue: dialog },
       { provide: NotificationService, useValue: notifications },
       { provide: AuthService, useValue: { hasPermission: (permission: string) => permissions.includes(permission) } },
@@ -136,6 +158,7 @@ function configure(options: {
     confirmProduct,
     confirmClient,
     confirmProvider,
+    confirmAgent,
     dialog,
     notifications,
   };
@@ -285,6 +308,45 @@ describe('CatalogImportPage', () => {
     expect(harness.result()?.estado).toBe('PREVISUALIZADA');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('La carga ya no es confirmable');
     expect(notifications.error).toHaveBeenCalledWith('No fue posible confirmar la importación de proveedores.');
+  });
+
+  it('confirma agentes aduanales invocando el caso de uso de agentes', () => {
+    const { fixture, harness, confirmAgent, notifications } = configure({ permissions: ['AGENTES_CARGAR', 'AGENTES_CONFIRMAR'] });
+    harness.result.set(RESPONSE_AGENTE);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(confirmAgent).toHaveBeenCalledWith(15);
+    expect(harness.result()?.estado).toBe('CONFIRMADA');
+    expect(notifications.success).toHaveBeenCalledWith('Importación de agentes aduanales confirmada correctamente.');
+  });
+
+  it('muestra un error recuperable si falla la confirmación de agentes aduanales', () => {
+    const { fixture, harness, notifications } = configure({
+      permissions: ['AGENTES_CARGAR', 'AGENTES_CONFIRMAR'],
+      confirmAgent: vi.fn(() => throwError(() => ({ error: { message: 'La carga ya no es confirmable' } }))),
+    });
+    harness.result.set(RESPONSE_AGENTE);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(harness.result()?.estado).toBe('PREVISUALIZADA');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('La carga ya no es confirmable');
+    expect(notifications.error).toHaveBeenCalledWith('No fue posible confirmar la importación de agentes aduanales.');
+  });
+
+  it('muestra la pestaña de agentes aduanales con permiso de carga', () => {
+    const { fixture } = configure({ permissions: ['AGENTES_CARGAR'] });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Agentes aduanales');
+  });
+
+  it('oculta la pestaña de agentes aduanales sin permiso de carga', () => {
+    const { fixture } = configure({ permissions: ['MATERIALES_CARGAR'] });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Agentes aduanales');
   });
 
   it('muestra carga mientras confirma materiales y evita solicitudes duplicadas', () => {
