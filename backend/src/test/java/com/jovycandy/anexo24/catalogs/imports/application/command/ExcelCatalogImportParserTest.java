@@ -4,11 +4,14 @@ import com.jovycandy.anexo24.catalogs.imports.domain.model.CatalogImportArchivo;
 import com.jovycandy.anexo24.catalogs.imports.domain.model.CatalogImportType;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -359,17 +362,33 @@ class ExcelCatalogImportParserTest {
     }
 
     @Test
-    void rechazaCantidadNoPositivaOConMasDe4Decimales() throws Exception {
+    void rechazaCantidadNoRepresentableComoNumeric18y4() throws Exception {
         CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
                 workbook(false, SUBMAQUILA_HEADERS,
-                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "0", "PIEZ", "Cero", "1"),
-                        List.of("F-002", "2026-10-05", "SUBMAQ Uno", "P001", "1.23456", "PIEZ", "Exceso", "1"),
-                        List.of("F-003", "2026-10-05", "SUBMAQ Uno", "P001", "-2", "PIEZ", "Negativa", "1")));
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1.23456", "PIEZ", "Exceso", "1"),
+                        List.of("F-003", "2026-10-05", "SUBMAQ Uno", "P001", "100000000000000", "PIEZ", "Excede enteros", "1")));
 
         assertThat(result.errores()).extracting(error -> error.codigo())
                 .containsOnly("CANTIDAD_SUBMAQUILA_INVALIDA");
         assertThat(result.errores()).extracting(error -> error.mensaje())
-                .containsOnly("La cantidad debe ser un decimal positivo con máximo 4 decimales.");
+                .containsOnly("La cantidad debe ser un decimal representable como NUMERIC(18,4) "
+                        + "(máximo 14 dígitos enteros y 4 decimales).");
+    }
+
+    /**
+     * Sin evidencia de layout que imponga positividad, la cantidad sólo se valida por su
+     * representabilidad física: cero y valores negativos son válidos.
+     */
+    @Test
+    void aceptaCantidadCeroYNegativaSinEvidenciaDePositividad() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "0", "PIEZ", "Cero", "1"),
+                        List.of("F-002", "2026-10-05", "SUBMAQ Uno", "P001", "-2", "PIEZ", "Negativa", "2"),
+                        List.of("F-003", "2026-10-05", "SUBMAQ Uno", "P001", "99999999999999.9999", "PIEZ", "Limite", "3")));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.filasValidas()).isEqualTo(3);
     }
 
     @Test
@@ -384,12 +403,36 @@ class ExcelCatalogImportParserTest {
     }
 
     @Test
-    void rechazaLineaNoPositiva() throws Exception {
+    void rechazaLineaFueraDelRangoInt() throws Exception {
         CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
                 workbook(false, SUBMAQUILA_HEADERS,
-                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "0")));
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "2147483648")));
 
         assertThat(result.errores()).extracting(error -> error.codigo()).contains("LINEA_SUBMAQUILA_INVALIDA");
+    }
+
+    /**
+     * Sin evidencia de layout que imponga LINEA >= 1, sólo se valida que sea un INT
+     * representable: cero y negativos son aceptados.
+     */
+    @Test
+    void aceptaLineaCeroYNegativaSinEvidenciaDePositividad() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Cero", "0"),
+                        List.of("F-002", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Negativa", "-3")));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.filasValidas()).isEqualTo(2);
+    }
+
+    @Test
+    void aceptaFechaComoCeldaDeExcelNormalizadaAIso() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbookConFechaDateCell("2026-10-05"));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.filas().getFirst().datos()).containsEntry("Fecha", "2026-10-05");
     }
 
     private List<String> filaSubmaquilaValida() {
@@ -406,6 +449,31 @@ class ExcelCatalogImportParserTest {
                 var row = sheet.createRow(rowIndex + 1);
                 for (int column = 0; column < rows[rowIndex].size(); column++)
                     row.createCell(column).setCellValue(rows[rowIndex].get(column));
+            }
+            workbook.write(output);
+            return output.toByteArray();
+        }
+    }
+
+    /** Genera un libro con la columna Fecha como celda de fecha nativa de Excel. */
+    private byte[] workbookConFechaDateCell(String fechaIso) throws IOException {
+        List<String> fila = List.of("F-010", fechaIso, "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "1");
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            var sheet = workbook.createSheet("CATALOGO");
+            var header = sheet.createRow(0);
+            for (int i = 0; i < SUBMAQUILA_HEADERS.size(); i++)
+                header.createCell(i).setCellValue(SUBMAQUILA_HEADERS.get(i));
+            var row = sheet.createRow(1);
+            CellStyle estilo = workbook.createCellStyle();
+            estilo.setDataFormat(workbook.createDataFormat().getFormat("yyyy-mm-dd"));
+            for (int column = 0; column < fila.size(); column++) {
+                Cell cell = row.createCell(column);
+                if (column == 1) {
+                    cell.setCellValue(LocalDate.parse(fechaIso));
+                    cell.setCellStyle(estilo);
+                } else {
+                    cell.setCellValue(fila.get(column));
+                }
             }
             workbook.write(output);
             return output.toByteArray();

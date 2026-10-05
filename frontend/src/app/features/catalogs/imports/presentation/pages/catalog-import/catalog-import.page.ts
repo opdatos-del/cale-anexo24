@@ -115,7 +115,7 @@ export class CatalogImportPage {
   protected readonly confirmationAdvertencia = computed(() => {
     const current = this.result();
     if (current?.tipo === 'SUBMAQUILA') {
-      return 'La confirmación crea las salidas y partidas de cada renglón y es irreversible: el sistema no deduplica, por lo que confirmar dos veces la misma carga generaría salidas duplicadas.';
+      return 'La confirmación crea salidas y partidas en el sistema Anexo 24. Una carga confirmada no puede confirmarse nuevamente desde esta aplicación. Verifica la información antes de continuar.';
     }
     if (current?.tipo === 'PRODUCTO' || current?.tipo === 'CLIENTE' || current?.tipo === 'PROVEEDOR' || current?.tipo === 'AGENTE') {
       return 'La confirmación incorpora únicamente los registros válidos nuevos; los existentes con la misma clave se mantienen sin cambios.';

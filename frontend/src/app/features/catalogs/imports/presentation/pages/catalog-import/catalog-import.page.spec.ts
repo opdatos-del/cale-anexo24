@@ -384,14 +384,15 @@ describe('CatalogImportPage', () => {
     expect(notifications.success).toHaveBeenCalledWith('Importación de constancias de transferencia confirmada correctamente.');
   });
 
-  it('advierte que la confirmación de constancias de transferencia es irreversible', () => {
+  it('advierte el alcance de la confirmación de constancias de transferencia', () => {
     const { fixture, harness } = configure({ permissions: ['SUBMAQUILA_CARGAR', 'SUBMAQUILA_CONFIRMAR'] });
     harness.result.set(RESPONSE_SUBMAQUILA);
     fixture.detectChanges();
 
     const advertencia = fixture.nativeElement.querySelector('[aria-label="Confirmación de importación"]');
-    expect(advertencia?.textContent).toContain('no deduplica');
-    expect(advertencia?.textContent).toContain('duplicadas');
+    expect(advertencia?.textContent).toContain('crea salidas y partidas en el sistema Anexo 24');
+    expect(advertencia?.textContent).toContain('no puede confirmarse nuevamente desde esta aplicación');
+    expect(advertencia?.textContent).toContain('Verifica la información antes de continuar');
   });
 
   it('muestra un error recuperable si falla la confirmación de constancias de transferencia', () => {

@@ -8,6 +8,7 @@ import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -89,7 +90,11 @@ public class ExcelCatalogImportParser {
     private static final int SUBMAQUILA_CLAVE_MAX_LENGTH = 50;
     private static final int SUBMAQUILA_UNIDAD_MAX_LENGTH = 5;
     private static final int SUBMAQUILA_DESCRIPCION_MAX_LENGTH = 250;
-    private static final int SUBMAQUILA_LINEA_MIN = 1;
+    // dbo.TMPSUBMAQUILA.CANTIDAD es NUMERIC(18,4): 14 dígitos enteros + 4 decimales.
+    // No hay evidencia de layout ni de validación en dbo.CARGA_SUBMAQUILA que imponga
+    // positividad, por lo que sólo se valida la representabilidad física del tipo.
+    private static final int SUBMAQUILA_CANTIDAD_ENTEROS_MAX = 14;
+    private static final int SUBMAQUILA_CANTIDAD_DECIMALES_MAX = 4;
     /**
      * El mapa canónico trunca a 150 caracteres por defensa. DESCRIPCION admite 250 en el
      * destino, así que su tope canónico queda por encima del límite físico: de lo contrario
@@ -98,7 +103,8 @@ public class ExcelCatalogImportParser {
      */
     private static final int LIMITE_CANONICO_DESCRIPCION = SUBMAQUILA_DESCRIPCION_MAX_LENGTH + 150;
     private static final String MENSAJE_CANTIDAD_INVALIDA =
-            "La cantidad debe ser un decimal positivo con máximo 4 decimales.";
+            "La cantidad debe ser un decimal representable como NUMERIC(18,4) "
+                    + "(máximo 14 dígitos enteros y 4 decimales).";
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -161,6 +167,12 @@ public class ExcelCatalogImportParser {
                     Cell cell = index == null || row == null ? null : row.getCell(index);
                     String value = cell == null ? "" : formatter.formatCellValue(cell).trim();
                     String canonical = canonical(column, value);
+                    // El contrato legacy alimenta FECHA DATE: si el archivo trae una celda
+                    // de fecha nativa de Excel, se normaliza a ISO-8601 para que el stage la
+                    // reciba sin depender del formato de despliegue ni del locale.
+                    if (type == CatalogImportType.SUBMAQUILA && "Fecha".equals(column) && esCeldaFecha(cell))
+                        canonical = cell.getLocalDateTimeCellValue().toLocalDate()
+                                .format(DateTimeFormatter.ISO_LOCAL_DATE);
                     values.put(column, canonical);
                     blank &= canonical.isBlank();
                     if (cell != null && cell.getCellType() == CellType.FORMULA)
@@ -236,10 +248,10 @@ public class ExcelCatalogImportParser {
                 validateMaxLength(values, "Submaquilador", SUBMAQUILA_SUBMAQUILADOR_MAX_LENGTH, sheet, row, errors, "SUBMAQUILADOR_LARGO");
                 validateLength(values, "Clave", 1, sheet, row, errors, "CLAVE_SUBMAQUILA_VACIA");
                 validateMaxLength(values, "Clave", SUBMAQUILA_CLAVE_MAX_LENGTH, sheet, row, errors, "CLAVE_SUBMAQUILA_LARGA");
-                validateCantidadPositiva(values, "Cantidad", sheet, row, errors);
+                validateCantidadRepresentable(values, "Cantidad", sheet, row, errors);
                 validateMaxLength(values, "Unidad", SUBMAQUILA_UNIDAD_MAX_LENGTH, sheet, row, errors, "UNIDAD_SUBMAQUILA_LARGA");
                 validateMaxLength(values, "Descripcion", SUBMAQUILA_DESCRIPCION_MAX_LENGTH, sheet, row, errors, "DESCRIPCION_SUBMAQUILA_LARGA");
-                validateEnteroPositivo(values, "Linea", SUBMAQUILA_LINEA_MIN, sheet, row, errors);
+                validateEnteroInt(values, "Linea", sheet, row, errors);
                 validateFechaIso(values, "Fecha", sheet, row, errors);
             }
         }
@@ -257,30 +269,53 @@ public class ExcelCatalogImportParser {
         if (!value.isBlank() && value.length() < min) add(errors, error(sheet, row, key, code, "El valor informado no alcanza la longitud mínima auditada."));
     }
 
-    /** La cantidad alimenta un NUMERIC(18,4): exige decimal positivo y como máximo 4 decimales. */
-    private void validateCantidadPositiva(Map<String, String> values, String key, String sheet,
-                                          int row, List<CatalogImportError> errors) {
+    /**
+     * La cantidad alimenta un NUMERIC(18,4): sólo se exige que sea representable en ese
+     * tipo (máximo 14 dígitos enteros y 4 decimales). No se impone positividad porque no
+     * existe evidencia de layout ni validación legacy que la respalde.
+     */
+    private void validateCantidadRepresentable(Map<String, String> values, String key, String sheet,
+                                               int row, List<CatalogImportError> errors) {
         String value = values.getOrDefault(key, "");
         if (value.isBlank()) {
             add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_VACIA", MENSAJE_CANTIDAD_INVALIDA));
             return;
         }
-        if (!value.matches("[+]?(?:0|[1-9]\\d*)(?:\\.\\d{1,4})?") || new BigDecimal(value).signum() <= 0)
+        if (!value.matches("[+-]?\\d+(?:\\.\\d+)?")) {
             add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_INVALIDA", MENSAJE_CANTIDAD_INVALIDA));
-    }
-
-    /** LINEA alimenta una columna INT y dbo.CARGA_SUBMAQUILA la usa como PARTIDA: entero >= min. */
-    private void validateEnteroPositivo(Map<String, String> values, String key, int min, String sheet,
-                                        int row, List<CatalogImportError> errors) {
-        String value = values.getOrDefault(key, "");
-        if (value.isBlank() || !value.matches("[0-9]{1,9}")) {
-            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA",
-                    "La línea debe ser un número entero mayor o igual a " + min + "."));
             return;
         }
-        if (Integer.parseInt(value) < min)
-            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA",
-                    "La línea debe ser un número entero mayor o igual a " + min + "."));
+        try {
+            BigDecimal cantidad = new BigDecimal(value);
+            int decimales = Math.max(0, cantidad.scale());
+            int enteros = cantidad.precision() - decimales;
+            if (decimales > SUBMAQUILA_CANTIDAD_DECIMALES_MAX || enteros > SUBMAQUILA_CANTIDAD_ENTEROS_MAX)
+                add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_INVALIDA", MENSAJE_CANTIDAD_INVALIDA));
+        } catch (NumberFormatException noRepresentable) {
+            add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_INVALIDA", MENSAJE_CANTIDAD_INVALIDA));
+        }
+    }
+
+    /**
+     * LINEA alimenta una columna INT: se exige un entero representable en {@code INT} de
+     * SQL Server. No se impone positividad porque no existe evidencia de layout que la
+     * respalde; el legacy no la valida.
+     */
+    private void validateEnteroInt(Map<String, String> values, String key, String sheet,
+                                   int row, List<CatalogImportError> errors) {
+        String value = values.getOrDefault(key, "");
+        String mensaje = "La línea debe ser un entero representable como INT de SQL Server.";
+        if (value.isBlank() || !value.matches("[+-]?\\d+")) {
+            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA", mensaje));
+            return;
+        }
+        try {
+            long numero = Long.parseLong(value);
+            if (numero < Integer.MIN_VALUE || numero > Integer.MAX_VALUE)
+                add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA", mensaje));
+        } catch (NumberFormatException fueraDeRango) {
+            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA", mensaje));
+        }
     }
 
     /** La fecha alimenta una columna DATE: se exige ISO-8601 (yyyy-MM-dd) para no depender de locale. */
@@ -307,6 +342,10 @@ public class ExcelCatalogImportParser {
                                    List<CatalogImportError> errors, String code) {
         if (values.getOrDefault(key, "").length() > max)
             add(errors, error(sheet, row, key, code, "El valor supera la longitud máxima física del destino (" + max + ")."));
+    }
+
+    private static boolean esCeldaFecha(Cell cell) {
+        return cell != null && cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell);
     }
 
     private String canonical(String column, String value) {
