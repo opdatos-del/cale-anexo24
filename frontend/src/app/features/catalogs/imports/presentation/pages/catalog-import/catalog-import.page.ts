@@ -2,12 +2,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation, CatalogSubmaquilaImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-material-import.use-case';
 import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
 import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-client-import.use-case';
 import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
 import { ConfirmCatalogAgentImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-agent-import.use-case';
+import { ConfirmCatalogSubmaquilaImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-submaquila-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
@@ -20,7 +21,7 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
     <main class="min-h-full bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
       <header class="mx-auto mb-6 w-full max-w-7xl">
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Catálogos · staging V1</p>
-        <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Importar materiales, productos, clientes, proveedores y agentes aduanales</h1>
+        <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Importar materiales, productos, clientes, proveedores, agentes aduanales y constancias de transferencia</h1>
         <p class="mt-2 text-sm text-slate-500">Valida y previsualiza archivos. Las importaciones de catálogos con permiso de confirmar pueden aplicar las reglas vigentes del sistema Anexo 24.</p>
       </header>
 
@@ -31,6 +32,7 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
           @if (canUploadClient()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'CLIENTE'" [class.bg-blue-50]="type() === 'CLIENTE'" [attr.aria-selected]="type() === 'CLIENTE'" (click)="selectType('CLIENTE')">Clientes</button> }
           @if (canUploadProvider()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'PROVEEDOR'" [class.bg-blue-50]="type() === 'PROVEEDOR'" [attr.aria-selected]="type() === 'PROVEEDOR'" (click)="selectType('PROVEEDOR')">Proveedores</button> }
           @if (canUploadAgent()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'AGENTE'" [class.bg-blue-50]="type() === 'AGENTE'" [attr.aria-selected]="type() === 'AGENTE'" (click)="selectType('AGENTE')">Agentes aduanales</button> }
+          @if (canUploadSubmaquila()) { <button mat-stroked-button type="button" class="rounded-xl!" [class.border-blue-500]="type() === 'SUBMAQUILA'" [class.bg-blue-50]="type() === 'SUBMAQUILA'" [attr.aria-selected]="type() === 'SUBMAQUILA'" (click)="selectType('SUBMAQUILA')">Constancias de transferencia</button> }
         </div>
 
         <div class="flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -82,11 +84,13 @@ export class CatalogImportPage {
   protected readonly canUploadClient = computed(() => this.auth.hasPermission('CLIENTES_CARGAR'));
   protected readonly canUploadProvider = computed(() => this.auth.hasPermission('PROVEEDORES_CARGAR'));
   protected readonly canUploadAgent = computed(() => this.auth.hasPermission('AGENTES_CARGAR'));
+  protected readonly canUploadSubmaquila = computed(() => this.auth.hasPermission('SUBMAQUILA_CARGAR'));
   protected readonly canConfirmMaterial = computed(() => this.auth.hasPermission('MATERIALES_CONFIRMAR'));
   protected readonly canConfirmProduct = computed(() => this.auth.hasPermission('PRODUCTOS_CONFIRMAR'));
   protected readonly canConfirmClient = computed(() => this.auth.hasPermission('CLIENTES_CONFIRMAR'));
   protected readonly canConfirmProvider = computed(() => this.auth.hasPermission('PROVEEDORES_CONFIRMAR'));
   protected readonly canConfirmAgent = computed(() => this.auth.hasPermission('AGENTES_CONFIRMAR'));
+  protected readonly canConfirmSubmaquila = computed(() => this.auth.hasPermission('SUBMAQUILA_CONFIRMAR'));
   protected readonly type = signal<CatalogImportType>(this.resolveInitialType());
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly selectionError = signal<string | null>(null);
@@ -94,7 +98,7 @@ export class CatalogImportPage {
   protected readonly isConfirming = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly confirmationError = signal<string | null>(null);
-  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation | CatalogAgentImportConfirmation | null>(null);
+  protected readonly confirmation = signal<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation | CatalogAgentImportConfirmation | CatalogSubmaquilaImportConfirmation | null>(null);
   protected readonly result = signal<CatalogImportResponse | null>(null);
   protected readonly canConfirmCurrent = computed(() => {
     const current = this.result();
@@ -105,10 +109,14 @@ export class CatalogImportPage {
       case 'CLIENTE': return this.canConfirmClient();
       case 'PROVEEDOR': return this.canConfirmProvider();
       case 'AGENTE': return this.canConfirmAgent();
+      case 'SUBMAQUILA': return this.canConfirmSubmaquila();
     }
   });
   protected readonly confirmationAdvertencia = computed(() => {
     const current = this.result();
+    if (current?.tipo === 'SUBMAQUILA') {
+      return 'La confirmación crea las salidas y partidas de cada renglón y es irreversible: el sistema no deduplica, por lo que confirmar dos veces la misma carga generaría salidas duplicadas.';
+    }
     if (current?.tipo === 'PRODUCTO' || current?.tipo === 'CLIENTE' || current?.tipo === 'PROVEEDOR' || current?.tipo === 'AGENTE') {
       return 'La confirmación incorpora únicamente los registros válidos nuevos; los existentes con la misma clave se mantienen sin cambios.';
     }
@@ -120,6 +128,7 @@ export class CatalogImportPage {
   private readonly confirmClient = inject(ConfirmCatalogClientImportUseCase);
   private readonly confirmProvider = inject(ConfirmCatalogProviderImportUseCase);
   private readonly confirmAgent = inject(ConfirmCatalogAgentImportUseCase);
+  private readonly confirmSubmaquila = inject(ConfirmCatalogSubmaquilaImportUseCase);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -128,6 +137,7 @@ export class CatalogImportPage {
     if (this.auth.hasPermission('PRODUCTOS_CARGAR')) return 'PRODUCTO';
     if (this.auth.hasPermission('CLIENTES_CARGAR')) return 'CLIENTE';
     if (this.auth.hasPermission('AGENTES_CARGAR')) return 'AGENTE';
+    if (this.auth.hasPermission('SUBMAQUILA_CARGAR')) return 'SUBMAQUILA';
     return 'PROVEEDOR';
   }
 
@@ -192,6 +202,7 @@ export class CatalogImportPage {
       case 'CLIENTE': return 'clientes';
       case 'PROVEEDOR': return 'proveedores';
       case 'AGENTE': return 'agentes aduanales';
+      case 'SUBMAQUILA': return 'constancias de transferencia';
     }
   }
 
@@ -203,13 +214,14 @@ export class CatalogImportPage {
     return `No fue posible confirmar la importación de ${this.tituloTipo(tipo)}.`;
   }
 
-  private streamConfirmacion(tipo: CatalogImportType, cargaId: number): Observable<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation | CatalogAgentImportConfirmation> {
+  private streamConfirmacion(tipo: CatalogImportType, cargaId: number): Observable<CatalogMaterialImportConfirmation | CatalogProductImportConfirmation | CatalogClientImportConfirmation | CatalogProviderImportConfirmation | CatalogAgentImportConfirmation | CatalogSubmaquilaImportConfirmation> {
     switch (tipo) {
       case 'MATERIAL': return this.confirmMaterial.execute(cargaId);
       case 'PRODUCTO': return this.confirmProduct.execute(cargaId);
       case 'CLIENTE': return this.confirmClient.execute(cargaId);
       case 'PROVEEDOR': return this.confirmProvider.execute(cargaId);
       case 'AGENTE': return this.confirmAgent.execute(cargaId);
+      case 'SUBMAQUILA': return this.confirmSubmaquila.execute(cargaId);
     }
   }
 

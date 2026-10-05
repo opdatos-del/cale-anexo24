@@ -18,6 +18,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +61,11 @@ public class ExcelCatalogImportParser {
     // Mismas columnas que el stage TMPagentes auditado en CALE_IMMEX LIVE 2026-10-05.
     private static final List<String> AGENT_COLUMNS = List.of(
             "Clave", "Nombre", "Domicilio", "Rfc", "Patente");
+    // Mismas columnas que el stage dbo.TMPSUBMAQUILA auditado en CALE_IMMEX LIVE 2026-10-05.
+    // El SP legacy dbo.CARGA_SUBMAQUILA agrupa por FOLIO/FECHA/SUBMAQUILADOR y lee
+    // CLAVE, CANTIDAD, UNIDAD y DESCRIPCION renglón por renglón.
+    private static final List<String> SUBMAQUILA_COLUMNS = List.of(
+            "Folio", "Fecha", "Submaquilador", "Clave", "Cantidad", "Unidad", "Descripcion", "Linea");
     private static final int CLIENT_KEY_MAX_LENGTH = 15;
     private static final int PROVIDER_KEY_MAX_LENGTH = 15;
     // Restricciones físicas auditadas de dbo.TMPagentes y dbo.agentes (ambos CHAR):
@@ -72,6 +80,25 @@ public class ExcelCatalogImportParser {
             "La fracción debe tener exactamente 8 caracteres en el contrato legacy.";
     private static final String MENSAJE_PATENTE_INVALIDA =
             "La patente debe tener exactamente " + AGENT_PATENTE_LENGTH + " caracteres en el contrato legacy.";
+    // Restricciones físicas auditadas de dbo.TMPSUBMAQUILA (compat level 100):
+    //   FOLIO VARCHAR(50), FECHA DATE, SUBMAQUILADOR VARCHAR(50), CLAVE VARCHAR(50),
+    //   CANTIDAD NUMERIC(18,4), UNIDAD VARCHAR(5), DESCRIPCION VARCHAR(250),
+    //   LINEA INT.
+    private static final int SUBMAQUILA_FOLIO_MAX_LENGTH = 50;
+    private static final int SUBMAQUILA_SUBMAQUILADOR_MAX_LENGTH = 50;
+    private static final int SUBMAQUILA_CLAVE_MAX_LENGTH = 50;
+    private static final int SUBMAQUILA_UNIDAD_MAX_LENGTH = 5;
+    private static final int SUBMAQUILA_DESCRIPCION_MAX_LENGTH = 250;
+    private static final int SUBMAQUILA_LINEA_MIN = 1;
+    /**
+     * El mapa canónico trunca a 150 caracteres por defensa. DESCRIPCION admite 250 en el
+     * destino, así que su tope canónico queda por encima del límite físico: de lo contrario
+     * una descripción de 251 caracteres se truncaría en silencio en lugar de reportarse
+     * como error y el dato llegaría incompleto a dbo.TMPSUBMAQUILA.
+     */
+    private static final int LIMITE_CANONICO_DESCRIPCION = SUBMAQUILA_DESCRIPCION_MAX_LENGTH + 150;
+    private static final String MENSAJE_CANTIDAD_INVALIDA =
+            "La cantidad debe ser un decimal positivo con máximo 4 decimales.";
     private static final Set<String> MATERIAL_DECIMALS = Set.of(
             "KG", "GR", "ML", "MCUA", "MCUB", "PZA", "LT", "PAR", "MI", "JGO", "TON", "BAR",
             "GRN", "DECE", "CIEN", "DOCE", "CAJA", "BOTELLA");
@@ -147,10 +174,9 @@ public class ExcelCatalogImportParser {
                 }
                 if (blank) add(errors, error(sheet.getSheetName(), rowNumber + 1, null, "FILA_VACIA", "La fila no contiene datos."));
                 validateBusiness(type, values, sheet.getSheetName(), rowNumber + 1, errors);
-                String keyColumn = keyColumn(type);
-                String key = values.getOrDefault(keyColumn, "");
-                if (!key.isBlank() && !seenKeys.add(normalize(key)))
-                    add(errors, error(sheet.getSheetName(), rowNumber + 1, keyColumn,
+                String claveDuplicada = claveDuplicada(type, values);
+                if (!claveDuplicada.isBlank() && !seenKeys.add(normalize(claveDuplicada)))
+                    add(errors, error(sheet.getSheetName(), rowNumber + 1, columnaClave(type),
                             "CLAVE_DUPLICADA", "La clave se repite en el archivo."));
                 rows.add(new CatalogImportFila(safe(sheet.getSheetName(), 80), rowNumber + 1, Map.copyOf(values)));
             }
@@ -201,6 +227,21 @@ public class ExcelCatalogImportParser {
                 // El legacy exige LEN(Patente) = 4; se adelanta para no generar CON_ERRORES.
                 validateExactLength(values, "Patente", AGENT_PATENTE_LENGTH, sheet, row, errors, "PATENTE_AGENTE_INVALIDA", MENSAJE_PATENTE_INVALIDA);
             }
+            case SUBMAQUILA -> {
+                // dbo.CARGA_SUBMAQUILA no valida nada: todas estas verificaciones existen para que
+                // una carga que llega a confirmación sea ejecutable sin truncar ni fallar en destino.
+                validateLength(values, "Folio", 1, sheet, row, errors, "FOLIO_SUBMAQUILA_VACIO");
+                validateMaxLength(values, "Folio", SUBMAQUILA_FOLIO_MAX_LENGTH, sheet, row, errors, "FOLIO_SUBMAQUILA_LARGO");
+                validateLength(values, "Submaquilador", 1, sheet, row, errors, "SUBMAQUILADOR_VACIO");
+                validateMaxLength(values, "Submaquilador", SUBMAQUILA_SUBMAQUILADOR_MAX_LENGTH, sheet, row, errors, "SUBMAQUILADOR_LARGO");
+                validateLength(values, "Clave", 1, sheet, row, errors, "CLAVE_SUBMAQUILA_VACIA");
+                validateMaxLength(values, "Clave", SUBMAQUILA_CLAVE_MAX_LENGTH, sheet, row, errors, "CLAVE_SUBMAQUILA_LARGA");
+                validateCantidadPositiva(values, "Cantidad", sheet, row, errors);
+                validateMaxLength(values, "Unidad", SUBMAQUILA_UNIDAD_MAX_LENGTH, sheet, row, errors, "UNIDAD_SUBMAQUILA_LARGA");
+                validateMaxLength(values, "Descripcion", SUBMAQUILA_DESCRIPCION_MAX_LENGTH, sheet, row, errors, "DESCRIPCION_SUBMAQUILA_LARGA");
+                validateEnteroPositivo(values, "Linea", SUBMAQUILA_LINEA_MIN, sheet, row, errors);
+                validateFechaIso(values, "Fecha", sheet, row, errors);
+            }
         }
     }
 
@@ -216,8 +257,48 @@ public class ExcelCatalogImportParser {
         if (!value.isBlank() && value.length() < min) add(errors, error(sheet, row, key, code, "El valor informado no alcanza la longitud mínima auditada."));
     }
 
-    private void validateExactLength(Map<String, String> values, String key, int length, String sheet,
-                                     int row, List<CatalogImportError> errors, String code, String message) {
+    /** La cantidad alimenta un NUMERIC(18,4): exige decimal positivo y como máximo 4 decimales. */
+    private void validateCantidadPositiva(Map<String, String> values, String key, String sheet,
+                                          int row, List<CatalogImportError> errors) {
+        String value = values.getOrDefault(key, "");
+        if (value.isBlank()) {
+            add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_VACIA", MENSAJE_CANTIDAD_INVALIDA));
+            return;
+        }
+        if (!value.matches("[+]?(?:0|[1-9]\\d*)(?:\\.\\d{1,4})?") || new BigDecimal(value).signum() <= 0)
+            add(errors, error(sheet, row, key, "CANTIDAD_SUBMAQUILA_INVALIDA", MENSAJE_CANTIDAD_INVALIDA));
+    }
+
+    /** LINEA alimenta una columna INT y dbo.CARGA_SUBMAQUILA la usa como PARTIDA: entero >= min. */
+    private void validateEnteroPositivo(Map<String, String> values, String key, int min, String sheet,
+                                        int row, List<CatalogImportError> errors) {
+        String value = values.getOrDefault(key, "");
+        if (value.isBlank() || !value.matches("[0-9]{1,9}")) {
+            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA",
+                    "La línea debe ser un número entero mayor o igual a " + min + "."));
+            return;
+        }
+        if (Integer.parseInt(value) < min)
+            add(errors, error(sheet, row, key, "LINEA_SUBMAQUILA_INVALIDA",
+                    "La línea debe ser un número entero mayor o igual a " + min + "."));
+    }
+
+    /** La fecha alimenta una columna DATE: se exige ISO-8601 (yyyy-MM-dd) para no depender de locale. */
+    private void validateFechaIso(Map<String, String> values, String key, String sheet,
+                                  int row, List<CatalogImportError> errors) {
+        String value = values.getOrDefault(key, "");
+        if (value.isBlank()) {
+            add(errors, error(sheet, row, key, "FECHA_SUBMAQUILA_VACIA", "La fecha es obligatoria y debe venir en formato ISO-8601 (yyyy-MM-dd)."));
+            return;
+        }
+        try {
+            LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException error) {
+            add(errors, error(sheet, row, key, "FECHA_SUBMAQUILA_INVALIDA", "La fecha debe venir en formato ISO-8601 (yyyy-MM-dd)."));
+        }
+    }
+
+    private void validateExactLength(Map<String, String> values, String key, int length, String sheet,                                     int row, List<CatalogImportError> errors, String code, String message) {
         if (values.getOrDefault(key, "").length() != length)
             add(errors, error(sheet, row, key, code, message));
     }
@@ -238,7 +319,11 @@ public class ExcelCatalogImportParser {
                 return decimal.signum() > 0 ? decimal.toPlainString() : "";
             } catch (NumberFormatException ignored) { return ""; }
         }
-        return safe(trimmed, column.equals("DescripcionComercial") || column.equals("NOMBRE") ? 250 : 150);
+        return safe(trimmed, switch (column) {
+            case "DescripcionComercial", "NOMBRE" -> 250;
+            case "Descripcion" -> LIMITE_CANONICO_DESCRIPCION;
+            default -> 150;
+        });
     }
 
     private CatalogImportArchivo result(CatalogImportType type, String filename, String hash, List<String> columns,
@@ -254,6 +339,7 @@ public class ExcelCatalogImportParser {
                 case CLIENTE -> CLIENT_COLUMNS;
                 case PROVEEDOR -> PROVIDER_COLUMNS;
             case AGENTE -> AGENT_COLUMNS;
+            case SUBMAQUILA -> SUBMAQUILA_COLUMNS;
             };
         }
 
@@ -264,6 +350,7 @@ public class ExcelCatalogImportParser {
             case CLIENTE -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
             case PROVEEDOR -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
             case AGENTE -> List.of("Clave", "Nombre", "Patente");
+            case SUBMAQUILA -> List.of("Folio", "Fecha", "Submaquilador", "Clave", "Cantidad", "Unidad", "Linea");
         };
     }
 
@@ -274,7 +361,29 @@ public class ExcelCatalogImportParser {
             case CLIENTE -> "Clave";
             case PROVEEDOR -> "Clave";
             case AGENTE -> "Clave";
+            // Sin clave natural en el contrato legacy: la unicidad de un renglón de submaquila la
+            //define el par FOLIO + LINEA, que es lo que dbo.CARGA_SUBMAQUILA conserva como PARTIDA.
+            case SUBMAQUILA -> "Folio";
         };
+    }
+
+    /**
+     * Clave de unicidad dentro del archivo. Las submaquilas legítimamente repiten folio
+     * (una salida por FOLIO/FECHA/SUBMAQUILADOR con varios renglones), por lo que su clave
+     * es compuesta FOLIO + FECHA + LINEA y no el folio aislado: es exactamente el renglón
+     * que dbo.CARGA_SUBMAQUILA conserva como partida.
+     */
+    private String claveDuplicada(CatalogImportType type, Map<String, String> values) {
+        if (type != CatalogImportType.SUBMAQUILA) return values.getOrDefault(keyColumn(type), "");
+        String folio = values.getOrDefault("Folio", "").trim();
+        String fecha = values.getOrDefault("Fecha", "").trim();
+        String linea = values.getOrDefault("Linea", "").trim();
+        if (folio.isBlank() || linea.isBlank()) return "";
+        return folio + "|" + fecha + "|" + linea;
+    }
+
+    private String columnaClave(CatalogImportType type) {
+        return type == CatalogImportType.SUBMAQUILA ? "Folio/Linea" : keyColumn(type);
     }
 
     private void add(List<CatalogImportError> errors, CatalogImportError error) {

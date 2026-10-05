@@ -272,6 +272,130 @@ class ExcelCatalogImportParserTest {
         return List.of("AGE001", "Agente Aduanal Uno", "Calle 1 numero 2", "AAA010101AAA0", "1234");
     }
 
+    private static final List<String> SUBMAQUILA_HEADERS =
+            List.of("Folio", "Fecha", "Submaquilador", "Clave", "Cantidad", "Unidad", "Descripcion", "Linea");
+
+    @Test
+    void aceptaSubmaquilaXlsxValida() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS, filaSubmaquilaValida()));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.totalFilas()).isEqualTo(1);
+        assertThat(result.filasValidas()).isEqualTo(1);
+        assertThat(result.columnas()).isEqualTo(SUBMAQUILA_HEADERS);
+        assertThat(result.filas().getFirst().datos())
+                .containsEntry("Folio", "F-001")
+                .containsEntry("Fecha", "2026-10-05")
+                .containsEntry("Submaquilador", "SUBMAQ Uno")
+                .containsEntry("Clave", "P001")
+                .containsEntry("Cantidad", "10.5")
+                .containsEntry("Unidad", "PIEZ")
+                .containsEntry("Linea", "1");
+    }
+
+    @Test
+    void aceptaSubmaquilaXlsValida() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xls", hash(),
+                workbook(true, SUBMAQUILA_HEADERS, filaSubmaquilaValida()));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.filasValidas()).isEqualTo(1);
+    }
+
+    /**
+     * dbo.CARGA_SUBMAQUILA agrupa por folio, así que un folio repetido con líneas
+     * distintas es la forma normal del archivo y no debe marcarse como duplicado.
+     */
+    @Test
+    void aceptaVariasLineasEnElMismoFolio() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        filaSubmaquilaValida(),
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P002", "2", "PIEZ", "Segunda partida", "2"),
+                        List.of("F-001", "2026-10-06", "SUBMAQ Uno", "P003", "3", "PIEZ", "Tercera partida", "1")));
+
+        assertThat(result.errores()).isEmpty();
+        assertThat(result.totalFilas()).isEqualTo(3);
+        assertThat(result.filasValidas()).isEqualTo(3);
+    }
+
+    @Test
+    void rechazaFolioYLineaDuplicados() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        filaSubmaquilaValida(),
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P002", "2", "PIEZ", "Repetida", "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("CLAVE_DUPLICADA");
+        assertThat(result.errores()).extracting(error -> error.columna()).contains("Folio/Linea");
+    }
+
+    @Test
+    void rechazaFolioMayorA50() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F".repeat(51), "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("FOLIO_SUBMAQUILA_LARGO");
+    }
+
+    @Test
+    void rechazaUnidadMayorA5() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZAS", "Renglon", "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("UNIDAD_SUBMAQUILA_LARGA");
+    }
+
+    @Test
+    void rechazaDescripcionMayorA250() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "D".repeat(251), "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("DESCRIPCION_SUBMAQUILA_LARGA");
+    }
+
+    @Test
+    void rechazaCantidadNoPositivaOConMasDe4Decimales() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "0", "PIEZ", "Cero", "1"),
+                        List.of("F-002", "2026-10-05", "SUBMAQ Uno", "P001", "1.23456", "PIEZ", "Exceso", "1"),
+                        List.of("F-003", "2026-10-05", "SUBMAQ Uno", "P001", "-2", "PIEZ", "Negativa", "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo())
+                .containsOnly("CANTIDAD_SUBMAQUILA_INVALIDA");
+        assertThat(result.errores()).extracting(error -> error.mensaje())
+                .containsOnly("La cantidad debe ser un decimal positivo con máximo 4 decimales.");
+    }
+
+    @Test
+    void rechazaFechaNoIso() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "05/10/2026", "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "1")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("FECHA_SUBMAQUILA_INVALIDA");
+        assertThat(result.errores()).extracting(error -> error.mensaje())
+                .contains("La fecha debe venir en formato ISO-8601 (yyyy-MM-dd).");
+    }
+
+    @Test
+    void rechazaLineaNoPositiva() throws Exception {
+        CatalogImportArchivo result = parser.parsear(CatalogImportType.SUBMAQUILA, "submaquilas.xlsx", hash(),
+                workbook(false, SUBMAQUILA_HEADERS,
+                        List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "1", "PIEZ", "Renglon", "0")));
+
+        assertThat(result.errores()).extracting(error -> error.codigo()).contains("LINEA_SUBMAQUILA_INVALIDA");
+    }
+
+    private List<String> filaSubmaquilaValida() {
+        return List.of("F-001", "2026-10-05", "SUBMAQ Uno", "P001", "10.5", "PIEZ", "Primera partida", "1");
+    }
+
     private byte[] workbook(boolean legacyXls, List<String> headers, List<String>... rows) throws IOException {
         try (Workbook workbook = legacyXls ? new HSSFWorkbook() : new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {

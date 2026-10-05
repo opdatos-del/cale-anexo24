@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation, CatalogSubmaquilaImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 
 export abstract class CatalogImportRepository {
   abstract upload(type: CatalogImportType, file: File): Observable<CatalogImportResponse>;
@@ -9,4 +9,5 @@ export abstract class CatalogImportRepository {
   abstract confirmClient(cargaId: number): Observable<CatalogClientImportConfirmation>;
   abstract confirmProvider(cargaId: number): Observable<CatalogProviderImportConfirmation>;
   abstract confirmAgent(cargaId: number): Observable<CatalogAgentImportConfirmation>;
+  abstract confirmSubmaquila(cargaId: number): Observable<CatalogSubmaquilaImportConfirmation>;
 }

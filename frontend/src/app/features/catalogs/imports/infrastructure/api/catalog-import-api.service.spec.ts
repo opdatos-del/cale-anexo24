@@ -125,4 +125,43 @@ describe('CatalogImportApiService', () => {
     request.flush({ cargaId: 19, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-05T12:00:00' });
     http.verify();
   });
+
+  it('sube constancias de transferencia al endpoint de submaquilas', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+    const file = new File(['xlsx'], 'submaquilas.xlsx');
+
+    service.upload('SUBMAQUILA', file).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/submaquilas');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.get('archivo')).toBe(file);
+    request.flush({});
+    http.verify();
+  });
+
+  it('consulta el detalle de una carga de constancias de transferencia', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.get('SUBMAQUILA', 23).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/submaquilas/23');
+    expect(request.request.method).toBe('GET');
+    request.flush({});
+    http.verify();
+  });
+
+  it('confirma una carga de constancias de transferencia en el endpoint específico', () => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.confirmSubmaquila(23).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/submaquilas/23/confirmacion');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush({ cargaId: 23, estado: 'CONFIRMADA', totalFilas: 3, filasValidas: 3, filasConError: 0, confirmadaEn: '2026-10-05T12:00:00' });
+    http.verify();
+  });
 });

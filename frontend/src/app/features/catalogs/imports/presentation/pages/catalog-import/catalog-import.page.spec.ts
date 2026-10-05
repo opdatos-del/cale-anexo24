@@ -9,8 +9,9 @@ import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/a
 import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-client-import.use-case';
 import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
 import { ConfirmCatalogAgentImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-agent-import.use-case';
+import { ConfirmCatalogSubmaquilaImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-submaquila-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
-import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation, CatalogSubmaquilaImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { CatalogImportPage } from './catalog-import.page';
 
 const RESPONSE_MATERIAL: CatalogImportResponse = {
@@ -109,10 +110,29 @@ const CONFIRMATION_AGENTE: CatalogAgentImportConfirmation = {
   confirmadaEn: '2026-10-05T12:00:00',
 };
 
+const RESPONSE_SUBMAQUILA: CatalogImportResponse = {
+  ...RESPONSE_MATERIAL,
+  id: 23,
+  tipo: 'SUBMAQUILA',
+  archivo: 'submaquilas.xlsx',
+  columnas: ['Folio', 'Fecha', 'Submaquilador', 'Clave', 'Cantidad', 'Unidad', 'Descripcion', 'Linea'],
+  filas: [{ Folio: 'F-001', Fecha: '2026-10-05', Submaquilador: 'Submaq Uno', Clave: 'P001', Cantidad: '10.5', Unidad: 'PIEZ', Descripcion: 'Partida', Linea: '1' }],
+};
+
+const CONFIRMATION_SUBMAQUILA: CatalogSubmaquilaImportConfirmation = {
+  cargaId: 23,
+  estado: 'CONFIRMADA',
+  totalFilas: 3,
+  filasValidas: 3,
+  filasConError: 0,
+  confirmadaEn: '2026-10-05T12:00:00',
+};
+
 interface PageHarness {
   result: { set(value: CatalogImportResponse): void; (): CatalogImportResponse | null };
   isConfirming: () => boolean;
   requestConfirmation(): void;
+  canConfirmCurrent(): boolean;
 }
 
 function configure(options: {
@@ -123,6 +143,7 @@ function configure(options: {
   confirmClient?: ReturnType<typeof vi.fn>;
   confirmProvider?: ReturnType<typeof vi.fn>;
   confirmAgent?: ReturnType<typeof vi.fn>;
+  confirmSubmaquila?: ReturnType<typeof vi.fn>;
   dialogResult?: boolean;
 } = {}) {
   const permissions = options.permissions ?? ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR'];
@@ -132,6 +153,7 @@ function configure(options: {
   const confirmClient = options.confirmClient ?? vi.fn(() => of(CONFIRMATION_CLIENTE));
   const confirmProvider = options.confirmProvider ?? vi.fn(() => of(CONFIRMATION_PROVEEDOR));
   const confirmAgent = options.confirmAgent ?? vi.fn(() => of(CONFIRMATION_AGENTE));
+  const confirmSubmaquila = options.confirmSubmaquila ?? vi.fn(() => of(CONFIRMATION_SUBMAQUILA));
   const dialog = { ask: vi.fn(() => of(options.dialogResult ?? true)) };
   const notifications = { error: vi.fn(), success: vi.fn() };
   TestBed.configureTestingModule({
@@ -143,6 +165,7 @@ function configure(options: {
       { provide: ConfirmCatalogClientImportUseCase, useValue: { execute: confirmClient } },
       { provide: ConfirmCatalogProviderImportUseCase, useValue: { execute: confirmProvider } },
       { provide: ConfirmCatalogAgentImportUseCase, useValue: { execute: confirmAgent } },
+      { provide: ConfirmCatalogSubmaquilaImportUseCase, useValue: { execute: confirmSubmaquila } },
       { provide: ConfirmService, useValue: dialog },
       { provide: NotificationService, useValue: notifications },
       { provide: AuthService, useValue: { hasPermission: (permission: string) => permissions.includes(permission) } },
@@ -159,6 +182,7 @@ function configure(options: {
     confirmClient,
     confirmProvider,
     confirmAgent,
+    confirmSubmaquila,
     dialog,
     notifications,
   };
@@ -347,6 +371,64 @@ describe('CatalogImportPage', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).not.toContain('Agentes aduanales');
+  });
+
+  it('confirma constancias de transferencia invocando el caso de uso de submaquilas', () => {
+    const { fixture, harness, confirmSubmaquila, notifications } = configure({ permissions: ['SUBMAQUILA_CARGAR', 'SUBMAQUILA_CONFIRMAR'] });
+    harness.result.set(RESPONSE_SUBMAQUILA);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(confirmSubmaquila).toHaveBeenCalledWith(23);
+    expect(harness.result()?.estado).toBe('CONFIRMADA');
+    expect(notifications.success).toHaveBeenCalledWith('Importación de constancias de transferencia confirmada correctamente.');
+  });
+
+  it('advierte que la confirmación de constancias de transferencia es irreversible', () => {
+    const { fixture, harness } = configure({ permissions: ['SUBMAQUILA_CARGAR', 'SUBMAQUILA_CONFIRMAR'] });
+    harness.result.set(RESPONSE_SUBMAQUILA);
+    fixture.detectChanges();
+
+    const advertencia = fixture.nativeElement.querySelector('[aria-label="Confirmación de importación"]');
+    expect(advertencia?.textContent).toContain('no deduplica');
+    expect(advertencia?.textContent).toContain('duplicadas');
+  });
+
+  it('muestra un error recuperable si falla la confirmación de constancias de transferencia', () => {
+    const { fixture, harness, notifications } = configure({
+      permissions: ['SUBMAQUILA_CARGAR', 'SUBMAQUILA_CONFIRMAR'],
+      confirmSubmaquila: vi.fn(() => throwError(() => ({ error: { message: 'El stage legacy está ocupado' } }))),
+    });
+    harness.result.set(RESPONSE_SUBMAQUILA);
+    harness.requestConfirmation();
+    fixture.detectChanges();
+
+    expect(harness.result()?.estado).toBe('PREVISUALIZADA');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('El stage legacy está ocupado');
+    expect(notifications.error).toHaveBeenCalledWith('No fue posible confirmar la importación de constancias de transferencia.');
+  });
+
+  it('muestra la pestaña de constancias de transferencia con permiso de carga', () => {
+    const { fixture } = configure({ permissions: ['SUBMAQUILA_CARGAR'] });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Constancias de transferencia');
+  });
+
+  it('oculta la pestaña de constancias de transferencia sin permiso de carga', () => {
+    const { fixture } = configure({ permissions: ['MATERIALES_CARGAR'] });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Constancias de transferencia');
+  });
+
+  it('no ofrece confirmar constancias de transferencia sin permiso de confirmación', () => {
+    const { fixture, harness } = configure({ permissions: ['SUBMAQUILA_CARGAR'] });
+    harness.result.set(RESPONSE_SUBMAQUILA);
+    fixture.detectChanges();
+
+    expect(harness.canConfirmCurrent()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[aria-label="Confirmación de importación"]')).toBeNull();
   });
 
   it('muestra carga mientras confirma materiales y evita solicitudes duplicadas', () => {

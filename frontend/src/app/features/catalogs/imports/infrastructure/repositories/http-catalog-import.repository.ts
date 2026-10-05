@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { CatalogImportApiService } from '@features/catalogs/imports/infrastructure/api/catalog-import-api.service';
 import { CatalogImportRepository } from '@features/catalogs/imports/domain/repositories/catalog-import.repository';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation, CatalogSubmaquilaImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { Observable } from 'rxjs';
 
 @Injectable()
@@ -34,5 +34,9 @@ export class HttpCatalogImportRepository extends CatalogImportRepository {
 
   confirmAgent(cargaId: number): Observable<CatalogAgentImportConfirmation> {
     return this.api.confirmAgent(cargaId);
+  }
+
+  confirmSubmaquila(cargaId: number): Observable<CatalogSubmaquilaImportConfirmation> {
+    return this.api.confirmSubmaquila(cargaId);
   }
 }

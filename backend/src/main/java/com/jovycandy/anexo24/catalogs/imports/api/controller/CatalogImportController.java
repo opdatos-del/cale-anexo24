@@ -86,6 +86,14 @@ public class CatalogImportController {
         return cargar(CatalogImportType.AGENTE, file, principal, request);
     }
 
+    @PostMapping(value = "/submaquilas", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('SUBMAQUILA_CARGAR')")
+    public ResponseEntity<CatalogImportResponse> submaquilas(@RequestPart("archivo") MultipartFile file,
+                                                              @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+                                                              HttpServletRequest request) {
+        return cargar(CatalogImportType.SUBMAQUILA, file, principal, request);
+    }
+
     @GetMapping("/materiales/{id}")
     @PreAuthorize("hasAuthority('MATERIALES_CARGAR')")
     public ResponseEntity<CatalogImportResponse> obtenerMaterial(@PathVariable long id,
@@ -126,6 +134,14 @@ public class CatalogImportController {
         return obtener(CatalogImportType.AGENTE, id, pagina, tamano);
     }
 
+    @GetMapping("/submaquilas/{id}")
+    @PreAuthorize("hasAuthority('SUBMAQUILA_CARGAR')")
+    public ResponseEntity<CatalogImportResponse> obtenerSubmaquila(@PathVariable long id,
+                                                                     @RequestParam(defaultValue = "1") int pagina,
+                                                                     @RequestParam(defaultValue = "100") int tamano) {
+        return obtener(CatalogImportType.SUBMAQUILA, id, pagina, tamano);
+    }
+
     @GetMapping("/materiales/{id}/errores")
     @PreAuthorize("hasAuthority('MATERIALES_CARGAR')")
     public ResponseEntity<List<CatalogImportResponse.Error>> erroresMaterial(@PathVariable long id,
@@ -164,6 +180,14 @@ public class CatalogImportController {
                                                                             @RequestParam(defaultValue = "1") int pagina,
                                                                             @RequestParam(defaultValue = "100") int tamano) {
         return errores(CatalogImportType.AGENTE, id, pagina, tamano);
+    }
+
+    @GetMapping("/submaquilas/{id}/errores")
+    @PreAuthorize("hasAuthority('SUBMAQUILA_CARGAR')")
+    public ResponseEntity<List<CatalogImportResponse.Error>> erroresSubmaquila(@PathVariable long id,
+                                                                                @RequestParam(defaultValue = "1") int pagina,
+                                                                                @RequestParam(defaultValue = "100") int tamano) {
+        return errores(CatalogImportType.SUBMAQUILA, id, pagina, tamano);
     }
 
     private ResponseEntity<CatalogImportResponse> cargar(CatalogImportType type, MultipartFile file,

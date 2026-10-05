@@ -43,12 +43,14 @@ class CatalogStagingConfirmadaBypassTest {
             "app24.APP24_C_CATALOGO_CLIENTE_CARGA_CREAR",
             "app24.APP24_C_CATALOGO_PROVEEDOR_CARGA_CREAR",
             "app24.APP24_C_CATALOGO_AGENTE_CARGA_CREAR",
+            "app24.APP24_C_SUBMAQUILA_CARGA_CREAR",
     };
 
     private static final String[] TABLA_CARGA = {
             "app24.CargaCatalogoCliente",
             "app24.CargaCatalogoProveedor",
             "app24.CargaCatalogoAgente",
+            "app24.CargaSubmaquila",
     };
 
     @SuppressWarnings("resource") // El contenedor se cierra explícitamente en @AfterAll.
@@ -67,10 +69,11 @@ class CatalogStagingConfirmadaBypassTest {
         Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite el contrato de staging.");
         SQL.start();
         crearEsquemaApp();
-        // Sólo las tres migrations de staging; no se necesita CALE_IMMEX ni wrapper alguno.
+        // Sólo las migrations de staging; no se necesita CALE_IMMEX ni wrapper alguno.
         aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/15-cliente-confirmar-state-permission.sql"));
         aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/16-proveedor-confirmar-state-permission.sql"));
         aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/17-agente-staging-confirmation-v1.sql"));
+        aplicarArchivo(conectar(APP), raizRepo().resolve("migrations/18-submaquila-staging-confirmation-v1.sql"));
     }
 
     @AfterAll
@@ -101,6 +104,11 @@ class CatalogStagingConfirmadaBypassTest {
     @Test
     void crearAgenteRechazaEstadoConfirmada() throws Exception {
         assertRechazaConfirmada(2, "app24.CargaCatalogoAgente");
+    }
+
+    @Test
+    void crearSubmaquilaRechazaEstadoConfirmada() throws Exception {
+        assertRechazaConfirmada(3, "app24.CargaSubmaquila");
     }
 
     @Test

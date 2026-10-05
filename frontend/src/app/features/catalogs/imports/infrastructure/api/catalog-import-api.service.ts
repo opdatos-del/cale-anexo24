@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation, CatalogSubmaquilaImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogImportApiService {
@@ -39,6 +39,10 @@ export class CatalogImportApiService {
     return this.http.post<CatalogAgentImportConfirmation>(`/api/v1/catalogos/importaciones/agentes/${cargaId}/confirmacion`, {});
   }
 
+  confirmSubmaquila(cargaId: number): Observable<CatalogSubmaquilaImportConfirmation> {
+    return this.http.post<CatalogSubmaquilaImportConfirmation>(`/api/v1/catalogos/importaciones/submaquilas/${cargaId}/confirmacion`, {});
+  }
+
   private endpoint(type: CatalogImportType): string {
     switch (type) {
       case 'MATERIAL': return 'materiales';
@@ -46,6 +50,7 @@ export class CatalogImportApiService {
       case 'CLIENTE': return 'clientes';
       case 'PROVEEDOR': return 'proveedores';
       case 'AGENTE': return 'agentes';
+      case 'SUBMAQUILA': return 'submaquilas';
     }
   }
 }

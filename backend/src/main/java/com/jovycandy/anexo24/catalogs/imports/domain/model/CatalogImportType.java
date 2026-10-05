@@ -6,5 +6,7 @@ public enum CatalogImportType {
     PRODUCTO,
     CLIENTE,
     PROVEEDOR,
-    AGENTE
+    AGENTE,
+    /** Constancias de transferencia: stage legacy dbo.TMPSUBMAQUILA -> dbo.SALIDAS/dbo.PSALIDAS. */
+    SUBMAQUILA
 }
