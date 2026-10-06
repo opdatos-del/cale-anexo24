@@ -129,7 +129,10 @@ que no se ejecuta ni se usa como fuente.
   `PSALIDAS.Psalidakey DESC`, `DESCARGA.Descargakey DESC`; el último es PK
   observable de la fila física.
 - `SaldoActual`, faltantes derivados y estado operativo: `NOT_IMPLEMENTED`.
-- XLSX: `NOT_IMPLEMENTED`.
+- `LEGACY-032 = PARTIAL`; faltantes y trazo continúan bloqueados por snapshots/procesos mutables.
+- `ANALISIS_DESCARGAS_XLSX = IMPLEMENTED` mediante `GET /api/v1/reportes/analisis-descargas/exportacion`.
+- Permiso de exportación: `REPORTES_EXPORTAR`; reutiliza `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`, el filtro actual y un máximo de 10,000 filas.
+- No agrega fuentes, grano, reglas de negocio ni campos derivados.
 
 Reconciliación LIVE del SP, sin imprimir filas:
 

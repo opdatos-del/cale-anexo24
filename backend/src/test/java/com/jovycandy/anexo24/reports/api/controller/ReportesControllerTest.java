@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -99,10 +100,26 @@ class ReportesControllerTest {
     }
 
     @Test
+    void exportarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas/exportacion"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void exportarAnalisisDescargasExigePermisoDeExportar() throws Exception {
         mockMvc.perform(get("/api/v1/reportes/analisis-descargas/exportacion")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportarAnalisisDescargasSinFilasResponde204() throws Exception {
+        when(listarAnalisisDescargasUseCase.exportar(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
     }
 
     @Test

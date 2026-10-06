@@ -330,7 +330,8 @@ SP versionado: `dbo.APP24_Q_ANALISIS_DESCARGAS_LISTAR`.
 API: `GET /api/v1/reportes/analisis-descargas`.
 Permiso: `REPORTES_GENERAR`.
 UI: opción `Análisis de descargas` dentro de `/reportes`, sin sidebar nuevo.
-XLSX: `NOT_IMPLEMENTED`.
+`ANALISIS_DESCARGAS_XLSX = IMPLEMENTED`: `GET /api/v1/reportes/analisis-descargas/exportacion`, protegido por `REPORTES_EXPORTAR`, reutiliza el mismo SP y filtro, y limita la exportación a 10,000 filas.
+`LEGACY-032 = PARTIAL`: `FALTANTES = BLOCKED_MUTABLE_DEPENDENT_EMPTY_SNAPSHOT` y `TRAZO = BLOCKED_MUTABLE_DEPENDENT_EMPTY_WORKTABLE`; la exportación no modifica ese límite.
 
 ## Operaciones bloqueadas V1
 
