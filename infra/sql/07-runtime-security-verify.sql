@@ -151,7 +151,8 @@ INSERT INTO @esperado (esquema, objeto) VALUES
     ('dbo', 'APP24_C_CLIENTE_CARGA_CONFIRMAR'),
     ('dbo', 'APP24_C_PROVEEDOR_CARGA_CONFIRMAR'),
     ('dbo', 'APP24_C_AGENTE_CARGA_CONFIRMAR'),
-    ('dbo', 'APP24_C_ACTA_CARGA_CONFIRMAR');
+    ('dbo', 'APP24_C_ACTA_CARGA_CONFIRMAR'),
+    ('dbo', 'APP24_C_CONSTANCIA_CARGA_CONFIRMAR');
 
 IF EXISTS (
     SELECT s.name, o.name
@@ -298,7 +299,11 @@ INSERT INTO @esperadoApp (esquema, objeto) VALUES
     ('app24', 'APP24_Q_ACTA_CARGA_POR_HASH'),
     ('app24', 'APP24_Q_ACTA_CARGA_OBTENER'),
     ('app24', 'APP24_Q_ACTA_CARGA_ERRORES'),
-    ('app24', 'APP24_C_ACTA_CARGA_CREAR');
+    ('app24', 'APP24_C_ACTA_CARGA_CREAR'),
+    ('app24', 'APP24_Q_CONSTANCIA_CARGA_POR_HASH'),
+    ('app24', 'APP24_Q_CONSTANCIA_CARGA_OBTENER'),
+    ('app24', 'APP24_Q_CONSTANCIA_CARGA_ERRORES'),
+    ('app24', 'APP24_C_CONSTANCIA_CARGA_CREAR');
 
 IF EXISTS (
     SELECT s.name, o.name

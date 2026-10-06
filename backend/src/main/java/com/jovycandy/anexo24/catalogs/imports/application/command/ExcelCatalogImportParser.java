@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 public class ExcelCatalogImportParser {
     public static final String VERSION_CONTRATO = "LEGACY-CATALOG-STAGE-DERIVED-V1";
     public static final String VERSION_CONTRATO_ACTA = "ACTA-V1";
+    public static final String VERSION_CONTRATO_CONSTANCIA = "CONSTANCIA-V1";
     public static final int MAX_FILAS = 2_000;
     public static final int MAX_COLUMNAS = 40;
     public static final int MAX_CELDAS = 100_000;
@@ -75,6 +76,11 @@ public class ExcelCatalogImportParser {
     private static final LocalDate ACTA_FECHA_MIN = LocalDate.of(1753, 1, 1);
     private static final LocalDate ACTA_FECHA_MAX = LocalDate.of(9999, 12, 31);
     private static final DateTimeFormatter ACTA_ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    // Contrato dbo.Constanciatransf (LIVE 2026-10-06): 14 columnas consumidas por
+    // dbo.CARGACONSTANCIAS. CONSTANCIAKEY es IDENTITY tecnico y NO forma parte del layout.
+    private static final List<String> CONSTANCIA_COLUMNS = List.of(
+            "NUMERODEFOLIO", "SEC", "FECHACREACION", "PROV", "LIN", "NOPARTE", "DESCRIPCION",
+            "CANTIDAD", "PEDIMENTO", "ADUANA", "MER", "PERIODO", "Val_dolares", "Val_Comercial");
     private static final int CLIENT_KEY_MAX_LENGTH = 15;
     private static final int PROVIDER_KEY_MAX_LENGTH = 15;
     // Restricciones físicas auditadas de dbo.TMPagentes y dbo.agentes (ambos CHAR):
@@ -220,6 +226,7 @@ public class ExcelCatalogImportParser {
                 validateExactLength(values, "Patente", AGENT_PATENTE_LENGTH, sheet, row, errors, "PATENTE_AGENTE_INVALIDA", MENSAJE_PATENTE_INVALIDA);
             }
             case ACTA -> validateActa(values, crudos, sheet, row, errors);
+            case CONSTANCIA -> validateConstancia(values, crudos, sheet, row, errors);
         }
     }
 
@@ -269,8 +276,11 @@ public class ExcelCatalogImportParser {
 
     private String rawValue(CatalogImportType type, String column, Cell cell, DataFormatter formatter) {
         if (cell == null) return "";
-        if (type == CatalogImportType.ACTA && "Fecha".equals(column)
-                && cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell))
+        boolean fechaActa = type == CatalogImportType.ACTA && "Fecha".equals(column);
+        boolean fechaConstancia = type == CatalogImportType.CONSTANCIA
+                && ("FECHACREACION".equals(column) || "PERIODO".equals(column));
+        if ((fechaActa || fechaConstancia) && cell.getCellType() == CellType.NUMERIC
+                && DateUtil.isCellDateFormatted(cell))
             return cell.getLocalDateTimeCellValue().format(ACTA_ISO);
         return formatter.formatCellValue(cell).trim();
     }
@@ -279,6 +289,7 @@ public class ExcelCatalogImportParser {
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.isBlank()) return "";
         if (type == CatalogImportType.ACTA) return canonicalActa(column, trimmed);
+        if (type == CatalogImportType.CONSTANCIA) return canonicalConstancia(column, trimmed);
         if (MATERIAL_DECIMALS.contains(column)) {
             try {
                 if (!trimmed.matches("[+]?(?:0|[1-9]\\d*)(?:\\.\\d+)?")) return "";
@@ -353,6 +364,49 @@ public class ExcelCatalogImportParser {
         }
     }
 
+    private void validateConstancia(Map<String, String> values, Map<String, String> crudos, String sheet,
+                                    int row, List<CatalogImportError> errors) {
+        validateMaxLength(values, "NUMERODEFOLIO", 50, sheet, row, errors, "NUMERODEFOLIO_CONSTANCIA_LARGO");
+        validateMaxLength(values, "SEC", 5, sheet, row, errors, "SEC_CONSTANCIA_LARGA");
+        validateMaxLength(values, "PROV", 50, sheet, row, errors, "PROV_CONSTANCIA_LARGO");
+        validateMaxLength(values, "NOPARTE", 50, sheet, row, errors, "NOPARTE_CONSTANCIA_LARGO");
+        validateMaxLength(values, "DESCRIPCION", 100, sheet, row, errors, "DESCRIPCION_CONSTANCIA_LARGA");
+        validateMaxLength(values, "PEDIMENTO", 50, sheet, row, errors, "PEDIMENTO_CONSTANCIA_LARGO");
+        validateMaxLength(values, "ADUANA", 10, sheet, row, errors, "ADUANA_CONSTANCIA_LARGA");
+        validateMaxLength(values, "MER", 10, sheet, row, errors, "MER_CONSTANCIA_LARGO");
+        if (invalido(crudos, values, "FECHACREACION"))
+            add(errors, error(sheet, row, "FECHACREACION", "FECHA_CONSTANCIA_INVALIDA", "La fecha de creacion debe ser ISO y estar entre 1753-01-01 y 9999-12-31."));
+        if (invalido(crudos, values, "PERIODO"))
+            add(errors, error(sheet, row, "PERIODO", "PERIODO_CONSTANCIA_INVALIDO", "El periodo debe ser ISO y estar entre 1753-01-01 y 9999-12-31."));
+        if (invalido(crudos, values, "LIN"))
+            add(errors, error(sheet, row, "LIN", "LIN_CONSTANCIA_INVALIDO", "La linea debe ser un entero representable en NUMERIC(18,0)."));
+        if (invalido(crudos, values, "CANTIDAD"))
+            add(errors, error(sheet, row, "CANTIDAD", "CANTIDAD_CONSTANCIA_INVALIDA", "La cantidad debe ser un entero representable en NUMERIC(18,0)."));
+        if (invalido(crudos, values, "Val_dolares"))
+            add(errors, error(sheet, row, "Val_dolares", "VAL_DOLARES_CONSTANCIA_INVALIDO", "El valor en dolares debe caber en NUMERIC(18,10)."));
+        if (invalido(crudos, values, "Val_Comercial"))
+            add(errors, error(sheet, row, "Val_Comercial", "VAL_COMERCIAL_CONSTANCIA_INVALIDO", "El valor comercial debe caber en NUMERIC(18,10)."));
+    }
+
+    private String canonicalConstancia(String column, String trimmed) {
+        return switch (column) {
+            case "FECHACREACION", "PERIODO" -> canonicalActaFecha(trimmed);
+            case "LIN", "CANTIDAD" -> canonicalConstanciaEntero(trimmed);
+            case "Val_dolares", "Val_Comercial" -> canonicalActaValorComercial(trimmed);
+            default -> safe(trimmed, 150);
+        };
+    }
+
+    private String canonicalConstanciaEntero(String value) {
+        try {
+            BigInteger entero = new BigDecimal(value).toBigIntegerExact();
+            if (entero.abs().compareTo(BigInteger.TEN.pow(18)) >= 0) return "";
+            return entero.toString();
+        } catch (NumberFormatException | ArithmeticException invalida) {
+            return "";
+        }
+    }
+
     private CatalogImportArchivo result(CatalogImportType type, String filename, String hash, List<String> columns,
                                         List<CatalogImportFila> rows, List<CatalogImportError> errors, boolean failed) {
         return new CatalogImportArchivo(type, safe(filename == null ? "archivo" : filename.replaceAll("[\\r\\n\\\\/]", "_"), 255),
@@ -367,12 +421,17 @@ public class ExcelCatalogImportParser {
                 case PROVEEDOR -> PROVIDER_COLUMNS;
             case AGENTE -> AGENT_COLUMNS;
             case ACTA -> ACTA_COLUMNS;
+            case CONSTANCIA -> CONSTANCIA_COLUMNS;
             };
         }
 
     /** Encabezados que deben existir para que el layout sea determinista. */
     private List<String> requiredHeaders(CatalogImportType type) {
-        return type == CatalogImportType.ACTA ? ACTA_COLUMNS : requiredValues(type);
+        return switch (type) {
+            case ACTA -> ACTA_COLUMNS;
+            case CONSTANCIA -> CONSTANCIA_COLUMNS;
+            default -> requiredValues(type);
+        };
     }
 
     /**
@@ -388,6 +447,7 @@ public class ExcelCatalogImportParser {
             case PROVEEDOR -> List.of("Clave", "Nombre", "IdFiscal", "TipoNE");
             case AGENTE -> List.of("Clave", "Nombre", "Patente");
             case ACTA -> List.of();
+            case CONSTANCIA -> List.of();
         };
     }
 
@@ -399,15 +459,23 @@ public class ExcelCatalogImportParser {
             case PROVEEDOR -> "Clave";
             case AGENTE -> "Clave";
             case ACTA -> "Folio";
+            case CONSTANCIA -> "NUMERODEFOLIO";
         };
     }
 
     private String versionContrato(CatalogImportType type) {
-        return type == CatalogImportType.ACTA ? VERSION_CONTRATO_ACTA : VERSION_CONTRATO;
+        return switch (type) {
+            case ACTA -> VERSION_CONTRATO_ACTA;
+            case CONSTANCIA -> VERSION_CONTRATO_CONSTANCIA;
+            default -> VERSION_CONTRATO;
+        };
     }
 
     /** Clave de duplicado del archivo. ACTA usa FOLIO + LINEA (nunca FECHA). */
     private String duplicateKey(CatalogImportType type, Map<String, String> values) {
+        // CONSTANCIA_DUPLICATE_STRATEGY = NONE: CARGACONSTANCIAS no deduplica; inventar una
+        // clave divergiria del contrato legacy (inserta por NUMERODEFOLIO/SEC sin chequeo).
+        if (type == CatalogImportType.CONSTANCIA) return null;
         if (type == CatalogImportType.ACTA) {
             String folio = values.getOrDefault("Folio", "");
             String linea = values.getOrDefault("Linea", "");
