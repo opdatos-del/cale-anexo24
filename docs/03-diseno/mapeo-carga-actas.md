@@ -147,3 +147,28 @@ Variables de lock tipadas segun metadata LIVE (nunca reutilizar un tipo mas estr
 VALORCOMERCIAL: el stage LIVE es NUMERIC(18,10); el legacy declara
 @VALORCOMERCIAL NUMERIC(18,4) y termina en PSALIDAS.Val_pesos NUMERIC(18,4).
 LEGACY_VALORCOMERCIAL_EFFECTIVE_SCALE = 4 (reduccion de precision del legacy, no del parser).
+
+## 8. Implementación integrada en dev
+
+El plan de las secciones anteriores se implementó posteriormente y debe leerse
+como antecedente de discovery, no como estado vigente. La superficie moderna es
+/operaciones/actas y cubre dos trazabilidades de paridad sin duplicar flujo:
+
+- LEGACY-025: operación y procesamiento de actas;
+- LEGACY-060: interfaz segura de importación de actas.
+
+El flujo implementado es archivo XLS/XLSX -> staging app24.CargaActa -> preview y
+errores -> confirmación explícita con ACTAS_CONFIRMAR ->
+dbo.APP24_C_ACTA_CARGA_CONFIRMAR -> dbo.CARGAACTAS dentro de una transacción.
+El wrapper conserva las reglas y efectos legacy documentados, bloquea las tablas
+compartidas en orden determinista, limpia el stage temporal y deja auditoría.
+
+Evidencia de integración: ActaImportController,
+ActaImportConfirmationController, ConfirmarCargaActaUseCase,
+ConfirmacionCargaActaJdbcAdapter, migration 18-acta-staging-confirmation-v1.sql,
+APP24_C_ACTA_CARGA_CONFIRMAR.sql, fixture textual CARGAACTAS.legacy.sql y tests
+de parser, API, adapter, use case y concurrencia SQL.
+
+LEGACY_025 = IMPLEMENTED_REDESIGNED
+LEGACY_060 = IMPLEMENTED_REDESIGNED
+NEW_BUSINESS_SP = 0

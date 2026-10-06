@@ -50,6 +50,7 @@ versionada.
 - `IMPLEMENTED_REDESIGNED`: existe la capacidad, pero con UX o arquitectura
   modernizada.
 - `PARTIAL`: sólo una parte del flujo está disponible.
+- `PARTIAL_EVIDENCE_BLOCKED_CONTRACT`: existe presencia o evidencia parcial, pero falta el contrato visible o de fuente necesario para implementar.
 - `MISSING`: capacidad confirmada sin equivalente nuevo identificado.
 - `BLOCKED_BUSINESS`: no se puede implementar responsablemente sin una regla o
   decisión de negocio.
@@ -84,11 +85,11 @@ versionada.
 | LEGACY-020 | Operación aduanera/inventario | `NOT_CAPTURED` — Materiales utilizados | Consultar asignaciones históricas entrada → salida → material | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/materiales-utilizados` | `UsedMaterialListPage` | `GET /api/v1/operaciones/materiales-utilizados` | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | IMPLEMENTED_REDESIGNED | P0 | No ejecuta descargos ni recalcula saldos | Operaciones / trazabilidad |
 | LEGACY-021 | Operación aduanera/inventario | `NOT_CAPTURED` — Saldos | Consultar saldo con semántica fiscal y corte definidos | AUDIT_UI, SQL_METADATA | Reporte `Saldos` deshabilitado; sin contrato | Parcial sólo como opción no disponible | No hay endpoint de saldo aprobado | `PR_INFORME_SALDOS`, `v_saldos`, `v_saldosdesp` como candidatos | BLOCKED_BUSINESS | P0 | Fórmula, fuentes, granularidad y corte pendientes | Operaciones / saldos |
 | LEGACY-022 | Operación aduanera/inventario | `NOT_CAPTURED` — Activo fijo | Consultar activos derivados de entradas | AUDIT_UI, SQL_METADATA, CODE | `/operaciones/activos-fijos` | `FixedAssetListPage` | `GET /api/v1/operaciones/activos-fijos` | `dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | No representa alta/baja/retorno de activo individual | Operaciones / activo fijo |
-| LEGACY-023 | Operación aduanera/inventario | `NOT_CAPTURED` — Cambios de régimen | Procesar o consultar cambios de régimen | SQL_METADATA | No identificado | No | No | Referencias F4/F5/A3/DE y procesos legacy; contrato no cerrado | UNKNOWN | P1 | Falta semántica y flujo autorizado | Operaciones especiales |
-| LEGACY-024 | Operación aduanera/inventario | `NOT_CAPTURED` — Regularizaciones | Procesar regularizaciones | SQL_METADATA | No identificado | No | No | `INSERTAPEDIMENTO` y procesos relacionados; contrato no cerrado | UNKNOWN | P1 | Falta regla y aceptación | Operaciones especiales |
-| LEGACY-025 | Operación aduanera/inventario | `NOT_CAPTURED` — Actas de destrucción | Cargar o procesar actas de destrucción | SQL_METADATA | No identificado | No | No | `CARGAACTAS`; `DescargaDesp` y tablas relacionadas | MISSING | P1 | Flujo mutable y reglas no cerradas | Operaciones especiales |
+| LEGACY-023 | Operación aduanera/inventario | `NOT_CAPTURED` — Cambios de régimen | Procesar o consultar cambios de régimen | SQL_METADATA | No identificado | No | No | Referencias F4/F5/A3/DE y procesos legacy; contrato no cerrado | PARTIAL_EVIDENCE_BLOCKED_CONTRACT | P1 | Pantalla confirmada a nivel de auditoría; faltan ruta, contrato visible, fuente canónica y flujo autorizado | Operaciones especiales |
+| LEGACY-024 | Operación aduanera/inventario | `NOT_CAPTURED` — Regularizaciones | Procesar regularizaciones | SQL_METADATA | No identificado | No | No | `INSERTAPEDIMENTO` y procesos relacionados; contrato no cerrado | PARTIAL_EVIDENCE_BLOCKED_CONTRACT | P1 | Pantalla confirmada a nivel de auditoría; faltan ruta, contrato visible, fuente canónica, regla y aceptación | Operaciones especiales |
+| LEGACY-025 | Operación aduanera/inventario | NOT_CAPTURED — Actas de destrucción | Cargar y procesar actas de destrucción | SQL_METADATA, CODE, TEST | /operaciones/actas — staging, preview y confirmación | ActaUploadPage | POST/GET /api/v1/operaciones/actas/importaciones, POST /api/v1/operaciones/actas/{cargaId}/confirmacion | app24 CargaActa*; dbo.APP24_C_ACTA_CARGA_CONFIRMAR -> dbo.CARGAACTAS | IMPLEMENTED_REDESIGNED | P1 | Reutiliza la regla legacy en wrapper transaccional; conserva side effects documentados | Operaciones especiales |
 | LEGACY-026 | Operación aduanera/inventario | `NOT_CAPTURED` — Transferencias de submaquila | Cargar o procesar transferencias | SQL_METADATA | No identificado | No | No | `CARGA_SUBMAQUILA`, referencias de submaquila/CTM | MISSING | P1 | Contrato y reglas fiscales no cerrados | Operaciones especiales |
-| LEGACY-027 | Operación aduanera/inventario | `NOT_CAPTURED` — Constancias | Cargar o procesar constancias | SQL_METADATA | No identificado | No | No | `CARGACONSTANCIAS` | MISSING | P2 | Layout y efectos no cerrados | Operaciones especiales |
+| LEGACY-027 | Operación aduanera/inventario | NOT_CAPTURED — Constancias | Cargar y procesar constancias | SQL_METADATA, CODE, TEST | /operaciones/constancias — staging, preview y confirmación | ConstanciaUploadPage | POST/GET /api/v1/operaciones/constancias/importaciones, POST /api/v1/operaciones/constancias/{cargaId}/confirmacion | app24 CargaConstancia*; dbo.APP24_C_CONSTANCIA_CARGA_CONFIRMAR -> dbo.CARGACONSTANCIAS | IMPLEMENTED_REDESIGNED | P2 | Reutiliza validaciones/efectos legacy dentro de una transacción y falla cerrado ante error stage ajeno | Operaciones especiales |
 | LEGACY-028 | Operación aduanera/inventario | `NOT_CAPTURED` — CTM | Consultar o procesar CTM | SQL_METADATA | No identificado | No | No | `CTMDESCARGA`, `SALDOSCTM`, `LIGACTMA`, `LIGACTMFACTURA` | MISSING | P1 | Flujo especializado sin contrato común | Operaciones especiales |
 | LEGACY-029 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo automático | Generar o reprocesar descargos | SQL_METADATA | No identificado | No | No | `DESCARGATSALIDA*`, `DESCARGASALIDAPEPS`, `SALDOS*` | BLOCKED_BUSINESS | P0 | Algoritmo, autorización, rollback e idempotencia pendientes | Descargos / motor controlado |
 | LEGACY-030 | Descargos y trazabilidad | `NOT_CAPTURED` — Descargo dirigido | Generar descargo dirigido | SQL_METADATA | No identificado | No | No | `DESCDIRIGIDA`, `SALDOSDIRIGIDOS`, `DIRIGIDO` | BLOCKED_BUSINESS | P1 | Regla dirigida y separación de funciones pendientes | Descargos / dirigidos |
@@ -109,19 +110,19 @@ versionada.
 | LEGACY-045 | Reportes y consolidados | `NOT_CAPTURED` — Consolidado de estructuras | Consolidar estructuras/BOM | SQL_METADATA, CODE | Catálogo de estructuras; sin reporte separado | `/estructuras` | `GET /api/v1/catalogos/estructuras` | `APP24_Q_ESTRUCTURAS_LISTAR` | CONSOLIDATE | P2 | Dataset BOM actual vacío | Reportes / consolidados |
 | LEGACY-046 | Reportes y consolidados | `NOT_CAPTURED` — Vencimientos | Consultar vencimientos | SQL_METADATA, CODE, RUNTIME | `/reportes` — vencimientos read-only de desperdicio | `ReportListPage` | `GET /api/v1/reportes/vencimientos` | `dbo.vDESPERDICIOS`, `dbo.APP24_Q_VENCIMIENTOS_LISTAR`; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | P1 | Sólo subconjunto de desperdicio; saldos, descargos y estados fuera de alcance | Reportes / cumplimiento |
 | LEGACY-047 | Reportes y consolidados | `NOT_CAPTURED` — Compulsa | Ejecutar o consultar compulsa | SQL_METADATA, CODE | `/reportes` — Compulsa | `ReportListPage` | `GET /api/v1/reportes/compulsa` | `dbo.v_compulsa_gen`, `dbo.APP24_Q_COMPULSA_LISTAR` | PARTIAL | P2 | Consulta resumida read-only implementada; detalle, generación y reconciliación mutable fuera de alcance | Reportes / cumplimiento |
-| LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA, DOC | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | UNKNOWN | P2 | Reauditado (2ª pasada); semántica de pantalla y fuente canónica pendientes; ver `mapeo-desperdicios.md` | Reportes / cumplimiento |
+| LEGACY-048 | Reportes y consolidados | `NOT_CAPTURED` — Scrap | Consultar scrap o desperdicio | SQL_METADATA, DOC | No identificado | No | No | `DESCARGA_DESPERDICIO`, `DescargaDesp` y variantes | PARTIAL_EVIDENCE_BLOCKED_CONTRACT | P2 | Pantalla confirmada a nivel de auditoría; faltan ruta, contrato visible y fuente canónica; ver `mapeo-desperdicios.md` | Reportes / cumplimiento |
 | LEGACY-049 | Reportes y consolidados | `NOT_CAPTURED` — Dirigidos | Consultar operaciones dirigidas | SQL_METADATA, CODE, RUNTIME | `/reportes` — consulta read-only del subconjunto marcado como dirigido | `ReportListPage` | `GET /api/v1/reportes/dirigidos` | `dbo.V_STATUS_DESCARGAS`, `dbo.APP24_Q_DIRIGIDOS_LISTAR`; filtro estructural `DIRIGIDO = 'SI'` | PARTIAL | P1 | Sólo consulta de líneas marcadas; generación, PEPS, saldos y descargo dirigido permanecen fuera de alcance | Reportes / cumplimiento |
 | LEGACY-050 | Reportes y consolidados | `NOT_CAPTURED` — Permisos | Reportar permisos o actividades | CODE | Administración de perfiles y actividades | `/perfiles` | `/api/v1/administracion/perfiles` y `/actividades` | `app24.PerfilApp`, `Actividad`, `PerfilActividad` | CONSOLIDATE | P1 | No se justificó reporte separado | Administración |
 | LEGACY-051 | Reportes y consolidados | `NOT_CAPTURED` — Rectificaciones | Consultar o reportar rectificaciones | SQL_METADATA, CODE, RUNTIME | `/reportes` — resumen read-only de rectificaciones | `ReportListPage` | `GET /api/v1/reportes/rectificaciones` | `dbo.v_total_rectificaciones`, `dbo.APP24_Q_RECTIFICACIONES_LISTAR`; `dbo.v_rectificaciones` auditada y vacía | PARTIAL | P2 | Sólo resumen agregado; detalle y procesamiento fuera de alcance | Reportes / cumplimiento |
 | LEGACY-052 | Reportes y consolidados | `NOT_CAPTURED` — Activo fijo | Reportar activos fijos | AUDIT_UI, CODE | Consulta de operaciones de activo fijo y reportes comunes | `/operaciones/activos-fijos`, `/reportes` | Operaciones/reportes; sin reporte especializado | `APP24_Q_ACTIVOS_FIJOS_LISTAR` | CONSOLIDATE | P1 | No se modela activo individual | Operaciones / reportes |
 | LEGACY-053 | Reportes y consolidados | `NOT_CAPTURED` — Exportación de resultados | Descargar resultados en XLSX | AUDIT_UI, CODE, RUNTIME | Exportación común de Reportes V1 | `/reportes` | Cuatro endpoints `*/exportacion` | `ExportadorXlsxReportes`; consultas read-only | IMPLEMENTED_REDESIGNED | P1 | No se replican formatos legacy no comprobados | Reportes / exportación |
-| LEGACY-054 | Interfaces/importación | `NOT_CAPTURED` — Materiales | Importar materiales desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/materiales`, errores | `app24.APP24_C_CATALOGO_MATERIAL_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.MATERIAL` y `FactoresMP` no implementada | Importaciones / catálogos / staging seguro |
-| LEGACY-055 | Interfaces/importación | `NOT_CAPTURED` — Productos | Importar productos desde archivo | SQL_METADATA, CODE, RUNTIME | `/catalogos/importaciones` — staging y preview V1 | `CatalogImportPage` | `POST/GET /api/v1/catalogos/importaciones/productos`, errores | `app24.APP24_C_CATALOGO_PRODUCTO_CARGA_CREAR`, queries de hash/detalle/errores | PARTIAL | P1 | Confirmación hacia `dbo.PRODUCTOS` no implementada | Importaciones / catálogos / staging seguro |
-| LEGACY-056 | Interfaces/importación | `NOT_CAPTURED` — Clientes/proveedores | Importar o actualizar clientes y proveedores | SQL_METADATA | No identificado | No | No | `CARGA_FACTURAS` y catálogos legacy | MISSING | P1 | Efectos compartidos e idempotencia pendientes | Importaciones / catálogos |
+| LEGACY-054 | Interfaces/importación | NOT_CAPTURED — Materiales | Importar materiales desde archivo | SQL_METADATA, CODE, TEST | /catalogos/importaciones — staging, preview y confirmación | CatalogImportPage | POST/GET /api/v1/catalogos/importaciones/materiales, POST /api/v1/catalogos/importaciones/materiales/{cargaId}/confirmacion | app24 CargaCatalogoMaterial*; dbo.APP24_C_MATERIAL_CARGA_CONFIRMAR -> dbo.CARGA_MATERIALES | IMPLEMENTED_REDESIGNED | P1 | Staging aislado y confirmación explícita; reutiliza reglas legacy sin stage global expuesto | Importaciones / catálogos / staging seguro |
+| LEGACY-055 | Interfaces/importación | NOT_CAPTURED — Productos | Importar productos desde archivo | SQL_METADATA, CODE, TEST | /catalogos/importaciones — staging, preview y confirmación | CatalogImportPage | POST/GET /api/v1/catalogos/importaciones/productos, POST /api/v1/catalogos/importaciones/productos/{cargaId}/confirmacion | app24 CargaCatalogoProducto*; dbo.APP24_C_PRODUCTO_CARGA_CONFIRMAR -> dbo.CARGA_PRODUCTOS | IMPLEMENTED_REDESIGNED | P1 | Staging aislado y confirmación explícita; productos existentes se preservan conforme a la regla legacy insert-only | Importaciones / catálogos / staging seguro |
+| LEGACY-056 | Interfaces/importación | NOT_CAPTURED — Clientes/proveedores | Importar o actualizar clientes y proveedores | SQL_METADATA, CODE, TEST | /catalogos/importaciones — tabs Clientes y Proveedores, staging, preview y confirmación | CatalogImportPage | POST/GET /api/v1/catalogos/importaciones/{clientes,proveedores}, POST .../{id}/confirmacion | app24 CargaCatalogoCliente*/CargaCatalogoProveedor*; dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR y dbo.APP24_C_PROVEEDOR_CARGA_CONFIRMAR | PARTIAL | P1 | Altas válidas nuevas confirmadas; registros con la misma clave se preservan sin actualización | Importaciones / catálogos |
 | LEGACY-057 | Interfaces/importación | `NOT_CAPTURED` — Pedimentos | Importar pedimentos | AUDIT_UI, SQL_METADATA, CODE, RUNTIME | `/operaciones/pedimentos` — confirmación autoritativa | `PedimentUploadPage` | `POST .../cargas/{id}/confirmacion` | `dbo.APP24_C_PEDIMENTO_CONFIRMAR`; legacy `CARGAPEDIMENTOS`/`CargaPedimentosIE`/`ERRORCARGA` no reutilizados | IMPLEMENTED_REDESIGNED | P0 | No ejecuta descargos ni motor fiscal posterior; importación autoritativa cubierta en V1 | Importaciones / pedimentos |
 | LEGACY-058 | Interfaces/importación | `NOT_CAPTURED` — Facturación | Cargar archivo, validar, previsualizar y confirmar efectos operativos | AUDIT_UI, EXCEL, SQL_METADATA, CODE | `/facturacion` cubre carga, validación, preview, errores, hash y staging durable | `BillingUploadPage` | `POST /api/v1/facturacion/cargas`, `GET /cargas/{id}`, plantilla | `app24.CargaFacturacion`, `ErrorCarga`; confirmación legacy no integrada | PARTIAL | P0 | Pipeline autoritativo y side effects pendientes de negocio | Facturación / confirmación |
 | LEGACY-059 | Interfaces/importación | `NOT_CAPTURED` — Servicios | Importar servicios | SQL_METADATA | No identificado | No | No | Fuente exacta no localizada en contrato versionado | UNKNOWN | P2 | Evidencia insuficiente | Importaciones / servicios |
-| LEGACY-060 | Interfaces/importación | `NOT_CAPTURED` — Actas de destrucción | Importar actas de destrucción | SQL_METADATA, DOC | No identificado | No | No | `CARGAACTAS`; stage legacy `dbo.Acta` | MISSING | P1 | Reauditado: sin layout de archivo ni contrato de errores; ver `mapeo-operaciones-especiales.md` | Importaciones / especiales |
+| LEGACY-060 | Interfaces/importación | NOT_CAPTURED — Actas de destrucción | Importar actas de destrucción | SQL_METADATA, CODE, TEST | /operaciones/actas — misma superficie de LEGACY-025 para ingreso seguro | ActaUploadPage | POST/GET /api/v1/operaciones/actas/importaciones, POST /api/v1/operaciones/actas/{cargaId}/confirmacion | app24 CargaActa*; dbo.APP24_C_ACTA_CARGA_CONFIRMAR -> dbo.CARGAACTAS | IMPLEMENTED_REDESIGNED | P1 | Cubre la interfaz de importación; LEGACY-025 registra el aspecto operativo de la misma confirmación | Importaciones / especiales |
 | LEGACY-061 | Interfaces/importación | `NOT_CAPTURED` — Órdenes de fabricación | Importar órdenes de fabricación | SQL_METADATA | No identificado | No | No | Fuente exacta no localizada en contrato versionado | UNKNOWN | P2 | Evidencia insuficiente | Importaciones / producción |
 | LEGACY-062 | Interfaces/importación | `NOT_CAPTURED` — Procesos | Importar procesos | SQL_METADATA | No identificado | No | No | Fuentes exactas no localizadas | UNKNOWN | P2 | Evidencia insuficiente | Importaciones / procesos |
 | LEGACY-063 | Interfaces/importación | `NOT_CAPTURED` — CTM/Carta de materiales | Importar CTM o carta de materiales | SQL_METADATA | No identificado | No | No | `CARGA_SUBMAQUILA`, `CTMDESCARGA` y objetos relacionados | UNKNOWN | P2 | Layout y proceso autoritativo pendientes | Importaciones / CTM |
@@ -147,14 +148,14 @@ versionada.
 | Área | Total | Implemented equivalent | Implemented redesigned | Partial | Missing | Blocked | Consolidate | Unknown |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Catálogos y maestros | 14 | 3 | 8 | 1 | 0 | 0 | 0 | 2 |
-| Operación aduanera/inventario | 14 | 2 | 4 | 1 | 4 | 1 | 0 | 2 |
+| Operación aduanera/inventario | 14 | 2 | 6 | 3 | 2 | 1 | 0 | 0 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
-| Reportes y consolidados | 18 | 0 | 5 | 5 | 0 | 2 | 5 | 1 |
-| Interfaces/importación | 10 | 0 | 1 | 3 | 2 | 0 | 0 | 4 |
+| Reportes y consolidados | 18 | 0 | 5 | 6 | 0 | 2 | 5 | 0 |
+| Interfaces/importación | 10 | 0 | 4 | 2 | 0 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **26** | **12** | **6** | **5** | **6** | **19** |
+| **Total** | **79** | **5** | **31** | **14** | **2** | **5** | **6** | **16** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -195,12 +196,12 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 26`
-- `PARTIAL = 12`
-- `MISSING = 6`
+- `IMPLEMENTED_REDESIGNED = 31`
+- `PARTIAL = 14 (incluye LEGACY-023, LEGACY-024 y LEGACY-048 como PARTIAL_EVIDENCE_BLOCKED_CONTRACT; LEGACY-056 conserva alta sin actualización)`
+- `MISSING = 2`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 19`
+- `UNKNOWN = 16`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -208,7 +209,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 19 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 16 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.

@@ -278,3 +278,21 @@ new SP = 0
 new staging tables = 0
 API/UI = NOT_IMPLEMENTED
 ```
+
+## Seguimiento de implementación — Actas y Constancias
+
+Las secciones iniciales de este documento corresponden al discovery previo.
+Posteriormente se implementaron staging aislado, preview, errores, autorización y
+confirmación autoritativa para Actas y Constancias; por tanto no representan el
+estado vigente de LEGACY-025 ni LEGACY-027.
+
+| Capacidad | Ruta moderna | API y permisos | SQL versionado | Estado vigente |
+|---|---|---|---|---|
+| Actas (LEGACY-025; importación LEGACY-060) | /operaciones/actas | POST/GET importaciones con ACTAS_CARGAR; POST confirmacion con ACTAS_CONFIRMAR | app24.CargaActa*; dbo.APP24_C_ACTA_CARGA_CONFIRMAR -> dbo.CARGAACTAS | IMPLEMENTED_REDESIGNED |
+| Constancias (LEGACY-027) | /operaciones/constancias | POST/GET importaciones con CONSTANCIAS_CARGAR; POST confirmacion con CONSTANCIAS_CONFIRMAR | app24.CargaConstancia*; dbo.APP24_C_CONSTANCIA_CARGA_CONFIRMAR -> dbo.CARGACONSTANCIAS | IMPLEMENTED_REDESIGNED |
+
+Los wrappers preservan las reglas legacy dentro de transacciones, usan locks
+compatibles y registran fallos. Constancias falla cerrada cuando el error stage
+legacy compartido tiene filas ajenas; Actas preserva los side effects globales
+documentados de CARGAACTAS. Hay cobertura de parser, API, caso de uso, adapter y
+concurrencia SQL para ambos flujos.

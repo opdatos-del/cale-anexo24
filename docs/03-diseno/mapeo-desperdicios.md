@@ -13,9 +13,10 @@ SCRAP_CONTRACT = PARTIAL
 SCRAP_READ_V1 = NOT_IMPLEMENTED
 ```
 
-`LEGACY-048` permanece `UNKNOWN` en esta primera pasada. La clasificación
-`PARTIAL` del contrato describe el subconjunto técnico de desperdicio demostrado,
-no una implementación completa de la capacidad legacy Scrap.
+La clasificación final de `LEGACY-048` se registra en la reconciliación de
+evidencia de pantalla. `PARTIAL` describe exclusivamente el subconjunto técnico
+de desperdicio demostrado; no equivale a una implementación completa de la
+capacidad legacy Scrap.
 
 ```text
 WASTE_EXPIRATION_SUBSET_ALREADY_EXPOSED = YES
@@ -101,7 +102,7 @@ Por ello:
 
 - no se creó `APP24_Q_DESPERDICIOS_LISTAR` duplicado;
 - no se creó otra ruta, permiso, tab ni item de sidebar;
-- no se cambió `LEGACY-048` en la matriz;
+- no se cambió `LEGACY-048` en la matriz durante esa primera pasada; la reconciliación posterior sí actualiza su clasificación;
 - se mantiene `LEGACY-046 = PARTIAL` por el subconjunto de vencimientos de desperdicio.
 
 ## Auditoría de procesos
@@ -116,17 +117,27 @@ aplicación. No se modificaron `DESCARGA`, `PARTIDAS`, `Importaciones`,
 
 ## Auditoría UI legacy
 
-La auditoría disponible del repositorio no conserva una captura o ruta exacta
-de una pantalla denominada `Scrap`. Sí conserva los objetos de reporte y
-operación descritos arriba. Sin nombre de pantalla, filtros, columnas, acción
-esperada y caso de aceptación, no se puede declarar equivalencia funcional con
-`vDESPERDICIOS`.
+La auditoría E2E consolidada confirma a nivel de inventario que entre los
+reportes inspeccionados estuvo Scrap. Esa evidencia acredita la presencia de una
+pantalla, pero el repositorio no conserva una captura, ruta ASPX, título ni el
+contrato visible de esa pantalla. No se confunde la existencia de views de
+desperdicio con evidencia de UI.
 
 ```text
-SCRAP_UI_CONTRACT = UNKNOWN
-SCRAP_LAYOUT = UNKNOWN
+SCRAP_SCREEN_PRESENCE = CONFIRMED
+SCRAP_ROUTE = UNKNOWN
+SCRAP_PAGE_TITLE = UNKNOWN
+SCRAP_COLUMNS = UNKNOWN
+SCRAP_FILTERS = UNKNOWN
+SCRAP_ORDER = UNKNOWN
+SCRAP_EXPORT = UNKNOWN
+SCRAP_VISIBLE_ACTIONS = UNKNOWN
+SCRAP_VISIBLE_CONTRACT = INCOMPLETE
 SCRAP_ACCEPTANCE_CASE = UNKNOWN
 ```
+
+Sin esos elementos no se puede declarar equivalencia funcional con
+`vDESPERDICIOS`.
 
 ## Reapertura / siguiente paso
 
@@ -196,12 +207,37 @@ dependencias y parámetros; ningún objeto mutable fue ejecutado.
 
 ```text
 SCRAP_OBJECT_NAMED = NONE
-SCRAP_UI_EVIDENCE  = NONE
+SCRAP_UI_EVIDENCE = AUDIT_LEVEL_SCREEN_PRESENCE_ONLY
+SCRAP_SCREEN_PRESENCE = CONFIRMED
+SCRAP_ROUTE = UNKNOWN
 READ_ONLY_WASTE_SP = NONE
-NEW_SP_REQUIRED    = NOT_PROVEN
-SCRAP_CONTRACT     = PARTIAL (sin cambio)
-LEGACY-048         = UNKNOWN (sin cambio)
+NEW_SP_REQUIRED = NOT_PROVEN
+SCRAP_CONTRACT = PARTIAL (sin cambio)
+LEGACY-048 = PARTIAL_EVIDENCE_BLOCKED_CONTRACT
 ```
+
+### Reconciliación de evidencia de pantalla
+
+La formulación anterior `SCRAP_UI_EVIDENCE = NONE` era demasiado fuerte: la
+auditoría end-to-end consolidada sí lista Scrap entre los reportes inspeccionados.
+Esto confirma que existió una superficie Scrap, pero no recupera su ruta exacta
+ni el contrato que se necesita para implementarla. Los artefactos internos
+disponibles fueron revisados (documentación de auditoría, matriz, mapeos,
+inventario de 83 rutas, Markdown de contexto, capturas y adjuntos); no hay HTML,
+texto guardado, descarga, menú o captura adicional que cierre ese contrato.
+
+```text
+SCRAP_SCREEN_PRESENCE = CONFIRMED
+SCRAP_ROUTE = UNKNOWN
+SCRAP_VISIBLE_CONTRACT = INCOMPLETE
+SCRAP_CANONICAL_SOURCE = NOT_CONFIRMED
+LEGACY_048 = PARTIAL_EVIDENCE_BLOCKED_CONTRACT
+SCRAP_IMPLEMENTABLE_NOW = NO
+```
+
+La clasificación no usa `BLOCKED_EXTERNAL_SCREEN_CONTRACT`: aunque la ruta y el
+contrato siguen pendientes, la evidencia interna no está agotada de manera
+demostrable para exigir volver al sistema legacy o consultar a negocio.
 
 ### Cobertura del barrido
 

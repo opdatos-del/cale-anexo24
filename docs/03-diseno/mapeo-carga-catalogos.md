@@ -145,3 +145,19 @@ fuera de la página.
 Materiales incluye staging, parser, preview, RBAC separado, confirmación
 controlada, rollback y bitácora; `LIVE_MUTATION_ACCEPTANCE = PENDING`. Productos
 no representa confirmación de negocio.
+
+## Seguimiento de implementación — clientes y proveedores
+
+La superficie /catalogos/importaciones incorpora tabs de Clientes y Proveedores
+con archivo XLS/XLSX, staging aislado, validación, preview, errores y confirmación
+explícita protegida por CLIENTES_CARGAR/CLIENTES_CONFIRMAR y
+PROVEEDORES_CARGAR/PROVEEDORES_CONFIRMAR.
+
+Los comandos dbo.APP24_C_CLIENTE_CARGA_CONFIRMAR y
+dbo.APP24_C_PROVEEDOR_CARGA_CONFIRMAR confirman altas válidas nuevas desde sus
+stages app24; las claves existentes se conservan sin actualización conforme al
+contrato legacy INSERT-only. Los controladores, adapters, casos de uso, migrations
+15/16, permisos y tests backend/frontend están versionados.
+
+LEGACY_056 = PARTIAL
+LEGACY_056_REMAINING_GAP = actualización de registros existentes no implementada
