@@ -146,6 +146,21 @@ public class ReportesController {
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+    @GetMapping("/analisis-descargas/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnalisisDescargas(@RequestParam(required = false) String filtro) {
+        List<AnalisisDescarga> resultado = listarAnalisisDescargasUseCase.exportar(filtro);
+        return archivo("analisis-descargas", List.of("Descarga", "Pedimento entrada", "Partida entrada",
+                "Pedimento salida", "Partida salida", "Material", "Producto", "Fecha importación",
+                "Fecha salida", "Fecha vencimiento", "Cantidad importada", "Cantidad exportada",
+                "Cantidad incorporada", "Merma", "Desperdicio", "Unidad"),
+                resultado.stream().map(item -> fila(item.descargaId(), item.pedimentoEntrada(), item.partidaEntrada(),
+                        item.pedimentoSalida(), item.partidaSalida(), item.material(), item.producto(),
+                        item.fechaImportacion(), item.fechaSalida(), item.fechaVencimiento(), item.cantidadImportada(),
+                        item.cantidadExportada(), item.cantidadIncorporada(), item.cantidadMerma(),
+                        item.cantidadDesperdicio(), item.unidad())).toList());
+    }
+
     @GetMapping("/operaciones-bloqueadas")
     @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
     public ResponseEntity<Pagina<OperacionBloqueadaDto>> operacionesBloqueadas(

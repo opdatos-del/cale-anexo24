@@ -82,6 +82,15 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('exporta análisis de descargas con la proyección actual y sin periodo', () => {
+    service.export({ ...criteria, type: 'analisis-descargas', filter: ' MAT-1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/analisis-descargas/exportacion');
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.params.get('filtro')).toBe('MAT-1');
+    expect(request.request.params.get('tamano')).toBe('100');
+    request.flush(new Blob());
+  });
+
   it('consulta operaciones bloqueadas sin periodo y con filtro textual', () => {
     service.search({ ...criteria, type: 'operaciones-bloqueadas', filter: ' 26 ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/operaciones-bloqueadas');

@@ -10,6 +10,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4Us
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
+import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
@@ -95,6 +96,34 @@ class ReportesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void exportarAnalisisDescargasExigePermisoDeExportar() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/analisis-descargas/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportarAnalisisDescargasGeneraXlsxConProyeccionActual() throws Exception {
+        when(listarAnalisisDescargasUseCase.exportar(any())).thenReturn(List.of(new AnalisisDescarga(1L,
+                "IMP-1", "1", "EXP-1", "2", "MAT-1", "PROD-1", LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0), LocalDateTime.of(2027, 1, 1, 0, 0), BigDecimal.TEN,
+                BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, null, "KG")));
+
+        MvcResult resultado = mockMvc.perform(get("/api/v1/reportes/analisis-descargas/exportacion")
+                        .param("filtro", "MAT-1")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("analisis-descargas.xlsx")))
+                .andReturn();
+
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(resultado.getResponse().getContentAsByteArray()))) {
+            var hoja = libro.getSheet("analisis-descargas");
+            org.junit.jupiter.api.Assertions.assertEquals("Descarga", hoja.getRow(0).getCell(0).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertEquals("IMP-1", hoja.getRow(1).getCell(1).getStringCellValue());
+        }
     }
 
     @Test

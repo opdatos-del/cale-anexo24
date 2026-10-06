@@ -79,6 +79,18 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(cells[9]?.textContent?.trim()).toBe('4.0');
   });
 
+  it('habilita XLSX para el análisis de descargas generado', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('analisis-descargas');
+    fixture.detectChanges();
+
+    internals.generate();
+    fixture.detectChanges();
+
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    expect(buttons.some((button) => button.textContent?.includes('XLSX'))).toBe(true);
+  });
+
   it('no altera partidas no numéricas ni valores ausentes', () => {
     search.execute.mockReturnValue(of({ ...pagina, items: [{ ...fila, partidaEntrada: 'A4', partidaSalida: null }] }));
     const internals = fixture.componentInstance as unknown as PageInternals;

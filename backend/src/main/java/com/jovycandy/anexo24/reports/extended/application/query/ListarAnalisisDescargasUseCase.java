@@ -6,9 +6,15 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Lista relaciones históricas de descarga sin ejecutar procesos legacy. */
 @Service
 public class ListarAnalisisDescargasUseCase {
+    private static final int TAMANO_PAGINA_EXPORTACION = 100;
+    private static final int MAXIMO_FILAS_EXPORTACION = 10_000;
+
     private final AnalisisDescargaRepository repository;
 
     public ListarAnalisisDescargasUseCase(AnalisisDescargaRepository repository) {
@@ -28,6 +34,24 @@ public class ListarAnalisisDescargasUseCase {
             throw new SolicitudInvalidaException("La paginación del análisis de descargas no es válida.");
         }
         return repository.findPage(normalizar(filtro), pagina, tamano);
+    }
+
+    /** Obtiene todas las relaciones históricas filtradas aptas para exportación. */
+    public List<AnalisisDescarga> exportar(String filtro) {
+        String normalizado = normalizar(filtro);
+        Pagina<AnalisisDescarga> primeraPagina = repository.findPage(normalizado, 1, TAMANO_PAGINA_EXPORTACION);
+        if (primeraPagina.total() > MAXIMO_FILAS_EXPORTACION) {
+            throw new SolicitudInvalidaException("La exportación excede el máximo de "
+                    + MAXIMO_FILAS_EXPORTACION + " filas.");
+        }
+        if (primeraPagina.total() == 0) return List.of();
+
+        List<AnalisisDescarga> resultados = new ArrayList<>((int) primeraPagina.total());
+        resultados.addAll(primeraPagina.items());
+        for (int pagina = 2; pagina <= primeraPagina.totalPaginas(); pagina++) {
+            resultados.addAll(repository.findPage(normalizado, pagina, TAMANO_PAGINA_EXPORTACION).items());
+        }
+        return resultados;
     }
 
     private String normalizar(String valor) {
