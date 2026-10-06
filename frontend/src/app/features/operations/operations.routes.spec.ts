@@ -9,7 +9,13 @@ describe('rutas de operaciones', () => {
     expect(actas?.loadChildren).toBeTypeOf('function');
   });
 
-  it('no expone actas bajo catálogos', () => {
+  it('declara constancias bajo operaciones con CONSTANCIAS_CARGAR', () => {
+    const constancias = OPERATIONS_ROUTES.find((route) => route.path === 'constancias');
+    expect(constancias).toMatchObject({ canActivate: [permissionGuard], data: { permission: 'CONSTANCIAS_CARGAR' } });
+    expect(constancias?.loadChildren).toBeTypeOf('function');
+  });
+
+  it('no expone actas ni constancias bajo catálogos', () => {
     expect(OPERATIONS_ROUTES.some((route) => (route.path ?? '').startsWith('catalogos'))).toBe(false);
   });
 });

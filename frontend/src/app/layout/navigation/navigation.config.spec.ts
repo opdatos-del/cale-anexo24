@@ -10,4 +10,13 @@ describe('navigation.config', () => {
     const catalogos = NAVIGATION_GROUPS.find((group) => group.label === 'Catálogos');
     expect(catalogos?.items.some((item) => item.route === '/operaciones/actas')).toBe(false);
   });
+
+  it('ubica Constancias en Operaciones y no en Catálogos', () => {
+    const operaciones = NAVIGATION_GROUPS.find((group) => group.label === 'Operaciones');
+    const constancias = operaciones?.items.find((item) => item.label === 'Constancias');
+    expect(constancias).toMatchObject({ route: '/operaciones/constancias', permission: 'CONSTANCIAS_CARGAR' });
+
+    const catalogos = NAVIGATION_GROUPS.find((group) => group.label === 'Catálogos');
+    expect(catalogos?.items.some((item) => item.route === '/operaciones/constancias')).toBe(false);
+  });
 });

@@ -30,4 +30,10 @@ export const OPERATIONS_ROUTES: Routes = [
     data: { permission: 'ACTAS_CARGAR' },
     loadChildren: () => import('./actas/actas.routes').then((routes) => routes.ACTAS_ROUTES),
   },
+  {
+    path: 'constancias',
+    canActivate: [permissionGuard],
+    data: { permission: 'CONSTANCIAS_CARGAR' },
+    loadChildren: () => import('./constancias/constancias.routes').then((routes) => routes.CONSTANCIAS_ROUTES),
+  },
 ];

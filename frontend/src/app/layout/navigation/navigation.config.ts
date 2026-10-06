@@ -28,6 +28,7 @@ export const NAVIGATION_GROUPS: NavigationGroup[] = [
     { label: 'Activos fijos', icon: 'precision_manufacturing', route: '/operaciones/activos-fijos', permission: 'OPERACIONES_CONSULTAR' },
     { label: 'Carga de pedimentos', icon: 'upload_file', route: '/operaciones/pedimentos', permission: 'PEDIMENTOS_CARGAR' },
     { label: 'Actas', icon: 'assignment', route: '/operaciones/actas', permission: 'ACTAS_CARGAR' },
+    { label: 'Constancias', icon: 'description', route: '/operaciones/constancias', permission: 'CONSTANCIAS_CARGAR' },
   ]},
   { label: 'Interfaces', icon: 'sync_alt', items: [
     { label: 'Importaciones de catálogos', icon: 'upload_file', route: '/catalogos/importaciones', anyOfPermissions: ['MATERIALES_CARGAR','PRODUCTOS_CARGAR'] },
