@@ -127,10 +127,10 @@ BEGIN
         INSERT INTO app24.ErrorCargaConstancia(carga_id,hoja,fila,columna,valor_enmascarado,codigo,mensaje)
         SELECT @CargaId,hoja,fila,columna,valor_enmascarado,codigo,mensaje FROM OPENJSON(@ErroresJson)
         WITH(hoja VARCHAR(80) '$.hoja',fila INT '$.fila',columna VARCHAR(80) '$.columna',valor_enmascarado VARCHAR(80) '$.valorEnmascarado',codigo VARCHAR(120) '$.codigo',mensaje VARCHAR(500) '$.mensaje');
-        DECLARE @Accion VARCHAR(40) = CASE WHEN @Estado='PREVISUALIZADA' THEN 'ACTA_CARGA_VALIDADA' ELSE 'ACTA_CARGA_CON_ERRORES' END,
+        DECLARE @Accion VARCHAR(40) = CASE WHEN @Estado='PREVISUALIZADA' THEN 'CONSTANCIA_CARGA_VALIDADA' ELSE 'CONSTANCIA_CARGA_CON_ERRORES' END,
                 @Resultado VARCHAR(20) = CASE WHEN @Estado='PREVISUALIZADA' THEN 'EXITO' ELSE 'FALLO' END,
                 @Detalle VARCHAR(500) = CONCAT('cargaId=',@CargaId), @EventoId BIGINT;
-        EXEC app24.APP24_C_BITACORA_REGISTRAR @UsuarioId=@UsuarioId,@Modulo='OPERACIONES_ACTAS',@Accion=@Accion,@Detalle=@Detalle,@CorrelacionId=@CorrelationId,@Resultado=@Resultado,@EventoId=@EventoId OUTPUT;
+        EXEC app24.APP24_C_BITACORA_REGISTRAR @UsuarioId=@UsuarioId,@Modulo='OPERACIONES_CONSTANCIAS',@Accion=@Accion,@Detalle=@Detalle,@CorrelacionId=@CorrelationId,@Resultado=@Resultado,@EventoId=@EventoId OUTPUT;
         COMMIT TRANSACTION;
     END TRY BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK TRANSACTION; THROW; END CATCH;
 END;

@@ -89,6 +89,43 @@ class ConstanciaLegacyStageConcurrencyTest {
     }
 
     @Test
+    void crearCargaPrevisualizadaRegistraBitacoraDeConstancias() throws Exception {
+        long cargaId = crearCargaStaging("PREVISUALIZADA", "p".repeat(64), "audit-previsualizada");
+
+        assertEquals("OPERACIONES_CONSTANCIAS|CONSTANCIA_CARGA_VALIDADA|EXITO|7001|audit-previsualizada|cargaId=" + cargaId,
+                valor(APP, "SELECT modulo + '|' + accion + '|' + resultado + '|' + CONVERT(VARCHAR(20), usuario_id) + '|' + correlation_id + '|' + detalle FROM app24.BitacoraEvento WHERE correlation_id = 'audit-previsualizada'"));
+        assertEquals("0", valor(APP, "SELECT COUNT(*) FROM app24.BitacoraEvento WHERE modulo = 'OPERACIONES_ACTAS' OR accion IN ('ACTA_CARGA_VALIDADA', 'ACTA_CARGA_CON_ERRORES')"));
+    }
+
+    @Test
+    void crearCargaConErroresRegistraBitacoraDeConstancias() throws Exception {
+        long cargaId = crearCargaStaging("CON_ERRORES", "e".repeat(64), "audit-con-errores");
+
+        assertEquals("OPERACIONES_CONSTANCIAS|CONSTANCIA_CARGA_CON_ERRORES|FALLO|7001|audit-con-errores|cargaId=" + cargaId,
+                valor(APP, "SELECT modulo + '|' + accion + '|' + resultado + '|' + CONVERT(VARCHAR(20), usuario_id) + '|' + correlation_id + '|' + detalle FROM app24.BitacoraEvento WHERE correlation_id = 'audit-con-errores'"));
+        assertEquals("0", valor(APP, "SELECT COUNT(*) FROM app24.BitacoraEvento WHERE modulo = 'OPERACIONES_ACTAS' OR accion IN ('ACTA_CARGA_VALIDADA', 'ACTA_CARGA_CON_ERRORES')"));
+    }
+
+    private long crearCargaStaging(String estado, String hash, String correlacionId) throws SQLException {
+        try (Connection app = conectar(APP);
+             CallableStatement cs = app.prepareCall("{call app24.APP24_C_CONSTANCIA_CARGA_CREAR(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            cs.setString(1, "auditoria.xlsx");
+            cs.setString(2, hash);
+            cs.setLong(3, 7001L);
+            cs.setString(4, estado);
+            cs.setInt(5, 0);
+            cs.setInt(6, 0);
+            cs.setString(7, "CONSTANCIA-V1");
+            cs.setString(8, correlacionId);
+            cs.setNString(9, "[]");
+            cs.setNString(10, "[]");
+            cs.registerOutParameter(11, java.sql.Types.BIGINT);
+            cs.execute();
+            return cs.getLong(11);
+        }
+    }
+
+    @Test
     void legacyLiveContractEsEjecutable() throws Exception {
         try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
             s.execute("INSERT INTO dbo.productos (PRODUCTOKEY, CVE_PRODUCTO, NOMBRE, UNIDAD, fraccion) "
