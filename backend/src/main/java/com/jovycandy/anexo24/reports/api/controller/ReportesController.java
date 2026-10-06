@@ -194,6 +194,19 @@ public class ReportesController {
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+    @GetMapping("/dirigidos/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarDirigidos(@RequestParam(required = false) String filtro) {
+        List<OperacionDirigida> resultado = listarOperacionesDirigidasUseCase.exportar(filtro);
+        return archivo("dirigidos", List.of("Salida", "Partida salida", "Documento", "Fecha salida",
+                "Clave pedimento", "Secuencia", "Producto", "Cantidad", "Factura", "Descargo", "Dirigido",
+                "Valor descarga dólares", "Valor descarga pesos", "Tiene estructura", "Número materiales"),
+                resultado.stream().map(item -> fila(item.salidaKey(), item.psalidaKey(), item.documento(),
+                        item.fechaSalida(), item.clavePedimento(), item.secuencia(), item.producto(), item.cantidad(),
+                        item.factura(), item.descargo(), item.dirigido(), item.valorDescargaDolares(),
+                        item.valorDescargaPesos(), item.tieneEstructura(), item.numeroMateriales())).toList());
+    }
+
     @GetMapping("/rectificaciones")
     @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
     public ResponseEntity<Pagina<RectificacionDto>> rectificaciones(

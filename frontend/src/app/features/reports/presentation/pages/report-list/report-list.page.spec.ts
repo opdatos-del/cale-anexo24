@@ -91,6 +91,18 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(buttons.some((button) => button.textContent?.includes('XLSX'))).toBe(true);
   });
 
+  it('habilita XLSX para dirigidos generados', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('dirigidos');
+    fixture.detectChanges();
+
+    internals.generate();
+    fixture.detectChanges();
+
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    expect(buttons.some((button) => button.textContent?.includes('XLSX'))).toBe(true);
+  });
+
   it('no altera partidas no numéricas ni valores ausentes', () => {
     search.execute.mockReturnValue(of({ ...pagina, items: [{ ...fila, partidaEntrada: 'A4', partidaSalida: null }] }));
     const internals = fixture.componentInstance as unknown as PageInternals;

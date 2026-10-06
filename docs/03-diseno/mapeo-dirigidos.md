@@ -27,7 +27,7 @@ definiciones y conteos agregados. No se imprimieron filas de negocio.
 
 | Objeto | Tipo | Clasificación | Filas/resultado | Decisión |
 |---|---|---|---:|---|
-| `dbo.DIRIGIDO` | TABLE | READ SOURCE / MUTABLE PROCESS SOURCE | 0 | Fuente de la marca; no escribir |
+| `dbo.DIRIGIDO` | TABLE | PERSISTED_RELATION / MUTABLE_PROCESS_OUTPUT | 0 | Relación persistida vacía; no escribir ni asumir cardinalidad 1:1 |
 | `dbo.V_STATUS_DESCARGAS` | VIEW | READ | 3392 | Fuente read-only V1 |
 | `dbo.V_INFORMEDESCARGAS` | VIEW | READ | 3866 | No contiene flag ni dependencia directa de `DIRIGIDO` |
 | `dbo.TRAZO` | TABLE | MUTABLE PROCESS RESULT | 0 | No exponer como Dirigidos |
@@ -100,7 +100,9 @@ Dirigidos.
 - Orden: `SALIDA_KEY`, `PSALIDA_KEY`, `SECUENCIA`, `DOCUMENTO`, `PRODUCTO`,
   `FACTURA`.
 - `OFFSET`: aritmética `BIGINT`.
-- XLSX: `NOT_IMPLEMENTED`.
+- `DIRECTED_READ_CONTRACT = PARTIAL`: no se agregan campos de `DIRIGIDO` porque el snapshot está vacío y no demuestra cardinalidad con el grano de salida.
+- `DIRECTED_XLSX = IMPLEMENTED`: `GET /api/v1/reportes/dirigidos/exportacion`, protegido por `REPORTES_EXPORTAR`, reutiliza `dbo.APP24_Q_DIRIGIDOS_LISTAR`, el filtro actual y un máximo de 10,000 filas.
+- El XLSX conserva las claves técnicas `salidaKey` y `psalidaKey` de la proyección API para identificar la línea exportada.
 
 La API sólo devuelve líneas que la fuente read-only marca como dirigidas. No
 incluye botones ni comandos de procesar, generar, aplicar o recalcular. Cuando

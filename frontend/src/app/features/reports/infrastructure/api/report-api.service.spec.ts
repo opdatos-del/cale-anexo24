@@ -74,6 +74,15 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('exporta dirigidos con el contrato actual y sin periodo', () => {
+    service.export({ ...criteria, type: 'dirigidos', filter: ' PROD-1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/dirigidos/exportacion');
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.params.get('filtro')).toBe('PROD-1');
+    expect(request.request.params.get('tamano')).toBe('100');
+    request.flush(new Blob());
+  });
+
   it('consulta análisis de descargas sin periodo y con filtro textual', () => {
     service.search({ ...criteria, type: 'analisis-descargas', filter: ' 190-1562 ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/analisis-descargas');

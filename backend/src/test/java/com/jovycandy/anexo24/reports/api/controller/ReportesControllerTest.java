@@ -12,6 +12,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificac
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
+import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -210,6 +211,49 @@ class ReportesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void exportarDirigidosSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/dirigidos/exportacion"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportarDirigidosExigePermisoDeExportar() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/dirigidos/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportarDirigidosSinFilasResponde204() throws Exception {
+        when(listarOperacionesDirigidasUseCase.exportar(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/reportes/dirigidos/exportacion")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+    }
+
+    @Test
+    void exportarDirigidosGeneraXlsxConContratoActual() throws Exception {
+        when(listarOperacionesDirigidasUseCase.exportar(any())).thenReturn(List.of(new OperacionDirigida(10L, 20L,
+                "EXP-1", LocalDateTime.of(2026, 1, 15, 0, 0), "A1", 2, "PROD-1", BigDecimal.TEN,
+                "FAC-1", "SI", "SI", BigDecimal.ONE, BigDecimal.TWO, "SI", 3)));
+
+        MvcResult resultado = mockMvc.perform(get("/api/v1/reportes/dirigidos/exportacion")
+                        .param("filtro", "PROD-1")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("dirigidos.xlsx")))
+                .andReturn();
+
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(resultado.getResponse().getContentAsByteArray()))) {
+            var hoja = libro.getSheet("dirigidos");
+            org.junit.jupiter.api.Assertions.assertEquals("Salida", hoja.getRow(0).getCell(0).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertEquals("EXP-1", hoja.getRow(1).getCell(2).getStringCellValue());
+        }
     }
 
     @Test
