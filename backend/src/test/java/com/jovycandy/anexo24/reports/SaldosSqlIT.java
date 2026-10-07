@@ -52,7 +52,7 @@ class SaldosSqlIT {
             s.execute("INSERT dbo.Partidas (Partidakey,Importacionlink,Categoria,Cantidad,Saldo,clave,Fraccion,Unidad,Val_aduanal,Val_dolares,lote,Complemento1,Complemento2,Complemento3,NICO) VALUES "
                     + "(101,1,'CAT',10,6,'MAT-1','01010101','KG',1000,100,'L1','C1',NULL,'C3','N1'),"
                     + "(102,2,'CAT',20,0,'MAT-2','01010102','PZ',2000,200,'L2',NULL,NULL,NULL,'N2'),"
-                    + "(103,3,'CAT',30,0,'MAT-3','01010103','KG',3000,300,NULL,NULL,NULL,NULL,NULL),"
+                    + "(103,3,'CAT',30,4,'MAT-3','01010103','KG',3000,300,NULL,NULL,NULL,NULL,NULL),"
                     + "(104,4,'NO',10,5,'MAT-NO','01010104','KG',100,10,NULL,NULL,NULL,NULL,NULL),"
                     + "(105,5,'CAT',0,5,'MAT-QTY','01010105','KG',100,10,NULL,NULL,NULL,NULL,NULL),"
                     + "(106,6,'CAT',10,5,'MAT-NOD','01010106','KG',100,10,NULL,NULL,NULL,NULL,NULL),"
