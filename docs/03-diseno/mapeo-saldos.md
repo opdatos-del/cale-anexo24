@@ -376,3 +376,128 @@ reutilizar automáticamente permisos de consulta para un futuro reproceso.
 - Cero procesos `SALDOS*`, descargo, PEPS, historial, concentrado o mantenimiento
   ejecutados.
 - Cero PR, merge o revisión automática.
+
+## 19. Reauditoria SP-FIRST para LEGACY-021 y LEGACY-038
+
+Reauditoria focalizada para intentar implementar la consulta reportable de saldos. Sin LIVE revalidation: solo evidencia versionada. NO se crearon objetos SQL, NO se inventaron columnas, NO se reescribio formula legacy.
+
+### 19.1 Pregunta critica
+
+1. dbo.PR_INFORME_SALDOS ¿representa el contrato canonico read-only del reporte legacy Saldos?
+
+Respuesta: PARCIAL. Inventario confirma parametros (@DESDE datetime, @HASTA datetime, @documento varchar(50)), fuentes (Importaciones, partidas, categorias), 37 columnas confirmadas via sys.dm_exec_describe_first_result_set_for_object, y patron de tabla variable local que sugiere sin DML persistente. No existen en el repo:
+
+- nombres/tipos/aliases de las 37 columnas;
+- semantica de @DESDE/@HASTA (fecha de pago? de importacion? aduanera? de vencimiento? otra);
+- semantica de @documento (pedimento? factura? material?);
+- grano exacto de salida;
+- orden contractual;
+- reglas NULL;
+- filtros equivalentes a la UI legacy.
+
+PR_INFORME_SALDOS no tiene paginacion ni @Total nativos. La auditoria previa intento ejecutarlo con rangos 2025 e historico: devolvio 0 filas y warning de NULL en agregado. Imposible validar dataset contra las 42 filas observadas en el snapshot funcional de 2025 sin una representacion valida.
+
+Conclusion: PR_INFORME_SALDOS es el candidato canonico conocido mas razonable, pero no esta cerrado como contrato API hasta validar las 37 columnas y semantica de parametros contra la UI legacy y un corte historico representativo.
+
+2. LEGACY-021 y LEGACY-038 ¿son la misma superficie o capacidades funcionalmente diferentes?
+
+Respuesta: distintas; no consolidar.
+
+- LEGACY-021 = Consultar saldo con semantica fiscal y corte definidos. Implica semantica fiscal (no solo persistido) y un corte de operacion auditado. Sin sesion autorizada para validar filtros, columnas, totales o botones peligrosos de la pantalla operativa de Saldos.
+- LEGACY-038 = Generar y exportar reporte de saldos. Implica read-only del mismo dataset pero solo la superficie reportable/excels, sin semantica operativa.
+
+Cualquier implementacion que cubra LEGACY-038 deja LEGACY-021 con BLOCKED_BUSINESS porque su semantica fiscal + corte no esta demostrada. LEGACY-021 permanece separado.
+
+### 19.2 Forensic SP-FIRST de dbo.PR_INFORME_SALDOS
+
+Auditoria con evidencia versionada exclusivamente:
+
+| Aspecto | Evidencia versionada |
+|----------|---------------------|
+| PARAMETERS | @DESDE datetime, @HASTA datetime, @documento varchar(50) (mapeo-saldos.md sec 8 + procedimientos-almacenados.md) |
+| RESULTSET_COLUMN_COUNT | 37 columnas confirmadas via sys.dm_exec_describe_first_result_set_for_object (mapeo-materiales-utilizados.md sec 12.738, mapeo-productos.md sec 12) |
+| RESULTSET_COLUMNS | NO en el repo. Solo metadata de conteo. |
+| COLUMN_TYPES | NO en el repo. |
+| SOURCE_TABLES | Importaciones, partidas, categorias (procedimientos-almacenados.md sec PR_INFORME_SALDOS) |
+| SOURCE_VIEWS | NO confirmado. Descripcion indica solo tablas base. |
+| SOURCE_FUNCTIONS | NO confirmado. Posible uso de BUSCATIPOM en views relacionadas (no en PR_INFORME_SALDOS). |
+| DEPENDENCIES | NO disponible en repo. Estimadas a partir del cuerpo de views documentadas en mapeo-saldos.md sec 9. |
+| GRAIN | NO confirmado. Pendiente de las 37 columnas. |
+| ORDER | no documentado en el SP. UI observada sin orden claro. |
+| DATE_FILTER_SEMANTICS | @DESDE/@HASTA parametros presentes. NO se confirma si filtran SALIDAS.Fecha o IMPORTACIONES.Fecha o partidas.PFECHAIMPO (mapeo-saldos.md sec 11.1 explicito: PENDIENTE confirmar). |
+| DOCUMENT_FILTER_SEMANTICS | @documento presente. NO se confirma semantica (pedimento/factura/material/otro). |
+| NULL_HANDLING | warning de NULL emitido en agregado durante prueba previa; reglas no documentadas. |
+| DUPLICATE_BEHAVIOR | no documentado. |
+| TEMP_TABLES | ninguna confirmada; SP no versionado. |
+| TABLE_VARIABLES | Patron de tabla variable local sugerido por auditorias previas (mapeo-materiales-utilizados.md sec 12.738). NO verificado sin LIVE. |
+| SIDE_EFFECTS | no documentados con la definicion; descripcion dice CREATE PROCEDURE [dbo].[PR_INFORME_SALDOS] sin acciones declaradas. |
+| EXEC_DEPENDENCIES | NO documentadas. Familia SALDOS* es WRITE; PR_INFORME_SALDOS no esta documentado como ejecutor de mutables. Auditoria auditoria-stored-procedures.md clasifica la familia como PROCESS/REPORT, MIXED por agregacion; PR_INFORME_SALDOS especificamente figura como read-only en otras secciones. |
+| CROSS_DB_REFERENCES | NO documentadas. |
+| MUTABLE_PRECONDITION_REQUIRED | NO segun patron table variable. NO verificable sin LIVE. |
+| PERSISTENT_WRITES | 0 segun patron table variable. NO verificable sin LIVE. |
+| READ_ONLY_CONFIRMED | YES por inferencia de patron. NO verificable al 100% sin LIVE. |
+
+
+### 19.3 Clasificacion SP
+
+PR_INFORME_SALDOS = SP_EXISTING_REUSABLE_WITH_ADAPTER (candidato, condicional a revalidacion).
+
+Justificacion:
+
+- Patron de tabla variable local apunta a READ_ONLY en efecto.
+- Familia SALDOS* (SALDOS, SALDOS_FAMILIA, SALDOS2, SALDOSDIRIGIDOS, SALDOSCTM) es PROCESS/WRITE; PR_INFORME_SALDOS es la unica variante REPORT/QUERY de la familia.
+- Nombre consistente con el patron legacy PR_INFORME_* ya versionado en el proyecto (PR_INFORME_ESTRUCTURAS, PR_INFORME_IMPORTACIONES, PR_INFORME_EXPORTACIONES), todas ellas read-only y reutilizables.
+
+Cautelas:
+
+- Sin LIVE no se valida al 100% que las 37 columnas no incluyan efectos colaterales (por ejemplo, una columna calculada con funcion escalar mutable).
+- Sin LIVE no se valida semantica exacta de parametros (@DESDE/@HASTA y @documento).
+- La auditoria previa intento ejecutar el SP y devolvio 0 filas con warning de NULL en agregado; sin dataset representativo no se valida contrato de columnas.
+
+NO se ejecuta el SP. NO se crea APP24_Q_SALDOS_LISTAR ni wrapper tecnico en este commit. La regla No inventar un APP24_Q_* antes de esta clasificacion no permite crear wrapper sin validar el SP. La clasificacion es condicional a la revalidacion del codigo fuente.
+
+### 19.4 Gate de implementacion LEGACY-038
+
+| Requisito | Estado |
+|-----------|--------|
+| LEGACY_SCREEN_SCOPE_CONFIRMED | YES (UI legacy observada con campos documento, partida, fecha de pago, operacion, material, cantidad importada, saldo comercial, saldo tarifario, valores, temporalidad, categoria, vencimiento, pedimento original, descargo, estructura, complementos, desperdicio, factura, lote) |
+| CANONICAL_READ_SOURCE_CONFIRMED | NO (PR_INFORME_SALDOS tiene 37 columnas conocidas pero nombres/tipos no en repo. v_saldos/v_saldosdesp son referencias no contrato de filtro) |
+| SOURCE_GRAIN_CONFIRMED | NO (grano exacto no documentado sin las 37 columnas) |
+| VISIBLE_FIELDS_MAPPING_SUFFICIENT | NO (mapeo columna legacy a columna fisica requiere las 37 columnas; sin LIVE no se asignan labels legacy a columnas fisicas) |
+| DATE_FILTER_SEMANTICS_CONFIRMED | NO (@DESDE/@HASTA parametros presentes pero mapeo a columna logica no confirmado: SALIDAS.Fecha vs IMPORTACIONES.Fecha vs partidas.PFECHAIMPO) |
+| DOCUMENT_FILTER_SEMANTICS_CONFIRMED | NO (@documento parametro presente pero semantica no confirmada: pedimento vs factura vs material vs otro) |
+| PERSISTENT_SIDE_EFFECTS | UNKNOWN (patron table variable sugiere 0; no verificable sin LIVE) |
+| MUTABLE_PRECONDITION_REQUIRED | UNKNOWN (patron sugiere NO; no verificable sin LIVE) |
+
+Resultado: 4 de 8 condiciones NO/UNKNOWN. Las dos condiciones CRITICAL (CANONICAL_READ_SOURCE_CONFIRMED y SOURCE_GRAIN_CONFIRMED) son NO. LEGACY-038 NO es implementable en esta sesion.
+
+### 19.5 Gate de implementacion LEGACY-021
+
+| Requisito | Estado |
+|-----------|--------|
+| LEGACY_SCREEN_SCOPE_CONFIRMED | PARTIAL (la pantalla existe pero no se obtuvo sesion autorizada para validar filtros/columnas/botones peligrosos en esta sesion) |
+| FISCAL_SEMANTICS_CONFIRMED | NO (la operacion Saldos implica semantica fiscal con corte; no auditada) |
+| CUT_DATE_SEMANTICS_CONFIRMED | NO (corte de operacion no documentado) |
+| EXPOSES_OPERATIONAL_ACTIONS | UNKNOWN (botones de recalcular/regenerar/PEPS no auditados) |
+
+Resultado: LEGACY-021 permanece BLOCKED_BUSINESS. Aunque LEGACY-038 se implemente read-only, LEGACY-021 sigue bloqueado por semantica fiscal no confirmada, corte de operacion no auditado, y posibilidad de acciones operacionales (calcular/regenerar) no descartada.
+
+### 19.6 Decision final de esta reauditoria
+
+- PR_INFORME_SALDOS: clasificado tentativamente como SP_EXISTING_REUSABLE_WITH_ADAPTER por evidencia versionada; requiere revalidacion LIVE para confirmar las 37 columnas y la semantica de parametros antes de cualquier wrapper.
+- LEGACY-021: permanece BLOCKED_BUSINESS. No consolido contra LEGACY-038.
+- LEGACY-038: permanece BLOCKED_CONTRACT. Cero wrapper creado.
+- LIVE writes = 0. LIVE mutable executions = 0. NEW_QUERY_SP = 0. NEW_BUSINESS_SP = 0. INLINE_BUSINESS_SQL_JAVA = 0.
+- LIVE_ACTIVATION_PENDING = N/A (no se creo SQL nuevo).
+- Frontend: la opcion Saldos sigue available=false; sin habilitacion hasta que pase la caja de gates.
+
+### 19.7 Proximos pasos para re-abrir
+
+1. Restablecer acceso LIVE read-only a CALE_IMMEX con TLS valido (sin bypass).
+2. Ejecutar sys.dm_exec_describe_first_result_set_for_object (OBJECT_ID('dbo.PR_INFORME_SALDOS'), NULL) y capturar nombres/tipos/nullability de las 37 columnas.
+3. Ejecutar SELECT name FROM sys.parameters WHERE object_id = OBJECT_ID('dbo.PR_INFORME_SALDOS') y capturar nombres exactos de parametros y tipos.
+4. Auditar la pantalla Web Forms autenticada (UI legacy de Saldos) y mapear columnas legacy observadas a las 37 columnas fisicas.
+5. Confirmar @DESDE/@HASTA filtran SALIDAS.Fecha o IMPORTACIONES.Fecha o partidas.PFECHAIMPO.
+6. Confirmar @documento representa pedimento/factura/material.
+7. Validar con un corte historico representativo (no estado 0 filas actual).
+8. Reevaluar gates LEGACY-038 con la nueva evidencia; implementar wrapper APP24_Q_SALDOS_LISTAR solo si las 8 condiciones quedan YES.
