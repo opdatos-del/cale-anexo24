@@ -42,13 +42,13 @@ class SaldosSqlIT {
         try (Connection c = connect(); Statement s = c.createStatement()) {
             s.execute("DELETE FROM dbo.Descarga; DELETE FROM dbo.Partidas; DELETE FROM dbo.Importaciones;");
             s.execute("INSERT dbo.Importaciones (Ipedimentokey,Numero_ped,Fecha,Cve_pedimento,Descarga,PedimentoOriginal,PaisOrigen,Factura,COVE) VALUES "
-                    + "(1,'PED-1','2025-01-01T10:00:00','A1','SI','ORG-1','MX','FAC-1','COVE-1'),"
-                    + "(2,'PED-1','2025-01-01T10:00:00','A1','SI',NULL,NULL,NULL,NULL),"
+                    + "(1,'PED-1','2025-01-01T00:00:00','A1','SI','ORG-1','MX','FAC-1','COVE-1'),"
+                    + "(2,'PED-1','2025-01-01T00:00:00','A1','SI',NULL,NULL,NULL,NULL),"
                     + "(3,'PED-2','2025-06-30T00:00:00','A1','SI','ORG-2','US','FAC-2','COVE-2'),"
-                    + "(4,'PED-NO','2025-01-01T10:00:00','A1','SI',NULL,NULL,NULL,NULL),"
-                    + "(5,'PED-QTY','2025-01-01T10:00:00','A1','SI',NULL,NULL,NULL,NULL),"
-                    + "(6,'PED-NOD','2025-01-01T10:00:00','A1','NO',NULL,NULL,NULL,NULL),"
-                    + "(7,'PED-AF','2025-01-01T10:00:00','AF','SI',NULL,NULL,NULL,NULL)");
+                    + "(4,'PED-NO','2025-01-01T00:00:00','A1','SI',NULL,NULL,NULL,NULL),"
+                    + "(5,'PED-QTY','2025-01-01T00:00:00','A1','SI',NULL,NULL,NULL,NULL),"
+                    + "(6,'PED-NOD','2025-01-01T00:00:00','A1','NO',NULL,NULL,NULL,NULL),"
+                    + "(7,'PED-AF','2025-01-01T00:00:00','AF','SI',NULL,NULL,NULL,NULL)");
             s.execute("INSERT dbo.Partidas (Partidakey,Importacionlink,Categoria,Cantidad,Saldo,clave,Fraccion,Unidad,Val_aduanal,Val_dolares,lote,Complemento1,Complemento2,Complemento3,NICO) VALUES "
                     + "(101,1,'CAT',10,6,'MAT-1','01010101','KG',1000,100,'L1','C1',NULL,'C3','N1'),"
                     + "(102,2,'CAT',20,0,'MAT-2','01010102','PZ',2000,200,'L2',NULL,NULL,NULL,'N2'),"
