@@ -265,13 +265,15 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 | READ_SUBCAPABILITY_COMPARATIVA | UNKNOWN (A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31) |
 | SNAPSHOT_LIFECYCLE | DEMOSTRABLE_DESDE_WRITERS: A31_ENTRADAS no se trunca (writer INSERTAFALTANTESA31 actualiza SALDO y FECHA por fila), A31_DESCARGAS/A31_TRAZO truncadas y reconstruidas por DESCARGAS_A31, A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31, DIFERENCIASA31 truncada y reconstruida por COMPARATIVADESCARGA31 |
 | TECHNICAL_FIELD_MAPPING | SUFFICIENT_FOR_PARTIAL_IMPLEMENTATION: A31_ENTRADAS expone columnas fisicas suficientes para construir la subcapacidad entradas (Pedimentoarmado, PEDIMENTOORIGINAL, Fecha, FECHAORIGINAL, Fracccion, Clavepedimento, Valocomercial, IVAFP21, IVAFP22, SALDO, OPERACION, PARTIDA, ESAF, Descarga, Tipooperacion). |
-| FILTER_CONTRACT_CONFIRMED | YES (filtro unico LIKE sobre pedimentoarmado, pedimentooriginal, fraccion, clavepedimento, esaf y operacion; validado por SQL IT con fixtures sinteticos) |
+| TECHNICAL_FILTER_IMPLEMENTED | YES (filtro unico LIKE sobre pedimentoarmado, pedimentooriginal, fraccion, clavepedimento, esaf y operacion; validado por SQL IT con fixtures sinteticos) |
+| PARITY_FILTER_CONTRACT | NOT_CONFIRMED: el filtro moderno esta implementado pero la UI legacy no fue auditada con contrato explicito de filtros; la segunda auditoria E2E comparativa decidira si coincide, debe ajustarse o es una mejora aceptada |
 | NO_MUTABLE_EXECUTION_REQUIRED | YES (la consulta no llama a DESCARGAS_A31, A31_SALDOS, COMPARADESCARGAA31, COMPARATIVADESCARGA31, SP_G6 ni ningun generador) |
 | READ_ONLY_QUERY_CONFIRMED | YES (SELECT con OFFSET/FETCH sobre dbo.A31_ENTRADAS + @Total; contrato del SP aplicado al SQL IT) |
 | SOURCE_SCHEMA_CONFIRMED | YES (esquema verificado contra el dump del proyecto; replicado en el fixture del SQL IT) |
 | SNAPSHOT_SEMANTICS_DOCUMENTED | YES (A31_ENTRADAS refleja las entradas acumuladas con SALDO del ultimo calculo DESCARGAS_A31; las demas subcapacidades dependen de la corrida mas reciente del generador y no se demuestran como snapshot estable sin CURRENT_LIVE_REVALIDATION) |
-| MUTABLE_PRECONDITION_REQUIRED | NO (solo lectura sobre A31_ENTRADAS, sin ejecutar generadores ni recalcular saldos) |
-| TECHNICAL_IMPLEMENTATION_READY | YES (cumple las seis condiciones: SOURCE_SCHEMA_CONFIRMED, SOURCE_GRAIN_CONFIRMED, UI_FIELD_MAPPING_CONFIRMED, FILTER_CONTRACT_CONFIRMED, READ_ONLY_QUERY_CONFIRMED, NO_MUTABLE_EXECUTION_REQUIRED, SNAPSHOT_SEMANTICS_DOCUMENTED) |
+| QUERY_MUTABLE_PRECONDITION_REQUIRED | NO (la consulta es SELECT puro sobre dbo.A31_ENTRADAS; no llama a DESCARGAS_A31, A31_SALDOS, COMPARADESCARGAA31, COMPARATIVADESCARGA31, SP_G6, HOJATRABAJO* ni ningun generador) |
+| DATA_FRESHNESS_MUTABLE_DEPENDENCY | YES (el contenido, en especial SALDO y los timestamps Fecha/FECHAORIGINAL, es producido/actualizado por procesos A31 mutables DESCARGAS_A31, A31_SALDOS e INSERTAFALTANTESA31 ejecutados fuera de la aplicacion; el endpoint solo lee lo que esos procesos ya dejaron persistido) |
+| TECHNICAL_IMPLEMENTATION_READY | YES (cumple SOURCE_SCHEMA_CONFIRMED, SOURCE_GRAIN_CONFIRMED, TECHNICAL_FIELD_MAPPING, TECHNICAL_FILTER_IMPLEMENTED, READ_ONLY_QUERY_CONFIRMED, NO_MUTABLE_EXECUTION_REQUIRED, SNAPSHOT_SEMANTICS_DOCUMENTED para la subcapacidad entradas; UI_FIELD_MAPPING_CONFIRMED ya no se usa porque fue renombrado) |
 | PARITY_FIELD_MAPPING | PARTIAL_CONFIRMED: la auditoria legacy conserva unicamente etiquetas funcionales (documento, operacion, pedimento, fechas, fraccion, valores, IVA, saldo, partida, ESAF). A31_ENTRADAS expone columnas fisicas homonimas pero la asignacion etiqueta-a-columna no esta auditada formalmente (ej. documento vs pedimento vs operacion). Sera confirmada en la segunda auditoria E2E comparativa. |
 | PARITY_ACCEPTANCE_PENDING | YES |
 | SALDO_SEMANTICS | LAST_PERSISTED_VALUE_FROM_MUTABLE_A31_PROCESS (no se calcula en linea; se lee tal como lo dejo DESCARGAS_A31 / A31_SALDOS / INSERTAFALTANTESA31) |
@@ -305,11 +307,11 @@ LEGACY_073 = PARTIAL_IMPLEMENTED_READ_ONLY_ENTRADAS_SUB_CAPABILITY
 
 #### Joins inferidos (sin FK fisica declarada)
 
-- A31_DESCARGAS.ENTRADALINK -> A31_ENTRADAS.Entradaskey (1:N: una entrada puede tener varias descargas)
-- A31_DESCARGAS.A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY (1:N: una entrada puede tener varios valores de descarga)
-- A31_TRAZO.A31_FRACCIONKEY -> A31_DESCARGASF.A31_FRACCIONKEY (1:N por descarga)
+- A31_DESCARGAS.ENTRADALINK -> A31_ENTRADAS.Entradaskey (REFERENCE_CANDIDATE; FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO; EXPECTED_CHILD_TO_PARENT = N:1 segun la logica de aplicacion, pendiente de confirmacion por paridad audit).
+- A31_DESCARGAS.A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY (REFERENCE_CANDIDATE; FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO; EXPECTED_CHILD_TO_PARENT = N:1).
+- A31_TRAZO.A31_FRACCIONKEY -> A31_DESCARGASF.A31_FRACCIONKEY (REFERENCE_CANDIDATE; FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO; EXPECTED_CHILD_TO_PARENT = N:1).
 
-No se declaran constraints FK en la fuente. La aplicacion NO debe inferir joins multiplicativos sin validacion.
+No se declaran constraints FK en la fuente. La aplicacion NO debe inferir cardinalidad contractual ni joins multiplicativos hasta revalidacion LIVE / paridad audit. Estos joins solo se usan para describir el contrato JOIN de la subcapacidad entradas (que actualmente no los requiere).
 
 #### Lifecycle de snapshots (desde writers declarados)
 
@@ -319,21 +321,51 @@ No se declaran constraints FK en la fuente. La aplicacion NO debe inferir joins 
 - DIFERENCIASA31 / DIFERENCIASA31_DETALLE: truncadas y reconstruidas por COMPARATIVADESCARGA31 / COMPARATIVADESCARGA31_DETALLE.
 - Sin columna run_id / timestamp explicito en A31_ENTRADAS. La identificacion de la corrida depende de los timestamps Fecha/FECHAORIGINAL por fila.
 
-#### Mapping UI -> columnas (entradas)
+#### Candidate technical mapping UI -> physical columns
 
-- documento / pedimento -> A31_ENTRADAS.Pedimentoarmado
-- pedimento original     -> A31_ENTRADAS.PEDIMENTOORIGINAL
-- fecha                 -> A31_ENTRADAS.Fecha
-- fecha original        -> A31_ENTRADAS.FECHAORIGINAL
-- operacion             -> A31_ENTRADAS.OPERACION (bigint) y A31_ENTRADAS.Tipooperacion (clave corta)
-- fraccion              -> A31_ENTRADAS.Fracccion
-- clave pedimento       -> A31_ENTRADAS.Clavepedimento
-- valor comercial       -> A31_ENTRADAS.Valocomercial
-- IVA                   -> A31_ENTRADAS.IVAFP21 / A31_ENTRADAS.IVAFP22
-- saldo                 -> A31_ENTRADAS.SALDO
-- partida               -> A31_ENTRADAS.PARTIDA
-- ESAF                  -> A31_ENTRADAS.ESAF
-- descarga              -> A31_ENTRADAS.Descarga
+Este mapping es CANDIDATO. La auditoria legacy solo conserva etiquetas funcionales (documento, operacion, pedimento, fechas, fraccion, valores, IVA, saldo, partida, ESAF). La segunda auditoria E2E original vs nuevo decidira que label legacy corresponde a que columna fisica.
+
+- documento / pedimento
+  -> candidate: A31_ENTRADAS.Pedimentoarmado
+  PARITY_MAPPING = NOT_YET_DISAMBIGUATED (documento podria equivaler a Pedimentoarmado o PEDIMENTOORIGINAL)
+- pedimento original
+  -> candidate: A31_ENTRADAS.PEDIMENTOORIGINAL
+  PARITY_MAPPING = STRONG_CANDIDATE
+- fecha
+  -> candidate: A31_ENTRADAS.Fecha
+  PARITY_MAPPING = STRONG_CANDIDATE
+- fecha original
+  -> candidate: A31_ENTRADAS.FECHAORIGINAL
+  PARITY_MAPPING = STRONG_CANDIDATE
+- operacion
+  -> candidates: A31_ENTRADAS.OPERACION (bigint) / A31_ENTRADAS.Tipooperacion (varchar(2))
+  PARITY_MAPPING = NOT_YET_DISAMBIGUATED
+- fraccion
+  -> candidate: A31_ENTRADAS.Fracccion
+  PARITY_MAPPING = STRONG_CANDIDATE
+- clave pedimento
+  -> candidate: A31_ENTRADAS.Clavepedimento
+  PARITY_MAPPING = STRONG_CANDIDATE
+- valor comercial
+  -> candidate: A31_ENTRADAS.Valocomercial
+  PARITY_MAPPING = STRONG_CANDIDATE
+- IVA
+  -> candidates: A31_ENTRADAS.IVAFP21 / A31_ENTRADAS.IVAFP22
+  PARITY_MAPPING = STRONG_CANDIDATE
+- saldo
+  -> candidate: A31_ENTRADAS.SALDO
+  PARITY_MAPPING = STRONG_CANDIDATE (pero SALDO_SEMANTICS = LAST_PERSISTED_VALUE_FROM_MUTABLE_A31_PROCESS)
+- partida
+  -> candidate: A31_ENTRADAS.PARTIDA
+  PARITY_MAPPING = STRONG_CANDIDATE
+- ESAF
+  -> candidate: A31_ENTRADAS.ESAF
+  PARITY_MAPPING = STRONG_CANDIDATE
+- descarga
+  -> candidate: A31_ENTRADAS.Descarga
+  PARITY_MAPPING = NOT_YET_DISAMBIGUATED
+
+Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 
 #### Decisiones de implementacion (entradas)
 
@@ -350,15 +382,15 @@ No se declaran constraints FK en la fuente. La aplicacion NO debe inferir joins 
 | Requisito | LEGACY-069 | LEGACY-070 | LEGACY-071 | LEGACY-072 | LEGACY-073 |
 |---|---|---|---|---|---|
 | SCREEN_CONTRACT_CONFIRMED | PARTIAL | PARTIAL | PARTIAL | PARTIAL | PARTIAL |
-| SOURCE_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
-| SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
-| VISIBLE_FIELDS_MAPPED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
-| FILTER_CONTRACT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
-| READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | NO |
-| MUTABLE_PRECONDITION_REQUIRED | YES | YES | YES | YES | UNKNOWN |
-| NO_GENERATION_REQUIRED_FOR_READ | NO | NO_OR_UNKNOWN | NO | NO_FOR_TXT / UNKNOWN_FOR_READONLY_XLSX | UNKNOWN |
-| Implementable ahora | NO | NO | NO | NO | NO |
-
+| SOURCE_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_FROM_PROJECT_SQL_DUMP |
+| SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_PHYSICAL_GRAIN |
+| VISIBLE_FIELDS_MAPPED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | PARTIAL_CONFIRMED |
+| PARITY_FILTER_CONTRACT | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
+| READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | YES_FOR_ENTRADAS |
+| QUERY_MUTABLE_PRECONDITION_REQUIRED | YES | YES | YES | YES | NO |
+| DATA_FRESHNESS_MUTABLE_DEPENDENCY | YES | YES | YES | YES | YES |
+| NO_GENERATION_REQUIRED_FOR_READ | NO | NO_OR_UNKNOWN | NO | NO_FOR_TXT / UNKNOWN_FOR_READONLY_XLSX | YES_FOR_EXISTING_PERSISTED_ROWS |
+| Implementable ahora | NO | NO | NO | NO | YES_FOR_ENTRADAS_PARTIAL |
 ### Conclusion del bloque
 
 De las cinco capacidades de Anexo 30, solo la subcapacidad entradas de LEGACY-073 cumple el gate tecnico en esta sesion y queda implementada como read-only (SP + endpoint + frontend + SQL IT). Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (descargas, trazo, comparativa, vencimientos) mantienen el bloqueo: el ciclo de vida de las tablas A31_DESCARGAS/A31_TRAZO/A31_COMPARATIVADESCARGA/DIFERENCIASA31 depende de la ultima corrida de los generadores, lo que no se demuestra sin CURRENT_LIVE_REVALIDATION. Para revisarlas se requeriria:

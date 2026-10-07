@@ -65,8 +65,8 @@ class Anexo30EntradasSqlIT {
         try (Connection c = conectar(CALE); Statement s = c.createStatement()) {
             s.execute("DELETE FROM dbo.A31_ENTRADAS");
             s.execute("INSERT INTO dbo.A31_ENTRADAS (Entradaskey, Descarga, Tipooperacion, Pedimentoarmado, PEDIMENTOORIGINAL, Fecha, FECHAORIGINAL, Clavepedimento, Fracccion, Valocomercial, IVAFP21, IVAFP22, SALDO, OPERACION, PARTIDA, ESAF) VALUES " 
-                    + "(1, 'F4', 'IM', 'PED-2026-0001', 'PED-2026-0000', '2026-01-15T10:00:00', '2025-12-01T10:00:00', 'F4', '84715002', 1500.00, 240.00, 0.00, 1500.00, 1001, '1', 'ESAF-1')," 
-                    + "(2, 'A3', 'IM', 'PED-2026-0002', 'PED-2025-0099', '2026-02-20T10:00:00', '2025-11-15T10:00:00', 'A3', '84715002', 800.00, 128.00, 0.00, 800.00, 1002, '1', 'ESAF-2')," 
+                    + "(1, 'F4', 'IM', 'PED-2026-0001', 'PED-2026-0000', '2026-01-15T10:00:00', '2025-12-01T10:00:00', 'F4', '84715002', 1500.00, 240.00, 0.00, 1500.00, 1001, '1', 'E01'),"
+                    + "(2, 'A3', 'IM', 'PED-2026-0002', 'PED-2025-0099', '2026-02-20T10:00:00', '2025-11-15T10:00:00', 'A3', '84715002', 800.00, 128.00, 0.00, 800.00, 1002, '1', 'E02'),"
                     + "(3, 'F4', 'IM', 'PED-2026-0003', null, '2026-03-10T10:00:00', null, 'F4', '90211001', 250.50, 40.08, 0.00, 250.50, 1003, '2', null)");
         }
     }
