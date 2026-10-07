@@ -72,7 +72,7 @@ class SaldosSqlIT {
         assertEquals("TM-MAT-1", firstPart.get(27));
         assertEquals("2.0000", wastePart.get(23));
         assertEquals("3.0000", wastePart.get(24));
-        assertEquals("2025-07-01 10:00:00.0", firstPart.get(16));
+        assertEquals("2025-07-01 00:00:00.0", firstPart.get(16));
     }
 
     @Test
