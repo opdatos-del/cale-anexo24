@@ -75,60 +75,68 @@ LEGACY_064 = BLOCKED_CONTRACT
 |---|---|
 | REPO_VERSIONED_EVIDENCE | AVAILABLE: sin view/SP read-only de informe principal en la version actual |
 | PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: dbo.V_AJUSTE observada como view read-only (fuera del repo) |
-| PRIOR_LIVE_EVIDENCE | AVAILABLE: 3,866 filas / 44 columnas (conteos historicos, no revalidados) |
+| PRIOR_LIVE_EVIDENCE | AVAILABLE: definicion referenciada de la auditoria SQL-FIRST externa; sin OBJECT_DEFINITION local |
+| PRIOR_LIVE_ROW_COUNT | NOT_CONFIRMED (conteos previos no atribuibles a V_AJUSTE sin revalidacion LIVE) |
+| PRIOR_LIVE_COLUMN_COUNT | NOT_CONFIRMED (idem) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
 | LIVE_EXISTENCE | NOT_REVALIDATED |
-| SCREEN_SCOPE_NOT_FOUND | No se demuestra mapping 1:1 entre la UI observada y V_AJUSTE sin OBJECT_DEFINITION en esta sesion |
+| SOURCE_DEFINITION_AVAILABLE | YES (referenciada fuera del repo) |
+| SOURCE_TO_SCREEN_MAPPING | NOT_CONFIRMED |
 | MAPPING_065_TO_V_AJUSTE | NOT_CONFIRMED |
-| IMPLEMENTABLE_NOW | NO (sin revalidacion LIVE; sin mapping UI-a-columnas demostrable) |
-| BLOCKER | CURRENT_LIVE_REVALIDATION no disponible; PROJECT_SQL_DUMP_EVIDENCE no auditable localmente |
+| IMPLEMENTABLE_NOW | NO (mapping UI-a-columnas no demostrable sin OBJECT_DEFINITION local) |
+| BLOCKER | SOURCE_TO_SCREEN_MAPPING no confirmado |
 
-LEGACY_065 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_065 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
 
 ### LEGACY-066 - Informe almacen
 
 | Capa | Estado |
 |---|---|
 | REPO_VERSIONED_EVIDENCE | AVAILABLE: sin view/SP read-only de almacen para ajuste anual |
-| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTE y V_AJUSTEA2012 incluyen referencias a almacen (no se demuestra exclusivo sin lectura) |
+| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTE y V_AJUSTEA2012 observadas en el dump (fuera del repo); la definicion SQL disponible no presenta una referencia ALMACEN demostrada |
 | PRIOR_LIVE_EVIDENCE | AVAILABLE (fragmentado; no se asigna unico ID) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
 | LIVE_EXISTENCE | NOT_REVALIDATED |
+| SOURCE_DEFINITION_AVAILABLE | YES (fuera del repo) |
+| LEGACY_066_SOURCE_MAPPING | NOT_CONFIRMED |
 | SCREEN_SCOPE_NOT_FOUND | No se demuestra que la UI observada informe almacen corresponda a alguna view del dump |
 | IMPLEMENTABLE_NOW | NO |
-| BLOCKER | CURRENT_LIVE_REVALIDATION no disponible; sin mapping UI-a-columnas demostrable |
+| BLOCKER | SOURCE_TO_SCREEN_MAPPING no confirmado |
 
-LEGACY_066 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_066 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
 
 ### LEGACY-067 - Informe ventas
 
 | Capa | Estado |
 |---|---|
 | REPO_VERSIONED_EVIDENCE | AVAILABLE: sin view/SP read-only de ventas para ajuste anual |
-| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTE/V_AJUSTEA2012 incluyen referencias a ventas, CTM y clientes (no exclusivo) |
+| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTE/V_AJUSTEA2012 observadas en el dump (fuera del repo) |
 | PRIOR_LIVE_EVIDENCE | AVAILABLE (fragmentado) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
 | LIVE_EXISTENCE | NOT_REVALIDATED |
-| SCREEN_SCOPE_NOT_FOUND | No se demuestra mapping exclusivo a la UI informe ventas |
+| SOURCE_DEFINITION_AVAILABLE | YES (fuera del repo) |
+| SOURCE_TO_SCREEN_MAPPING | NOT_CONFIRMED (mapping exclusivo a la UI informe ventas no demostrable) |
 | IMPLEMENTABLE_NOW | NO |
-| BLOCKER | CURRENT_LIVE_REVALIDATION no disponible; sin mapping exclusivo demostrable |
+| BLOCKER | SOURCE_TO_SCREEN_MAPPING no confirmado |
 
-LEGACY_067 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_067 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
 
 ### LEGACY-068 - Secciones 4.3.16 I / II
 
 | Capa | Estado |
 |---|---|
 | REPO_VERSIONED_EVIDENCE | AVAILABLE: sin V_AJUSTEA2012, PR_INFORME_AJUSTE_4316 o SP read-only equivalente |
-| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTEA2012 observada como view read-only (sufijo A2012 indica variante historica) |
+| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: V_AJUSTEA2012 observada como view read-only (fuera del repo) |
 | PRIOR_LIVE_EVIDENCE | AVAILABLE (fragmentado) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
 | LIVE_EXISTENCE | NOT_REVALIDATED |
-| SCREEN_SCOPE_NOT_FOUND | No se demuestra mapping a secciones 4.3.16 I y II; el sufijo A2012 sugiere variante historica, no contrato vigente |
+| SOURCE_DEFINITION_AVAILABLE | YES (fuera del repo) |
+| V_AJUSTEA2012_TEMPORAL_SEMANTICS | NOT_CONFIRMED (el sufijo A2012 no prueba por si mismo variante historica ni contrato vigente) |
+| SOURCE_TO_SCREEN_MAPPING | NOT_CONFIRMED (mapping a secciones 4.3.16 I y II no demostrable) |
 | IMPLEMENTABLE_NOW | NO |
-| BLOCKER | Variante A2012 no es contrato vigente sin revalidacion LIVE |
+| BLOCKER | SOURCE_TO_SCREEN_MAPPING no confirmado; semantica temporal de V_AJUSTEA2012 no determinada |
 
-LEGACY_068 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_068 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
 
 ### Gate por capacidad (065..068)
 
@@ -143,7 +151,7 @@ LEGACY_068 = BLOCKED_NO_LIVE_REVALIDATION
 | MUTABLE_PRECONDITION_REQUIRED = NO | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN |
 | Implementable ahora | NO | NO | NO | NO |
 
-Los cuatro IDs quedan bloqueados por la ausencia de CURRENT_LIVE_REVALIDATION. ANNUAL_ADJUSTMENT_DISCOVERY_CORRECTED = YES; ningun LEGACY queda IMPLEMENTABLE_NOW = YES.
+Los cuatro IDs quedan bloqueados por SOURCE_TO_SCREEN_MAPPING no confirmado. La revalidacion LIVE sigue pendiente para aceptacion final, pero la definicion SQL existe fuera del repo; el blocker principal es la ausencia de mapping UI-a-columnas demostrable, no la falta absoluta de fuente. ANNUAL_ADJUSTMENT_DISCOVERY_CORRECTED = YES; ningun LEGACY queda IMPLEMENTABLE_NOW = YES.
 
 ## Bloque Anexo 30 (LEGACY-069..073)
 
@@ -196,11 +204,16 @@ LEGACY_069 = BLOCKED_MUTABLE_BY_DESIGN
 
 | Capa | Estado |
 |---|---|
-| REPO_VERSIONED_EVIDENCE | AVAILABLE: HOJATRABAJODESCARGOSA31(@ANIO, @PERIODO, @CLAVE), HOJATRABAJOCTMDESPA31(@ANIO, @PERIODO), SP_G6(@ANIO, @PERIODO, @SUSTITUYE, @clave_destino) |
+| REPO_VERSIONED_EVIDENCE | AVAILABLE: SPs A31 con parametros documentados |
 | PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE |
 | PRIOR_LIVE_EVIDENCE | AVAILABLE (anio, periodo, clave, sustituion, destino aduanero como filtros del UI Anexo 30) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
-| PARAMETERS_TO_QUERY_PARAMETERS_NOT_AVAILABLE | sin revalidacion LIVE no se demuestra que algun SP reciba explicitamente destino aduanero |
+| ANIO_PARAMETER | CONFIRMED (SP_G6 @ANIO VARCHAR(4); HOJATRABAJODESCARGOSA31 @ANIO; HOJATRABAJOCTMDESPA31 @ANIO) |
+| PERIODO_PARAMETER | CONFIRMED (SP_G6 @PERIODO VARCHAR(10); HOJATRABAJODESCARGOSA31 @PERIODO; HOJATRABAJOCTMDESPA31 @PERIODO) |
+| CLAVE_PARAMETER | CONFIRMED_IN_HOJATRABAJODESCARGOSA31 (SP_G6 @clave_destino; HOJATRABAJODESCARGOSA31 @CLAVE) |
+| SUSTITUYE_PARAMETER | CONFIRMED (SP_G6 @SUSTITUYE VARCHAR(60)) |
+| DESTINO_PARAMETER | CONFIRMED_IN_SP_G6 (@clave_destino no es sinonimo univoco de destino aduanero UI sin revalidacion LIVE) |
+| UI_TO_SQL_PARAMETER_MAPPING | PARTIAL_CONFIRMED (anio, periodo, clave, sustituion; destino aduanero pendiente de mapping 1:1) |
 | MUTABLE_PRECONDITION_REQUIRED | YES (los SPs A31 mutan al ejecutar la generacion) |
 | IMPLEMENTABLE_NOW | NO (los parametros son entrada de SPs mutables) |
 | BLOCKER | Parametros de entrada de mutables; no se exponen como endpoint |
@@ -241,21 +254,87 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 
 | Capa | Estado |
 |---|---|
-| REPO_VERSIONED_EVIDENCE | AVAILABLE: tablas snapshot A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA, DIFERENCIASA31, etc. (no view ni SP read-only especifico) |
-| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE (no se audito LIVE; no se demuestra snapshot lifecycle) |
-| PRIOR_LIVE_EVIDENCE | AVAILABLE (referencia historica; sin READ_ONLY_PATH_CONFIRMED) |
+| REPO_VERSIONED_EVIDENCE | AVAILABLE: tablas snapshot A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA, DIFERENCIASA31; ningun SP read-only ni view equivalente versionado en infra/sql |
+| PROJECT_SQL_DUMP_EVIDENCE | AVAILABLE: CREATE TABLE dbo.A31_ENTRADAS (Entradaskey bigint IDENTITY PK + columnas mostradas en evidencia forense) + tablas snapshot restantes en dump externo al repo |
+| PRIOR_LIVE_EVIDENCE | AVAILABLE (esquema documentado; sin OBJECT_DEFINITION local ni conteos LIVE current rows) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
-| PERSISTED_SOURCE_CONFIRMED | NOT_CONFIRMED (sin revalidacion LIVE) |
-| SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED |
-| FILTERS_CONFIRMED | NOT_CONFIRMED (anio, periodo, clave, destino, sustituion, pero sin SP read-only) |
-| STALE_DATA_SEMANTICS_KNOWN | NO (sin CURRENT_LIVE_REVALIDATION) |
-| NO_GENERATION_REQUIRED_FOR_READ | NOT_CONFIRMED |
-| REVIEW_SCREEN_CONTRACT_CONFIRMED | NOT_CONFIRMED (mapea a tablas A31, pero sin mapping demostrable) |
-| MUTABLE_PRECONDITION_REQUIRED | NO_PRESUMED (snapshots A31, no confirmado sin regeneracion) |
-| IMPLEMENTABLE_NOW | NO |
-| BLOCKER | Sin revalidacion LIVE no se demuestra que las tablas A31 sean consultables sin regeneracion; sin OBJECT_DEFINITION no se confirman fuentes ni consumers |
+| ENTRADAS_GRAIN_CONFIRMED | YES (Entradaskey bigint IDENTITY PK; pedimentoarmado + fecha + fraccion definen el pedimento y su fraccion; saldo se reasigna por row en cada corrida de DESCARGAS_A31) |
+| READ_SUBCAPABILITY_ENTRADAS | YES (consulta read-only sobre A31_ENTRADAS sin EXEC de SP mutable; tabla no truncada por DESCARGAS_A31) |
+| READ_SUBCAPABILITY_DESCARGAS | UNKNOWN (A31_DESCARGAS es truncada por DESCARGAS_A31; depende de la ultima corrida; JOIN A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY sin FK declarada pero referenciada por A31_SALDOS) |
+| READ_SUBCAPABILITY_TRAZO | UNKNOWN (idem A31_DESCARGAS; truncada y reconstruida por corrida) |
+| READ_SUBCAPABILITY_COMPARATIVA | UNKNOWN (A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31) |
+| SNAPSHOT_LIFECYCLE | DEMOSTRABLE_DESDE_WRITERS: A31_ENTRADAS no se trunca (writer INSERTAFALTANTESA31 actualiza SALDO y FECHA por fila), A31_DESCARGAS/A31_TRAZO truncadas y reconstruidas por DESCARGAS_A31, A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31, DIFERENCIASA31 truncada y reconstruida por COMPARATIVADESCARGA31 |
+| UI_FIELD_MAPPING | CONFIRMED_FOR_ENTRADAS (pedimento -> pedimentoarmado; fecha -> fecha; fecha original -> fechaoriginal; fraccion -> fraccion; valor comercial -> valocomercial; iva fp21 -> ivafp21; iva fp22 -> ivafp22; saldo -> saldo; operacion -> operacion (bigint) o tipooperacion; partida -> partida; clave pedimento -> clavepedimento; pedimento original -> pedimentooriginal; esaf -> esaf) |
+| FILTER_CONTRACT_CONFIRMED | YES (filtro unico LIKE sobre pedimentoarmado, pedimentooriginal, fraccion, clavepedimento, esaf y operacion; validado por SQL IT con fixtures sinteticos) |
+| NO_MUTABLE_EXECUTION_REQUIRED | YES (la consulta no llama a DESCARGAS_A31, A31_SALDOS, COMPARADESCARGAA31, COMPARATIVADESCARGA31, SP_G6 ni ningun generador) |
+| READ_ONLY_QUERY_CONFIRMED | YES (SELECT con OFFSET/FETCH sobre dbo.A31_ENTRADAS + @Total; contrato del SP aplicado al SQL IT) |
+| SOURCE_SCHEMA_CONFIRMED | YES (esquema verificado contra el dump del proyecto; replicado en el fixture del SQL IT) |
+| SNAPSHOT_SEMANTICS_DOCUMENTED | YES (A31_ENTRADAS refleja las entradas acumuladas con SALDO del ultimo calculo DESCARGAS_A31; las demas subcapacidades dependen de la corrida mas reciente del generador y no se demuestran como snapshot estable sin CURRENT_LIVE_REVALIDATION) |
+| MUTABLE_PRECONDITION_REQUIRED | NO (solo lectura sobre A31_ENTRADAS, sin ejecutar generadores ni recalcular saldos) |
+| TECHNICAL_IMPLEMENTATION_READY | YES (cumple las seis condiciones: SOURCE_SCHEMA_CONFIRMED, SOURCE_GRAIN_CONFIRMED, UI_FIELD_MAPPING_CONFIRMED, FILTER_CONTRACT_CONFIRMED, READ_ONLY_QUERY_CONFIRMED, NO_MUTABLE_EXECUTION_REQUIRED, SNAPSHOT_SEMANTICS_DOCUMENTED) |
+| LIVE_ACCEPTANCE_READY | NO (CURRENT_LIVE_REVALIDATION = NOT_AVAILABLE; el deploy del SP queda pendiente hasta revalidar LIVE) |
+| IMPLEMENTABLE_NOW | YES (subcapacidad entradas A31; el resto de LEGACY-073 queda sin implementar) |
+| BLOCKER | SUB_CAPACITIES_RESTANTES (descargas/trazo/comparativa requieren demostrar snapshot estable sin CURRENT_LIVE_REVALIDATION; vencimientos no mapea a columnas A31 disponibles) |
 
-LEGACY_073 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_073 = PARTIAL_IMPLEMENTED_READ_ONLY_ENTRADAS_SUB_CAPABILITY
+
+### LEGACY-073 forensic focalizado y subcapacidad implementada
+
+#### Esquema fisico A31 (proveniente del dump del proyecto)
+
+> dbo.A31_ENTRADAS (Entradaskey BIGINT IDENTITY PK, Descarga, Tipooperacion, Pedimentoarmado, Fecha, Fracccion, Valocomercial, Clavepedimento, IVAFP21, IVAFP22, SALDO, PEDIMENTOORIGINAL, FECHAORIGINAL, ESAF, OPERACION, PARTIDA)
+
+> dbo.A31_DESCARGASF (A31_FRACCIONKEY PK, TIPO, CLAVEPEDIMENTO, EJERCICIO, PERIODO, FRACCION, VALOR, AF, ARCHIVO)
+
+> dbo.A31_DESCARGAS (A31_DESCARGAKEY PK, ENTRADALINK, FRACCION, VALORDESCARGADO, A31_FRACCIONLINK)
+
+> dbo.A31_TRAZO (A31_TRAZOKEY PK, FRACCION, VALORCOMERCIAL, FALTO, A31_FRACCIONKEY, DESCARGO)
+
+> dbo.A31_COMPARATIVADESCARGA (clavepedimento, ejercicio, periodo, fraccion, valor A31, valor A24, diferencia, iva21total, iva22total, valortotal, iva descargado A31, iva descargado A24)
+
+> dbo.DIFERENCIASA31 (fraccionA31, valorA31, periodoA31, ejercicioA31, fraccionA24, valorA24, periodoA24, ejercicioA24, diferencias)
+
+#### Joins inferidos (sin FK fisica declarada)
+
+- A31_DESCARGAS.ENTRADALINK -> A31_ENTRADAS.Entradaskey (1:N: una entrada puede tener varias descargas)
+- A31_DESCARGAS.A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY (1:N: una entrada puede tener varios valores de descarga)
+- A31_TRAZO.A31_FRACCIONKEY -> A31_DESCARGASF.A31_FRACCIONKEY (1:N por descarga)
+
+No se declaran constraints FK en la fuente. La aplicacion NO debe inferir joins multiplicativos sin validacion.
+
+#### Lifecycle de snapshots (desde writers declarados)
+
+- A31_ENTRADAS: NO se trunca. Filas acumuladas; SALDO reasignado por DESCARGAS_A31 (UPDATE A31_ENTRADAS SET SALDO = VALOCOMERCIAL). INSERTAFALTANTESA31 inserta/actualiza filas.
+- A31_DESCARGAS / A31_TRAZO: truncadas y reconstruidas por DESCARGAS_A31 cada corrida. Representan el ultimo snapshot del generador.
+- A31_COMPARATIVADESCARGA: truncada y reconstruida por COMPARADESCARGAA31.
+- DIFERENCIASA31 / DIFERENCIASA31_DETALLE: truncadas y reconstruidas por COMPARATIVADESCARGA31 / COMPARATIVADESCARGA31_DETALLE.
+- Sin columna run_id / timestamp explicito en A31_ENTRADAS. La identificacion de la corrida depende de los timestamps Fecha/FECHAORIGINAL por fila.
+
+#### Mapping UI -> columnas (entradas)
+
+- documento / pedimento -> A31_ENTRADAS.Pedimentoarmado
+- pedimento original     -> A31_ENTRADAS.PEDIMENTOORIGINAL
+- fecha                 -> A31_ENTRADAS.Fecha
+- fecha original        -> A31_ENTRADAS.FECHAORIGINAL
+- operacion             -> A31_ENTRADAS.OPERACION (bigint) y A31_ENTRADAS.Tipooperacion (clave corta)
+- fraccion              -> A31_ENTRADAS.Fracccion
+- clave pedimento       -> A31_ENTRADAS.Clavepedimento
+- valor comercial       -> A31_ENTRADAS.Valocomercial
+- IVA                   -> A31_ENTRADAS.IVAFP21 / A31_ENTRADAS.IVAFP22
+- saldo                 -> A31_ENTRADAS.SALDO
+- partida               -> A31_ENTRADAS.PARTIDA
+- ESAF                  -> A31_ENTRADAS.ESAF
+- descarga              -> A31_ENTRADAS.Descarga
+
+#### Decisiones de implementacion (entradas)
+
+- SP tecnico versionado: dbo.APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR(@Filtro, @Pagina, @Tamano, @Total OUTPUT). Solo SELECT sobre dbo.A31_ENTRADAS. Paginacion validada, OFFSET/FETCH con orden determinista (Fecha DESC, Pedimentoarmado, Fracccion, Entradaskey).
+- Permiso reusado: REPORTES_GENERAR (sin crear permisos nuevos).
+- Endpoint: GET /api/v1/reportes/anexo30-revision-entradas con filtro opcional, paginacion 1..100.
+- Frontend: nueva opcion en report-list.page.ts (Revision Anexo 30 - Entradas) con 16 columnas (pedimento, pedimento original, fechas, clave pedimento, fraccion, valor comercial, IVA FP21, IVA FP22, saldo, operacion, partida, ESAF). Sin XLSX (no demostrado en legacy para revision).
+- Hexagonal: domain/port/adapter/application/query + api/dto + controller. Cero SQL de negocio inline en Java.
+- LIVE_ACTIVATION_PENDING = YES: el SP no se despliega en LIVE en este commit; queda versionado para que el controlador lo aplique cuando se revalide el acceso a CALE_IMMEX.
+- Resto de LEGACY-073 (descargas, trazo, comparativa, vencimientos): mantienen el blocker original; este commit solo cubre la subcapacidad entradas.
 
 ### Gate por capacidad (069..073)
 
@@ -267,13 +346,13 @@ LEGACY_073 = BLOCKED_NO_LIVE_REVALIDATION
 | VISIBLE_FIELDS_MAPPED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
 | FILTER_CONTRACT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
 | READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | NO |
-| MUTABLE_PRECONDITION_REQUIRED | YES | YES | YES | YES | NO_PRESUMED |
-| NO_GENERATION_REQUIRED_FOR_READ | NO (precondicion mutable) | YES (solo si 069 regenera) | YES (hojas de trabajo mutables) | YES (precondicion mutable) | NOT_CONFIRMED |
+| MUTABLE_PRECONDITION_REQUIRED | YES | YES | YES | YES | UNKNOWN |
+| NO_GENERATION_REQUIRED_FOR_READ | NO | NO_OR_UNKNOWN | NO | NO_FOR_TXT / UNKNOWN_FOR_READONLY_XLSX | UNKNOWN |
 | Implementable ahora | NO | NO | NO | NO | NO |
 
 ### Conclusion del bloque
 
-Ninguna capacidad de Anexo 30 pasa el gate completo en esta sesion. El motivo comun es CURRENT_LIVE_REVALIDATION = NOT_AVAILABLE: sin revalidacion LIVE no se puede demostrar mapping UI-a-columnas, ni lifecycle de snapshots, ni READ_ONLY_PATH de los mutables A31. Cualquier implementacion read-only para LEGACY-073 requeriria:
+De las cinco capacidades de Anexo 30, solo la subcapacidad entradas de LEGACY-073 cumple el gate tecnico en esta sesion y queda implementada como read-only (SP + endpoint + frontend + SQL IT). Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (descargas, trazo, comparativa, vencimientos) mantienen el bloqueo: el ciclo de vida de las tablas A31_DESCARGAS/A31_TRAZO/A31_COMPARATIVADESCARGA/DIFERENCIASA31 depende de la ultima corrida de los generadores, lo que no se demuestra sin CURRENT_LIVE_REVALIDATION. Para revisarlas se requeriria:
 
 - OBJECT_DEFINITION en vivo de las tablas o vistas A31 snapshot.
 - Demostracion de que las tablas A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA y DIFERENCIASA31 son consultables sin regeneracion.
@@ -284,21 +363,23 @@ Ninguna capacidad de Anexo 30 pasa el gate completo en esta sesion. El motivo co
 
 ANNUAL_ADJUSTMENT_DISCOVERY_CORRECTED = YES
 ANEXO30_DISCOVERY_COMPLETE = YES
-READY_FOR_NEXT_IMPLEMENTATION = NO
-NEW_QUERY_SP = 0
+READY_FOR_NEXT_IMPLEMENTATION = NO (capacidad recien implementada requiere CI verde y revision del controlador antes de continuar)
+READY_FOR_NEXT_DISCOVERY = YES
+NEW_QUERY_SP = 1 (APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR)
 NEW_BUSINESS_SP = 0
 INLINE_BUSINESS_SQL_JAVA = 0
 LIVE reads = 0
 LIVE writes = 0
 LIVE mutable executions = 0
+LIVE_ACTIVATION_PENDING = YES
 
 LEGACY_064 = BLOCKED_CONTRACT
-LEGACY_065 = BLOCKED_NO_LIVE_REVALIDATION
-LEGACY_066 = BLOCKED_NO_LIVE_REVALIDATION
-LEGACY_067 = BLOCKED_NO_LIVE_REVALIDATION
-LEGACY_068 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_065 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
+LEGACY_066 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
+LEGACY_067 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
+LEGACY_068 = BLOCKED_SOURCE_TO_SCREEN_MAPPING
 LEGACY_069 = BLOCKED_MUTABLE_BY_DESIGN
 LEGACY_070 = BLOCKED_BY_MUTABLE_GENERATORS
 LEGACY_071 = BLOCKED_WORKTABLE_LIFECYCLE
 LEGACY_072 = BLOCKED_NO_READONLY_DATASET
-LEGACY_073 = BLOCKED_NO_LIVE_REVALIDATION
+LEGACY_073 = PARTIAL_IMPLEMENTED_READ_ONLY_ENTRADAS_SUB_CAPABILITY

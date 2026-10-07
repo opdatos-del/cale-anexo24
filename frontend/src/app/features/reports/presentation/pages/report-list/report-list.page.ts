@@ -41,6 +41,7 @@ const REPORTS: ReportOption[] = [
   { type: 'analisis-descargas', label: 'Análisis de descargas', icon: 'account_tree', available: true },
   { type: 'operaciones-bloqueadas', label: 'Operaciones bloqueadas', icon: 'block', available: true },
   { type: 'f4', label: 'F4 (CTM / desperdicio)', icon: 'route', available: true },
+  { type: 'anexo30-revision-entradas', label: 'Revision Anexo 30 - Entradas', icon: 'fact_check', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: false },
 ];
 
@@ -116,6 +117,15 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'fecha', label: 'Fecha', format: 'date' }, { key: 'importacion', label: 'Importación' },
     { key: 'clave', label: 'Clave' }, { key: 'incorporado', label: 'Incorporado', format: 'quantity' },
     { key: 'saldo', label: 'Saldo', format: 'quantity' },
+  ],
+  'anexo30-revision-entradas': [
+    { key: 'pedimento', label: 'Pedimento' }, { key: 'pedimentoOriginal', label: 'Pedimento original' },
+    { key: 'fecha', label: 'Fecha', format: 'date' }, { key: 'fechaOriginal', label: 'Fecha original', format: 'date' },
+    { key: 'clavePedimento', label: 'Clave pedimento' }, { key: 'fraccion', label: 'Fracción' },
+    { key: 'valorComercial', label: 'Valor comercial', format: 'quantity' },
+    { key: 'ivaFp21', label: 'IVA FP21', format: 'quantity' }, { key: 'ivaFp22', label: 'IVA FP22', format: 'quantity' },
+    { key: 'saldo', label: 'Saldo', format: 'quantity' },
+    { key: 'operacion', label: 'Operación' }, { key: 'partida', label: 'Partida' }, { key: 'esaf', label: 'ESAF' },
   ],
 };
 
@@ -274,7 +284,7 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;

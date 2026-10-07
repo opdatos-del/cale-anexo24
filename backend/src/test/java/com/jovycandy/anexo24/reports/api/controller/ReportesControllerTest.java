@@ -9,6 +9,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUs
 import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
@@ -74,6 +75,9 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarLineasF4UseCase listarLineasF4UseCase;
+
+    @MockitoBean
+    private ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
 
     @Test
     void listarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
@@ -446,5 +450,31 @@ class ReportesControllerTest {
             org.junit.jupiter.api.Assertions.assertEquals("CTMAPAA", hoja.getRow(1).getCell(0).getStringCellValue());
             org.junit.jupiter.api.Assertions.assertEquals("F4-1", hoja.getRow(1).getCell(1).getStringCellValue());
         }
+    }
+
+
+    @Test
+    void listarAnexo30RevisionEntradasSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-entradas"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listarAnexo30RevisionEntradasExigePermisoDeReportes() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-entradas")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listarAnexo30RevisionEntradasRespondePaginaConPermiso() throws Exception {
+        when(listarAnexo30EntradasUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-entradas")
+                        .param("filtro", "PED-1")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
     }
 }
