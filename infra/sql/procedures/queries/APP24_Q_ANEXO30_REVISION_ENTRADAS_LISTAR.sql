@@ -57,7 +57,7 @@ BEGIN
        OR e.Fracccion LIKE '%' + @Filtro + '%'
        OR e.Clavepedimento LIKE '%' + @Filtro + '%'
        OR e.ESAF LIKE '%' + @Filtro + '%'
-       OR CAST(e.OPERACION AS VARCHAR(20)) LIKE '%' + @Filtro + '%';
+       OR CAST(e.OPERACION AS VARCHAR(20)) LIKE '%' + @Filtro + '%'
     ORDER BY e.Fecha DESC, e.Pedimentoarmado, e.Fracccion, e.Entradaskey
     OFFSET CONVERT(BIGINT, @Pagina - 1) * @Tamano ROWS FETCH NEXT @Tamano ROWS ONLY;
 END;

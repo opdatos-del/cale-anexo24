@@ -264,7 +264,7 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 | READ_SUBCAPABILITY_TRAZO | UNKNOWN (idem A31_DESCARGAS; truncada y reconstruida por corrida) |
 | READ_SUBCAPABILITY_COMPARATIVA | UNKNOWN (A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31) |
 | SNAPSHOT_LIFECYCLE | DEMOSTRABLE_DESDE_WRITERS: A31_ENTRADAS no se trunca (writer INSERTAFALTANTESA31 actualiza SALDO y FECHA por fila), A31_DESCARGAS/A31_TRAZO truncadas y reconstruidas por DESCARGAS_A31, A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31, DIFERENCIASA31 truncada y reconstruida por COMPARATIVADESCARGA31 |
-| UI_FIELD_MAPPING | CONFIRMED_FOR_ENTRADAS (pedimento -> pedimentoarmado; fecha -> fecha; fecha original -> fechaoriginal; fraccion -> fraccion; valor comercial -> valocomercial; iva fp21 -> ivafp21; iva fp22 -> ivafp22; saldo -> saldo; operacion -> operacion (bigint) o tipooperacion; partida -> partida; clave pedimento -> clavepedimento; pedimento original -> pedimentooriginal; esaf -> esaf) |
+| TECHNICAL_FIELD_MAPPING | SUFFICIENT_FOR_PARTIAL_IMPLEMENTATION: A31_ENTRADAS expone columnas fisicas suficientes para construir la subcapacidad entradas (Pedimentoarmado, PEDIMENTOORIGINAL, Fecha, FECHAORIGINAL, Fracccion, Clavepedimento, Valocomercial, IVAFP21, IVAFP22, SALDO, OPERACION, PARTIDA, ESAF, Descarga, Tipooperacion). |
 | FILTER_CONTRACT_CONFIRMED | YES (filtro unico LIKE sobre pedimentoarmado, pedimentooriginal, fraccion, clavepedimento, esaf y operacion; validado por SQL IT con fixtures sinteticos) |
 | NO_MUTABLE_EXECUTION_REQUIRED | YES (la consulta no llama a DESCARGAS_A31, A31_SALDOS, COMPARADESCARGAA31, COMPARATIVADESCARGA31, SP_G6 ni ningun generador) |
 | READ_ONLY_QUERY_CONFIRMED | YES (SELECT con OFFSET/FETCH sobre dbo.A31_ENTRADAS + @Total; contrato del SP aplicado al SQL IT) |
@@ -272,6 +272,15 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 | SNAPSHOT_SEMANTICS_DOCUMENTED | YES (A31_ENTRADAS refleja las entradas acumuladas con SALDO del ultimo calculo DESCARGAS_A31; las demas subcapacidades dependen de la corrida mas reciente del generador y no se demuestran como snapshot estable sin CURRENT_LIVE_REVALIDATION) |
 | MUTABLE_PRECONDITION_REQUIRED | NO (solo lectura sobre A31_ENTRADAS, sin ejecutar generadores ni recalcular saldos) |
 | TECHNICAL_IMPLEMENTATION_READY | YES (cumple las seis condiciones: SOURCE_SCHEMA_CONFIRMED, SOURCE_GRAIN_CONFIRMED, UI_FIELD_MAPPING_CONFIRMED, FILTER_CONTRACT_CONFIRMED, READ_ONLY_QUERY_CONFIRMED, NO_MUTABLE_EXECUTION_REQUIRED, SNAPSHOT_SEMANTICS_DOCUMENTED) |
+| PARITY_FIELD_MAPPING | PARTIAL_CONFIRMED: la auditoria legacy conserva unicamente etiquetas funcionales (documento, operacion, pedimento, fechas, fraccion, valores, IVA, saldo, partida, ESAF). A31_ENTRADAS expone columnas fisicas homonimas pero la asignacion etiqueta-a-columna no esta auditada formalmente (ej. documento vs pedimento vs operacion). Sera confirmada en la segunda auditoria E2E comparativa. |
+| PARITY_ACCEPTANCE_PENDING | YES |
+| SALDO_SEMANTICS | LAST_PERSISTED_VALUE_FROM_MUTABLE_A31_PROCESS (no se calcula en linea; se lee tal como lo dejo DESCARGAS_A31 / A31_SALDOS / INSERTAFALTANTESA31) |
+| CURRENT_BALANCE | NOT_GUARANTEED: el valor refleja el estado persistido por procesos A31 no ejecutados por la aplicacion nueva. No equivale a saldo fiscal recalculado. |
+| SNAPSHOT_RUN_TIMESTAMP | NOT_AVAILABLE (sin columna de timestamp / run-id explicito en A31_ENTRADAS; los writers no registranlo) |
+| STALENESS_DETECTABLE | NOT_CONFIRMED: sin CURRENT_LIVE_REVALIDATION no se demuestra cuando quedo escrito el ultimo SALDO por entrada |
+| UI_INTERPRETATION | READ-ONLY_REVISION: la UI debe interpretarse como revision del estado persistido, no como generacion ni como calculo actual del saldo A31 |
+| API_FIELDS | 16 (ENTRADA_KEY, DESCARGA, TIPO_OPERACION, PEDIMENTO, PEDIMENTO_ORIGINAL, FECHA, FECHA_ORIGINAL, CLAVE_PEDIMENTO, FRACCION, VALOR_COMERCIAL, IVA_FP21, IVA_FP22, SALDO, OPERACION, PARTIDA, ESAF) |
+| UI_VISIBLE_COLUMNS | 13 (excluye ENTRADA_KEY, DESCARGA, TIPO_OPERACION; no renderizados porque no fueron observados como etiquetas en la auditoria legacy) |
 | LIVE_ACCEPTANCE_READY | NO (CURRENT_LIVE_REVALIDATION = NOT_AVAILABLE; el deploy del SP queda pendiente hasta revalidar LIVE) |
 | IMPLEMENTABLE_NOW | YES (subcapacidad entradas A31; el resto de LEGACY-073 queda sin implementar) |
 | BLOCKER | SUB_CAPACITIES_RESTANTES (descargas/trazo/comparativa requieren demostrar snapshot estable sin CURRENT_LIVE_REVALIDATION; vencimientos no mapea a columnas A31 disponibles) |
@@ -331,7 +340,7 @@ No se declaran constraints FK en la fuente. La aplicacion NO debe inferir joins 
 - SP tecnico versionado: dbo.APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR(@Filtro, @Pagina, @Tamano, @Total OUTPUT). Solo SELECT sobre dbo.A31_ENTRADAS. Paginacion validada, OFFSET/FETCH con orden determinista (Fecha DESC, Pedimentoarmado, Fracccion, Entradaskey).
 - Permiso reusado: REPORTES_GENERAR (sin crear permisos nuevos).
 - Endpoint: GET /api/v1/reportes/anexo30-revision-entradas con filtro opcional, paginacion 1..100.
-- Frontend: nueva opcion en report-list.page.ts (Revision Anexo 30 - Entradas) con 16 columnas (pedimento, pedimento original, fechas, clave pedimento, fraccion, valor comercial, IVA FP21, IVA FP22, saldo, operacion, partida, ESAF). Sin XLSX (no demostrado en legacy para revision).
+- Frontend: nueva opcion en report-list.page.ts (Revision Anexo 30 - Entradas). API expone 16 campos (ENTRADA_KEY, DESCARGA, TIPO_OPERACION, PEDIMENTO, PEDIMENTO_ORIGINAL, FECHA, FECHA_ORIGINAL, CLAVE_PEDIMENTO, FRACCION, VALOR_COMERCIAL, IVA_FP21, IVA_FP22, SALDO, OPERACION, PARTIDA, ESAF); la tabla Angular renderiza 13 columnas visibles (excluye ENTRADA_KEY, DESCARGA, TIPO_OPERACION porque no fueron observados como etiquetas en la auditoria legacy). Sin XLSX (no demostrado en legacy para revision).
 - Hexagonal: domain/port/adapter/application/query + api/dto + controller. Cero SQL de negocio inline en Java.
 - LIVE_ACTIVATION_PENDING = YES: el SP no se despliega en LIVE en este commit; queda versionado para que el controlador lo aplique cuando se revalide el acceso a CALE_IMMEX.
 - Resto de LEGACY-073 (descargas, trazo, comparativa, vencimientos): mantienen el blocker original; este commit solo cubre la subcapacidad entradas.

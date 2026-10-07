@@ -164,9 +164,6 @@ class Anexo30EntradasSqlIT {
              Statement s = master.createStatement()) {
             s.execute("IF DB_ID('" + CALE + "') IS NULL CREATE DATABASE [" + CALE + "]");
         }
-        try (Connection cale = conectar(CALE); Statement s = cale.createStatement()) {
-            s.execute("ALTER DATABASE [" + CALE + "] SET COMPATIBILITY_LEVEL = 100");
-        }
     }
 
     private static void aplicarFixtures() throws Exception {

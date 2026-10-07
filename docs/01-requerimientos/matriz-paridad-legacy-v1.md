@@ -135,7 +135,7 @@ versionada.
 | LEGACY-070 | Anexo 30 | `NOT_CAPTURED` — Parámetros de informe | Filtrar por destino aduanero, clave, año y sustitución | AUDIT_E2E | No identificado | No | No | UNKNOWN | UNKNOWN | P1 | Semántica de filtros pendiente | Cumplimiento / Anexo 30 |
 | LEGACY-071 | Anexo 30 | `NOT_CAPTURED` — Worksheet y errores | Revisar worksheet, errores y operaciones faltantes | AUDIT_E2E | No identificado | No | No | UNKNOWN | UNKNOWN | P1 | Flujo y fuente no cerrados | Cumplimiento / Anexo 30 |
 | LEGACY-072 | Anexo 30 | `NOT_CAPTURED` — TXT y Excel | Generar salidas TXT y Excel | AUDIT_E2E, SQL_METADATA | No identificado | No | No | `SP_GENERA_TXT_COMPLETO` es mixto y no se reutiliza | UNKNOWN | P1 | Formato, seguridad y fuente pendientes | Cumplimiento / Anexo 30 |
-| LEGACY-073 | Anexo 30 | `NOT_CAPTURED` — Revisión Anexo 30 | Revisar entradas, inventario inicial, descargas, saldos, comparativa y vencimientos | AUDIT_E2E | No identificado | No | No | UNKNOWN | UNKNOWN | P1 | Reglas y casos de aceptación pendientes | Cumplimiento / Anexo 30 |
+| LEGACY-073 | Anexo 30 | `NOT_CAPTURED` — Revisión Anexo 30 | Revisar entradas, inventario inicial, descargas, saldos, comparativa y vencimientos | AUDIT_E2E, CODE, SQL_DUMP, TEST | /reportes — Revisión Anexo 30 – Entradas (solo subcapacidad entradas) | ReportListPage | GET /api/v1/reportes/anexo30-revision-entradas | dbo.A31_ENTRADAS; dbo.APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR | PARTIAL | P1 | Entradas A31 implementadas read-only. Descargas, trazo, comparativa y vencimientos permanecen pendientes. LIVE_ACTIVATION_PENDING = YES. Paridad final con UI legacy pendiente de auditoria comparativa. | Cumplimiento / Anexo 30 |
 | LEGACY-074 | Seguridad/administración | `NOT_CAPTURED` — Login | Autenticar usuario y cargar permisos | AUDIT_UI, CODE, RUNTIME | `/login` | `AuthService` y `auth.routes.ts` | `POST /api/v1/auth/login` | `app24.APP24_Q_USUARIO_POR_CLAVE`, `APP24_Q_USUARIO_ACCESO` | IMPLEMENTED_REDESIGNED | P0 | Ninguno interno identificado | Seguridad |
 | LEGACY-075 | Seguridad/administración | `NOT_CAPTURED` — Usuarios | Listar, crear, editar, cambiar estado, perfil, vigencia y password | AUDIT_UI, CODE, RUNTIME | `/usuarios` | `UserListPage` | `/api/v1/administracion/usuarios` y commands | `APP24_Q_*USUARIO*`, `APP24_C_USUARIO_*` | IMPLEMENTED_REDESIGNED | P0 | Ninguno interno identificado | Administración / usuarios |
 | LEGACY-076 | Seguridad/administración | `NOT_CAPTURED` — Perfiles | Listar y administrar perfiles | AUDIT_UI, CODE, RUNTIME | `/perfiles` | `ProfileManagementPage` | `/api/v1/administracion/perfiles` | `APP24_Q_PERFILES_LISTAR`, `APP24_C_PERFIL_*` | IMPLEMENTED_REDESIGNED | P0 | Ninguno interno identificado | Administración / perfiles |
@@ -153,9 +153,9 @@ versionada.
 | Reportes y consolidados | 18 | 0 | 5 | 6 | 0 | 2 | 5 | 0 |
 | Interfaces/importación | 10 | 0 | 4 | 2 | 0 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
-| Anexo 30 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
+| Anexo 30 | 5 | 0 | 0 | 1 | 0 | 0 | 0 | 4 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **31** | **14** | **2** | **5** | **6** | **16** |
+| **Total** | **79** | **5** | **31** | **15** | **2** | **5** | **6** | **15** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -197,11 +197,11 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 
 - `IMPLEMENTED_EQUIVALENT = 5`
 - `IMPLEMENTED_REDESIGNED = 31`
-- `PARTIAL = 14 (incluye LEGACY-023, LEGACY-024 y LEGACY-048 como PARTIAL_EVIDENCE_BLOCKED_CONTRACT; LEGACY-056 conserva alta sin actualización)`
+- `PARTIAL = 15 (incluye LEGACY-023, LEGACY-024 y LEGACY-048 como PARTIAL_EVIDENCE_BLOCKED_CONTRACT; LEGACY-056 conserva alta sin actualización; LEGACY-073 ahora cubre la subcapacidad entradas A31 read-only)`
 - `MISSING = 2`
 - `BLOCKED_BUSINESS = 5`
 - `CONSOLIDATE = 6`
-- `UNKNOWN = 16`
+- `UNKNOWN = 15`
 - `NOT_REQUIRED = 0`
 
 Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminada.
@@ -209,7 +209,7 @@ Estos conteos son cobertura por capacidad, no porcentaje de aplicación terminad
 ### Estado de la línea base
 
 - `LEGACY_PARITY_BASELINE_COMPLETE = YES`: todas las capacidades identificadas tienen una clasificación inicial.
-- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 16 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
+- `LEGACY_FUNCTIONAL_CONTRACT_COMPLETE = NO`: permanecen 15 capacidades en `UNKNOWN`, por lo que aún no existe un contrato funcional completo.
 
 La línea base no implica `LEGACY_FUNCTIONAL_PARITY_COMPLETE = YES` ni
 `APPLICATION_FUNCTIONALLY_COMPLETE = YES`.
