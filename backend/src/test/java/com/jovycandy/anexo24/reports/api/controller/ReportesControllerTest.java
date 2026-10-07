@@ -486,16 +486,16 @@ class ReportesControllerTest {
     @Test
     void listarSaldosSinAutenticacionResponde401() throws Exception {
         mockMvc.perform(get("/api/v1/reportes/saldos")
-                        .param("desde", "2025-01-01T00:00:00Z")
-                        .param("hasta", "2025-12-31T23:59:59Z"))
+                        .param("desde", "2025-01-01")
+                        .param("hasta", "2025-12-31"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void listarSaldosExigePermisoDeReportes() throws Exception {
         mockMvc.perform(get("/api/v1/reportes/saldos")
-                        .param("desde", "2025-01-01T00:00:00Z")
-                        .param("hasta", "2025-12-31T23:59:59Z")
+                        .param("desde", "2025-01-01")
+                        .param("hasta", "2025-12-31")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
                 .andExpect(status().isForbidden());
     }
@@ -505,12 +505,50 @@ class ReportesControllerTest {
         when(listarSaldosUseCase.ejecutar(any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/saldos")
-                        .param("desde", "2025-01-01T00:00:00Z")
-                        .param("hasta", "2025-12-31T23:59:59Z")
+                        .param("desde", "2025-01-01")
+                        .param("hasta", "2025-12-31")
                         .param("documento", "PED-1")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.pagina").value(1));
+        org.mockito.Mockito.verify(listarSaldosUseCase).ejecutar(
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), "PED-1", 1, 20);
     }
+
+    @Test
+    void exportarSaldosSinAutenticacionResponde401() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/saldos/exportacion")
+                        .param("desde", "2025-01-01").param("hasta", "2025-12-31"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportarSaldosExigePermisoDeExportacion() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/saldos/exportacion")
+                        .param("desde", "2025-01-01").param("hasta", "2025-12-31")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportarSaldosSinFilasResponde204() throws Exception {
+        when(listarSaldosUseCase.exportar(any(), any(), any())).thenReturn(List.of());
+        mockMvc.perform(get("/api/v1/reportes/saldos/exportacion")
+                        .param("desde", "2025-01-01").param("hasta", "2025-12-31")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void exportarSaldosConFilasRespondeXlsx() throws Exception {
+        when(listarSaldosUseCase.exportar(any(), any(), any()))
+                .thenReturn(List.of(org.mockito.Mockito.mock(Saldo.class)));
+        mockMvc.perform(get("/api/v1/reportes/saldos/exportacion")
+                        .param("desde", "2025-01-01").param("hasta", "2025-12-31")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    }
+
 }

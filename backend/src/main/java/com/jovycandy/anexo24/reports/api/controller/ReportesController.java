@@ -255,13 +255,12 @@ public class ReportesController {
     @GetMapping("/saldos")
     @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
     public ResponseEntity<Pagina<SaldoDto>> saldos(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) String documento,
             @RequestParam(defaultValue = "1") int pagina,
             @RequestParam(defaultValue = "20") int tamano) {
-        Pagina<Saldo> resultado = listarSaldosUseCase.ejecutar(aInstant(desde), aInstant(hasta),
-                documento, pagina, tamano);
+        Pagina<Saldo> resultado = listarSaldosUseCase.ejecutar(desde, hasta, documento, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(SaldoDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
@@ -269,10 +268,10 @@ public class ReportesController {
     @GetMapping("/saldos/exportacion")
     @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
     public ResponseEntity<byte[]> exportarSaldos(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) String documento) {
-        List<Saldo> resultado = listarSaldosUseCase.exportar(aInstant(desde), aInstant(hasta), documento);
+        List<Saldo> resultado = listarSaldosUseCase.exportar(desde, hasta, documento);
         return archivo("saldos", List.of("Documento", "Fecha de Pago", "Clave Pedimento",
                 "Tipo de Operacion", "tc", "Clave", "Descripcion", "Fraccion",
                 "Cant. Importado", "Unidad", "Saldo", "Valor Aduanal de Saldo",

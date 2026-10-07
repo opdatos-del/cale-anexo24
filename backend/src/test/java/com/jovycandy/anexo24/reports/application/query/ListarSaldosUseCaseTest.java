@@ -8,7 +8,7 @@ import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -24,8 +24,8 @@ import static org.mockito.Mockito.when;
 
 class ListarSaldosUseCaseTest {
 
-    private static final Instant DESDE = Instant.parse("2025-01-01T00:00:00Z");
-    private static final Instant HASTA = Instant.parse("2025-12-31T23:59:59Z");
+    private static final LocalDate DESDE = LocalDate.of(2025, 1, 1);
+    private static final LocalDate HASTA = LocalDate.of(2025, 12, 31);
     private static final String DOCUMENTO = "PED-1";
 
     private final SaldoRepository repository = mock(SaldoRepository.class);

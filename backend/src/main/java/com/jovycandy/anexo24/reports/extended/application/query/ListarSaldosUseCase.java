@@ -6,7 +6,7 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,7 +34,7 @@ public class ListarSaldosUseCase {
         this.repository = repository;
     }
 
-    public Pagina<Saldo> ejecutar(Instant desde, Instant hasta, String documento,
+    public Pagina<Saldo> ejecutar(LocalDate desde, LocalDate hasta, String documento,
                                    int pagina, int tamano) {
         if (pagina < 1 || tamano < 1 || tamano > 100) {
             throw new SolicitudInvalidaException("La paginación de saldos no es válida.");
@@ -46,7 +46,7 @@ public class ListarSaldosUseCase {
     }
 
     /** Obtiene todas las filas filtradas aptas para exportación. */
-    public List<Saldo> exportar(Instant desde, Instant hasta, String documento) {
+    public List<Saldo> exportar(LocalDate desde, LocalDate hasta, String documento) {
         String docNormalizado = normalizarDocumento(documento);
         Pagina<Saldo> primeraPagina = repository.findPage(desde, hasta, docNormalizado, 1,
                 TAMANO_PAGINA_EXPORTACION);

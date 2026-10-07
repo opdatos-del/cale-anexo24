@@ -189,6 +189,11 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <p class="m-0 text-xs text-slate-500">Consulta snapshots históricos de operaciones bloqueadas; no resuelve ni desbloquea.</p>
             } @else if (selectedType() === 'f4') {
               <p class="m-0 text-xs text-slate-500">Consulta líneas dirigidas de salidas F4/A3 con tipo CTM APAA o desperdicio; no genera descargos.</p>
+            } @else if (selectedType() === 'saldos') {
+              <p class="mb-3 text-xs text-slate-500">Consulta read-only del reporte legacy de saldos.</p>
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <label><span class="mb-1 block text-xs font-medium text-slate-700">Documento / Pedimento</span><input matInput name="customsDocument" [(ngModel)]="customsDocument" maxlength="50" class="report-input" /></label>
+              </div>
             } @else if (isOperationalReport()) {
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <label><span class="mb-1 block text-xs font-medium text-slate-700">Pedimento</span><input matInput name="customsDocument" [(ngModel)]="customsDocument" maxlength="50" class="report-input" /></label>

@@ -133,4 +133,36 @@ describe('ReportApiService', () => {
     expect(request.request.params.get('modulo')).toBe('SEGURIDAD');
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
+  it('consulta saldos sólo con periodo, documento y paginación', () => {
+    service.search({ ...criteria, type: 'saldos', from: '2025-01-01', to: '2025-12-31', customsDocument: 'PED-1' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/saldos');
+    expect(request.request.params.keys().sort()).toEqual(['desde', 'documento', 'hasta', 'pagina', 'tamano']);
+    expect(request.request.params.get('desde')).toBe('2025-01-01');
+    expect(request.request.params.get('hasta')).toBe('2025-12-31');
+    expect(request.request.params.get('documento')).toBe('PED-1');
+    expect(request.request.params.has('clavePedimento')).toBe(false);
+    expect(request.request.params.has('fraccion')).toBe(false);
+    expect(request.request.params.has('numeroParte')).toBe(false);
+    expect(request.request.params.has('material')).toBe(false);
+    expect(request.request.params.has('producto')).toBe(false);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('exporta saldos con los mismos filtros demostrados', () => {
+    service.export({ ...criteria, type: 'saldos', from: '2025-01-01', to: '2025-12-31', customsDocument: 'PED-1' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/saldos/exportacion');
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.params.keys().sort()).toEqual(['desde', 'documento', 'hasta', 'pagina', 'tamano']);
+    expect(request.request.params.get('desde')).toBe('2025-01-01');
+    expect(request.request.params.get('hasta')).toBe('2025-12-31');
+    expect(request.request.params.get('documento')).toBe('PED-1');
+    expect(request.request.params.get('tamano')).toBe('100');
+    expect(request.request.params.has('clavePedimento')).toBe(false);
+    expect(request.request.params.has('fraccion')).toBe(false);
+    expect(request.request.params.has('numeroParte')).toBe(false);
+    expect(request.request.params.has('material')).toBe(false);
+    expect(request.request.params.has('producto')).toBe(false);
+    request.flush(new Blob());
+  });
+
 });

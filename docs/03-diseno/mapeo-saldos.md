@@ -563,16 +563,17 @@ Surface implementada:
 
 - Wrapper tecnico: `infra/sql/procedures/queries/APP24_Q_SALDOS_LISTAR.sql` (puramente read-only: `INSERT INTO @res EXEC dbo.PR_INFORME_SALDOS @DESDE, @HASTA, @documento`; paginacion `@Pagina`/`@Tamano`/`@Total`; sin reescritura de formulas legacy).
 - Domain: `Saldo` record con 37 campos preservando orden legacy.
-- Port: `SaldoRepository.findPage(Instant desde, Instant hasta, String documento, int pagina, int tamano)`.
+- Port: `SaldoRepository.findPage(LocalDate desde, LocalDate hasta, String documento, int pagina, int tamano)`.
 - Adapter JDBC: `SaldoStoredProcedureAdapter` (consume el wrapper con `JdbcTemplate.call`; mapea 37 columnas a `Saldo`; mapea FLOAT legacy a `BigDecimal` para evitar perdida de precision; preserva NULL).
 - Use case: `ListarSaldosUseCase` (valida paginacion 1..100; rango de fechas obligatorio; maneja filtro de documento opcional; `exportar` itera paginas con maximo 10_000 filas; vacio para total=0).
 - DTO: `SaldoDto` con 37 campos (factory `from(Saldo)`).
-- Controller: `GET /api/v1/reportes/saldos` y `GET /api/v1/reportes/saldos/exportacion`. Permisos: `REPORTES_GENERAR` (consulta) y `REPORTES_EXPORTAR` (XLSX). Documento opcional. Rango obligatorio (`desde`/`hasta` `OffsetDateTime` ISO).
-- Tests backend: `ListarSaldosUseCaseTest` (6 tests: normalizacion, documento nulo, rango obligatorio, paginacion, exportar limite 10000, exportar vacio); 3 tests adicionales en `ReportesControllerTest` (401, 403, 200).
-- Frontend: opcion `Saldos` habilitada en `report-list.page.ts` (`available: true`); reporte adicionado a `ReportType` union; parametros `desde`/`hasta`/`documento` se envian via `report-api.service.ts`; 12 columnas iniciales visibles (Documento, Fecha de Pago, Clave pedimento, Clave, Fraccion, Cant. importado, Unidad, Saldo, Fecha de vencimiento, Categoria, Pais origen).
+- Controller: `GET /api/v1/reportes/saldos` y `GET /api/v1/reportes/saldos/exportacion`. Permisos: `REPORTES_GENERAR` (consulta) y `REPORTES_EXPORTAR` (XLSX). Documento opcional. Rango obligatorio (`desde`/`hasta` `LocalDate` ISO `YYYY-MM-DD`, sin conversión de zona horaria).
+- `SaldosSqlIT` aplica el wrapper versionado real sobre SQL Server Testcontainers y compara sus 37 columnas contra un SP fixture sintetico del contrato documentado. El archivo `db.sql` no esta disponible en este workspace; por tanto, esto no sustituye la comparacion contra el cuerpo autoritativo real y `LEGACY_SP_VS_WRAPPER_PARITY` sigue pendiente de revalidacion con ese dump.
+- Tests backend: `ListarSaldosUseCaseTest` (6 tests: normalizacion, documento nulo, rango obligatorio, paginacion, exportar limite 10000, exportar vacio); cobertura especifica en `ReportesControllerTest` para fechas `YYYY-MM-DD`, permisos y exportacion vacia/con datos.
+- Frontend: opcion `Saldos` habilitada en `report-list.page.ts` (`available: true`); reporte adicionado a `ReportType` union; parametros `desde`/`hasta`/`documento` se envian via `report-api.service.ts`; API_FIELDS = 37; UI_VISIBLE_COLUMNS = 11 (Documento, Fecha de Pago, Clave pedimento, Clave, Fraccion, Cant. importado, Unidad, Saldo, Fecha de vencimiento, Categoria, Pais origen).
 - XLSX: reutiliza `ExportadorXlsxReportes` con las 37 columnas; maximo 10.000 filas; 204 sin filas.
 - Grano: `PARTIDA_LOGICAL_GRAIN` (multiplicidad potencial por LEFT JOIN con `Categorias` no demostrada como PK/UNIQUE).
-- Snapshot semantics: `SALDO_SEMANTICS = LAST_PERSISTED_VALUE_FROM_MUTABLE_A31_PROCESS`; `CURRENT_BALANCE = NOT_GUARANTEED`; `SNAPSHOT_RUN_TIMESTAMP = NOT_AVAILABLE`; `STALENESS_DETECTABLE = NOT_CONFIRMED`.
+- `SALDO_SOURCE = dbo.Partidas.Saldo`. Snapshot semantics: `SALDO_SEMANTICS = LAST_PERSISTED_PARTIDAS_SALDO_FROM_LEGACY_DISCHARGE_PROCESS`; `CURRENT_BALANCE = NOT_GUARANTEED_AS_RECALCULATED_AT_QUERY_TIME`; `SNAPSHOT_RUN_TIMESTAMP = NOT_AVAILABLE`; `STALENESS_DETECTABLE = NOT_CONFIRMED`.
 
 ### 20.4 LEGACY-021 permanece separado
 

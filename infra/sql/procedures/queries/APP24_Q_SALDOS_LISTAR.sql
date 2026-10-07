@@ -121,7 +121,14 @@ BEGIN
         [Saldo en valor pesos],
         [NICO]
     FROM @res
-    ORDER BY [Fecha de Pago], [Documento]
+    ORDER BY [Fecha de Pago], [Documento], [Clave], [Fraccion], [Factura], [NICO],
+             [Cant. Importado], [Saldo], [Clave Pedimento], [Tipo de Operacion], [tc],
+             [Descripcion], [Unidad], [Valor Aduanal de Saldo], [Valor dolares del saldo],
+             [Pais origen], [Temporalidad(Meses)], [Categoria], [Fecha de Vencimiento],
+             [PedimentoOriginal], [Descarga], [lote], [Complemento 1], [Complemento 2],
+             [Complemento 3], [Desperdiciado], [Saldodesperdicio], [COVE], [Tipo Material],
+             [pu_vad], [pu_vdo], [val_aduanal], [val_dolares], [saldo en UMT], [unidadt],
+             [valor en pesos], [Saldo en valor pesos]
     OFFSET CONVERT(BIGINT, @Pagina - 1) * @Tamano ROWS
     FETCH NEXT @Tamano ROWS ONLY;
 END;

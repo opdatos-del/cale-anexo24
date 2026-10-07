@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -88,14 +89,14 @@ public class SaldoStoredProcedureAdapter implements SaldoRepository {
     }
 
     @Override
-    public Pagina<Saldo> findPage(Instant desde, Instant hasta, String documento,
+    public Pagina<Saldo> findPage(LocalDate desde, LocalDate hasta, String documento,
                                   int pagina, int tamano) {
         Map<String, Object> result = jdbcTemplate.call(connection -> {
             CallableStatement statement = connection.prepareCall("{call " + PROCEDURE + "(?, ?, ?, ?, ?, ?)}");
             if (desde == null) statement.setNull(1, Types.TIMESTAMP);
-            else statement.setTimestamp(1, Timestamp.from(desde));
+            else statement.setTimestamp(1, Timestamp.valueOf(desde.atStartOfDay()));
             if (hasta == null) statement.setNull(2, Types.TIMESTAMP);
-            else statement.setTimestamp(2, Timestamp.from(hasta));
+            else statement.setTimestamp(2, Timestamp.valueOf(hasta.atStartOfDay()));
             statement.setString(3, documento);
             statement.setInt(4, pagina);
             statement.setInt(5, tamano);
