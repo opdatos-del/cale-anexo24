@@ -399,8 +399,12 @@ la pantalla Facturacion.
 - LEGACY_UI_LOAD_CALLER = NOT_AVAILABLE
 - LEGACY_UI_SAVE_CALLER = NOT_AVAILABLE
 - LEGACY_UI_DOWNLOAD_CALLER = NOT_AVAILABLE
-- CARGAFACTURAS_PLURAL_READER_OR_WRITER = NOT_FOUND_IN_VERSIONED_EVIDENCE
-- LIVE_CURRENT_REVALIDATION = NOT_AVAILABLE
+- PROJECT_SQL_DUMP_DEFINITION = CONFIRMED
+- CURRENT_LIVE_DEFINITION_MATCH = NOT_REVALIDATED
+- CARGAFACTURAS_PLURAL_SCHEMA = CONFIRMED_FROM_PROJECT_SQL_DUMP
+- CARGAFACTURAS_PLURAL_READER = NOT_FOUND_IN_PROJECT_SQL_DUMP
+- CARGAFACTURAS_PLURAL_WRITER = NOT_FOUND_IN_PROJECT_SQL_DUMP
+- CARGAFACTURAS_PLURAL_LIFECYCLE = UNKNOWN
 
 La ausencia de caller versionado no prueba que los flujos no sean usados. Solo
 impide atribuirles la accion GUARDAR.
@@ -409,11 +413,49 @@ impide atribuirles la accion GUARDAR.
 
 | Candidato | Stage | Efectos demostrados | Compatibilidad con layout | Clasificacion |
 |---|---|---|---|---|
-| Flow A: CARGA_FACTURAS | TFACTURA | PRODUCTOS, CLIENTES, FACTURA, SALIDAS, PSALIDAS y GENERADORES; cursor, stage global y MAX+1 observados | No hay schema de TFACTURA que permita correlacionar las 13 columnas | SP_EXISTING_UNSAFE |
+| Flow A: CARGA_FACTURAS | TFACTURA | PRODUCTOS, CLIENTES, FACTURA, SALIDAS y PSALIDAS; cursor, stage global, MAX+1, DELETE TERRORFACTURA y DELETE GENERADORES | PARTIAL_MAPPING_WITH_MATERIAL_CONFLICTS; schema confirmado, pero faltan seis campos del layout y Documento/Tipo son ambiguos | SP_EXISTING_UNSAFE |
 | Flow B: CREAPRODUCTOSCARGAFACTURA + CARGAFACTURASENPSALIDAS | CARGAFACTURA | PRODUCTOS, PSALIDAS, ERRCARGAFACTURA y GENERADORES; SALIDAS solo se consulta por Documento | CONFLICT: faltan ValorDolares, ValorPesos, PaisDestino, Fraccion, CantidadTarifa, UnidadTarifa y Partida en el layout auditado | SP_EXISTING_UNSAFE |
 | Flow C: INSTERTAFACTURASFC | TmpFC | TMPFCERROR y FacturasCreadas; no crea SALIDAS, PSALIDAS ni FACTURA | CONFLICT: la estructura TmpFC representa comercio exterior distinto | SP_EXISTING_UNSAFE / NO_ACTIVE_CONTRACT_FOUND |
-| dbo.cargafacturas plural | cargafacturas | schema conocido, pero no reader, writer, trigger, job o dependency versionado localizado | PARTIAL: coincide con algunos campos, sin pipeline demostrable | UNKNOWN_LIFECYCLE |
+| dbo.cargafacturas plural | cargafacturas | schema confirmado en dump; no reader, writer, trigger, job, view o dependency localizado en dump | PARTIAL: coincide con algunos campos, sin pipeline demostrable | UNKNOWN_LIFECYCLE |
 | INSERTAPEDIMENTO, CARGA_ENCABEZADOS, CARGAPEDIMENTOS | stages de pedimentos | escriben operaciones de pedimento, importaciones y/o salidas | ADJACENT_FALSE_POSITIVE: no hay prueba de invocacion desde Facturacion | ADJACENT_FALSE_POSITIVE |
+
+### 18.2.1 Flow A: schema y efecto del dump
+
+FLOW_A_STAGE_SCHEMA = CONFIRMED_FROM_PROJECT_SQL_DUMP. TFACTURA contiene:
+TFACTURAKEY bigint, CODIGO varchar(50), DESCRIPCION varchar(150), TIPOVTA
+varchar(5), FACTURA varchar(50), FECHA datetime, CANT float, UM varchar(10),
+PEDIMENTO varchar(20), CLIENTE varchar(50), TIPOPROD varchar(5), REFERENCIA
+varchar(150) y NOMBRE_CLIENTE varchar(150).
+
+FLOW_A_COMPATIBILITY = PARTIAL_MAPPING_WITH_MATERIAL_CONFLICTS. Los candidatos
+estructurales son Fecha -> TFACTURA.FECHA, Clave -> CODIGO, Cantidad -> CANT,
+Unidad -> UM y Cliente -> CLIENTE. Documento permanece ambiguo entre FACTURA y
+PEDIMENTO; Tipo permanece ambiguo entre TIPOVTA y TIPOPROD. Almacen,
+Observaciones, Descarga, Linea, Lote y Dirigido no tienen mapping demostrado.
+
+El cuerpo de CARGA_FACTURAS en el dump confirma que crea PRODUCTOS, CLIENTES,
+FACTURA, SALIDAS y PSALIDAS. Para sus filas de salida usa: SALIDAS.Documento =
+FACTURA, Fecha = FECHA, Cve_cliente = CLIENTE, Tipo_operacion = Factura y
+Cve_pedimento = FACT. Para las lineas usa: PSALIDAS.Factura = FACTURA, Fecha =
+FECHA, Fraccion = vacio, Descripcion = DESCRIPCION, Cantidad = CANT, Unidad =
+UM, Val_pesos = 0, Val_dolares = 0, Clave = CODIGO, CodProveedor = CLIENTE,
+bloqueado = 0 y descargaDesp = 0.
+
+El procedimiento conserva MAX+1, cursor, stage global, DELETE TERRORFACTURA y
+DELETE GENERADORES, sin transaccion segura demostrada. Permanece
+SP_EXISTING_UNSAFE y no es invocable desde HTTP.
+
+### 18.2.2 dbo.cargafacturas plural
+
+CARGAFACTURAS_PLURAL_SCHEMA = CONFIRMED_FROM_PROJECT_SQL_DUMP:
+cargafacturakey, numfactura, fechafactura, codigocliente, nombrecliente,
+numeroparte, descripcion, cantidad, unidad, v_pesos, v_dolares, pais, po, lote,
+orden, fraccion, cantidadt y unidadt.
+
+CARGAFACTURAS_PLURAL_READER = NOT_FOUND_IN_PROJECT_SQL_DUMP.
+CARGAFACTURAS_PLURAL_WRITER = NOT_FOUND_IN_PROJECT_SQL_DUMP.
+CARGAFACTURAS_PLURAL_LIFECYCLE = UNKNOWN. Su definicion de tabla no prueba
+que este muerta ni que pertenezca al evento GUARDAR.
 
 Ningun candidato sobreviviente identifica de forma demostrable el efecto
 autoritativo de GUARDAR.
@@ -428,24 +470,53 @@ nombre no convierte un campo en contrato.
 
 | Layout legacy | Staging moderno | Flow A TFACTURA | Flow B CARGAFACTURA | Flow C TmpFC | cargafacturas plural | Confianza final |
 |---|---|---|---|---|---|---|
-| Documento | documento | NO_MAPPING | STRONG_CANDIDATE: NumeroFactura o @PEDIMENTO ambiguos | STRONG_CANDIDATE: Factura | STRONG_CANDIDATE: numfactura | NOT_CONFIRMED |
-| Fecha | fecha | NO_MAPPING | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: fechafactura | NOT_CONFIRMED |
+| Documento | documento | AMBIGUOUS: FACTURA o PEDIMENTO | STRONG_CANDIDATE: NumeroFactura o @PEDIMENTO ambiguos | STRONG_CANDIDATE: Factura | STRONG_CANDIDATE: numfactura | NOT_CONFIRMED |
+| Fecha | fecha | STRONG_CANDIDATE: FECHA | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: fechafactura | NOT_CONFIRMED |
 | Almacen | almacen | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
 | Observaciones | observaciones | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
 | Descarga | descarga | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
-| Tipo | tipo | NO_MAPPING | NO_MAPPING | STRONG_CANDIDATE: TipoOperacion | NO_MAPPING | NOT_CONFIRMED |
+| Tipo | tipo | AMBIGUOUS: TIPOVTA o TIPOPROD | NO_MAPPING | STRONG_CANDIDATE: TipoOperacion | NO_MAPPING | NOT_CONFIRMED |
 | Linea | linea | NO_MAPPING | STRONG_CANDIDATE: Partida | NO_MAPPING | STRONG_CANDIDATE: orden | NOT_CONFIRMED |
-| Clave | clave | NO_MAPPING | STRONG_CANDIDATE: CodigoProducto | NO_MAPPING | STRONG_CANDIDATE: numeroparte | NOT_CONFIRMED |
+| Clave | clave | STRONG_CANDIDATE: CODIGO | STRONG_CANDIDATE: CodigoProducto | NO_MAPPING | STRONG_CANDIDATE: numeroparte | NOT_CONFIRMED |
 | Lote | lote | NO_MAPPING | NO_MAPPING | NO_MAPPING | STRONG_CANDIDATE: lote | NOT_CONFIRMED |
-| Cantidad | cantidad | NO_MAPPING | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: cantidad | NOT_CONFIRMED |
-| Unidad | unidad | NO_MAPPING | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: unidad | NOT_CONFIRMED |
+| Cantidad | cantidad | STRONG_CANDIDATE: CANT | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: cantidad | NOT_CONFIRMED |
+| Unidad | unidad | STRONG_CANDIDATE: UM | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: unidad | NOT_CONFIRMED |
 | Dirigido | dirigido | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
-| Cliente | cliente | NO_MAPPING | STRONG_CANDIDATE: CodigoCliente o NombreCliente | STRONG_CANDIDATE: Destinatario | STRONG_CANDIDATE: codigocliente o nombrecliente | NOT_CONFIRMED |
+| Cliente | cliente | STRONG_CANDIDATE: CLIENTE | STRONG_CANDIDATE: CodigoCliente o NombreCliente | STRONG_CANDIDATE: Destinatario | STRONG_CANDIDATE: codigocliente o nombrecliente | NOT_CONFIRMED |
 
 La fila moderna conserva las 13 columnas del layout, pero esa persistencia es
 staging aislado y no demuestra que algun stage legacy sea el receptor inicial.
 
-### 18.4 Semantica pendiente de los campos operativos
+### 18.4 FLATTENED_TARGET_SHAPE_CANDIDATE
+
+PROJECT_SQL_DUMP_EVIDENCE confirma que el modelo final SALIDAS + PSALIDAS
+contiene candidatos estructurales para el layout web auditado:
+
+| Layout legacy | Candidato fisico |
+|---|---|
+| Documento | SALIDAS.Documento |
+| Fecha | SALIDAS.Fecha o PSALIDAS.Fecha |
+| Almacen | SALIDAS.Almacenkey o PSALIDAS.Almacenkey |
+| Observaciones | SALIDAS.Observaciones o PSALIDAS.Observaciones |
+| Descarga | SALIDAS.DESCARGA o PSALIDAS.descargaDesp |
+| Tipo | SALIDAS.TipoOperacion o SALIDAS.Tipo_operacion |
+| Linea | PSALIDAS.partida |
+| Clave | PSALIDAS.Clave |
+| Lote | PSALIDAS.Lote |
+| Cantidad | PSALIDAS.Cantidad |
+| Unidad | PSALIDAS.Unidad |
+| Dirigido | PSALIDAS.descargaDirigida |
+| Cliente | SALIDAS.Cve_cliente, PSALIDAS.cve_cliente o PSALIDAS.CodProveedor |
+
+SALIDAS_PSALIDAS_SHAPE_COMPATIBILITY = STRONG_STRUCTURAL_CANDIDATE.
+SAVE_CALLER_TO_SALIDAS_PSALIDAS = NOT_CONFIRMED.
+
+La correlacion puede provenir de transformacion en code-behind, otro stage no
+preservado, un procedimiento no identificado o un mapping hacia un pipeline
+conocido. Sin caller, ninguna posibilidad es autoritativa y no demuestra que
+GUARDAR escriba directamente esas tablas.
+
+### 18.5 Semantica pendiente de los campos operativos
 
 | Campo | Conclusion |
 |---|---|
@@ -457,7 +528,7 @@ staging aislado y no demuestra que algun stage legacy sea el receptor inicial.
 | Almacen | PSALIDAS.Almacenkey, catalogo de division/almacen u otro: NOT_CONFIRMED. |
 | Lote | PSALIDAS.Lote u otro destino: NOT_CONFIRMED. |
 
-### 18.5 Gate de confirmacion
+### 18.6 Gate de confirmacion
 
 | Requisito | Estado |
 |---|---|
@@ -471,13 +542,20 @@ staging aislado y no demuestra que algun stage legacy sea el receptor inicial.
 | ERROR_BEHAVIOR_CONFIRMED | NO |
 | ATOMICITY_EXPECTATION_CONFIRMED | NO |
 
+TARGET_SHAPE_CANDIDATE = SALIDAS_PLUS_PSALIDAS.
+TARGET_SHAPE_CONFIDENCE = STRONG_STRUCTURAL_ONLY.
+AUTHORITATIVE_TARGET = NOT_CONFIRMED.
+FACTURACION_IMPLEMENTATION_READY = NO.
+
 Resultado: FACTURACION_CONFIRM = PENDING_BUSINESS y LEGACY-058 permanece
 PARTIAL. No se crea APP24_C_FACTURACION_CONFIRMAR, endpoint, permiso ni boton
 de confirmacion.
 
-EXACT_BLOCKER = LEGACY_UI_SAVE_CALLER_NOT_AVAILABLE combinado con ausencia de
-una correlacion demostrable de las 13 columnas hacia un stage, grano, targets,
-duplicados y regla de alta de productos/clientes.
+EXACT_BLOCKER = el layout puede correlacionarse estructuralmente con
+SALIDAS/PSALIDAS y parcialmente con TFACTURA, pero no existe evidencia que
+vincule el evento UI GUARDAR con un stage concreto, entry point, transformacion
+hacia targets, duplicados, nuevas altas de productos/clientes, atomicidad o
+reintento. Cualquier implementacion elegira comportamiento de negocio.
 
 REQUIRED_EXTERNAL_EVIDENCE = codigo o traza del caller de GUARDAR; o un caso
 real anonimizado de una a tres filas que incluya archivo/layout, stage antes y
