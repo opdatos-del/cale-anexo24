@@ -31,13 +31,13 @@ export class ReportApiService {
     let params = new HttpParams()
       .set('pagina', criteria.page)
       .set('tamano', pageSize);
-    if (criteria.type !== 'compulsa' && criteria.type !== 'rectificaciones' && criteria.type !== 'vencimientos' && criteria.type !== 'dirigidos' && criteria.type !== 'analisis-descargas' && criteria.type !== 'operaciones-bloqueadas' && criteria.type !== 'f4' && criteria.type !== 'anexo30-revision-entradas') {
+    if (criteria.type !== 'compulsa' && criteria.type !== 'rectificaciones' && criteria.type !== 'vencimientos' && criteria.type !== 'dirigidos' && criteria.type !== 'analisis-descargas' && criteria.type !== 'operaciones-bloqueadas' && criteria.type !== 'f4' && criteria.type !== 'anexo30-revision-entradas' && criteria.type !== 'anexo30-revision-fracciones' && criteria.type !== 'anexo30-revision-descargas') {
       params = params
         .set('desde', criteria.type === 'bitacora' ? this.startOfDayInstant(criteria.from) : criteria.from)
         .set('hasta', criteria.type === 'bitacora' ? this.endOfDayInstant(criteria.to) : criteria.to);
     }
 
-    const optional = criteria.type === 'compulsa' || criteria.type === 'rectificaciones' || criteria.type === 'vencimientos' || criteria.type === 'dirigidos' || criteria.type === 'analisis-descargas' || criteria.type === 'operaciones-bloqueadas' || criteria.type === 'f4' || criteria.type === 'anexo30-revision-entradas'
+    const optional = criteria.type === 'compulsa' || criteria.type === 'rectificaciones' || criteria.type === 'vencimientos' || criteria.type === 'dirigidos' || criteria.type === 'analisis-descargas' || criteria.type === 'operaciones-bloqueadas' || criteria.type === 'f4' || criteria.type === 'anexo30-revision-entradas' || criteria.type === 'anexo30-revision-fracciones' || criteria.type === 'anexo30-revision-descargas'
       ? { filtro: criteria.filter }
       : criteria.type === 'materiales-utilizados'
       ? { material: criteria.material, producto: criteria.product, pedimentoSalida: criteria.customsDocument, clavePedimentoSalida: criteria.customsCode }

@@ -10,6 +10,8 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4Us
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
@@ -45,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Pruebas web de permisos, rango y exportación de Reportes V1. */
+/** Pruebas web de permisos, rango y exportaciÃ³n de Reportes V1. */
 @SpringBootTest(classes = Anexo24Application.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -83,6 +85,12 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
+
+    @MockitoBean
+    private ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase;
+
+    @MockitoBean
+    private ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase;
 
     @Test
     void listarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
@@ -325,7 +333,7 @@ class ReportesControllerTest {
     @Test
     void rangoInvertidoResponde400Controlado() throws Exception {
         when(consultarReportesUseCase.entradas(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenThrow(new SolicitudInvalidaException("rango inválido"));
+                .thenThrow(new SolicitudInvalidaException("rango invÃ¡lido"));
 
         mockMvc.perform(get("/api/v1/reportes/entradas")
                         .param("desde", "2026-02-01")
@@ -339,7 +347,7 @@ class ReportesControllerTest {
     @Test
     void tamanoInvalidoResponde400Controlado() throws Exception {
         when(consultarReportesUseCase.entradas(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenThrow(new SolicitudInvalidaException("paginación inválida"));
+                .thenThrow(new SolicitudInvalidaException("paginaciÃ³n invÃ¡lida"));
 
         mockMvc.perform(get("/api/v1/reportes/entradas")
                         .param("desde", "2026-01-01")
@@ -551,4 +559,19 @@ class ReportesControllerTest {
                 .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
     }
 
+    @Test
+    void listarAnexo30FraccionesExigeAutenticacionPermisoYRespondePagina() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-fracciones")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-fracciones").with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR")))).andExpect(status().isForbidden());
+        when(listarAnexo30FraccionesUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-fracciones").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
+    }
+
+    @Test
+    void listarAnexo30DescargasExigeAutenticacionPermisoYRespondePagina() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-descargas")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-descargas").with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR")))).andExpect(status().isForbidden());
+        when(listarAnexo30DescargasUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-descargas").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
+    }
 }

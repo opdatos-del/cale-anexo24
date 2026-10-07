@@ -1,0 +1,1 @@
+package com.jovycandy.anexo24.reports.extended.domain.port; import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga; import com.jovycandy.anexo24.shared.api.Pagina; public interface Anexo30DescargaRepository { Pagina<Anexo30Descarga> findPage(String filtro,int pagina,int tamano); }

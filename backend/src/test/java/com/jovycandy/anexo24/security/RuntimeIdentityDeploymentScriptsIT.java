@@ -31,17 +31,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Prueba de integración de los scripts de deployment REALES del runtime
- * least privilege ({@code infra/sql/04..07}) sobre un SQL Server efímero.
+ * Prueba de integraciÃ³n de los scripts de deployment REALES del runtime
+ * least privilege ({@code infra/sql/04..07}) sobre un SQL Server efÃ­mero.
  *
  * <p>Las bases se llaman {@code CALE_IMMEX} y {@code ANEXO24_DEV} para que los
- * scripts se apliquen tal cual están versionados (sin copias), pero son bases
- * efímeras de Testcontainers: no son arquitectura nueva ni se acercan a LIVE.
- * Sólo contienen objetos sintéticos mínimos para que los GRANT funcionen.</p>
+ * scripts se apliquen tal cual estÃ¡n versionados (sin copias), pero son bases
+ * efÃ­meras de Testcontainers: no son arquitectura nueva ni se acercan a LIVE.
+ * SÃ³lo contienen objetos sintÃ©ticos mÃ­nimos para que los GRANT funcionen.</p>
  *
- * <p>Cubre: aplicación e idempotencia de 04/05, guard SQLCMD de 06, firma +
+ * <p>Cubre: aplicaciÃ³n e idempotencia de 04/05, guard SQLCMD de 06, firma +
  * certificado espejo + set exacto de permisos, drift de thumbprint, set de
- * cinco permisos incorrecto, batería positiva/negativa del runtime y el
+ * cinco permisos incorrecto, baterÃ­a positiva/negativa del runtime y el
  * verificador read-only 07 con sus negativos.</p>
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -64,6 +64,8 @@ class RuntimeIdentityDeploymentScriptsIT {
             "APP24_Q_ACTIVOS_FIJOS_LISTAR", "APP24_Q_AGENTES_ADUANALES_LISTAR",
             "APP24_Q_ALMACENES_LISTAR", "APP24_Q_ANALISIS_DESCARGAS_LISTAR",
             "APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR",
+            "APP24_Q_ANEXO30_REVISION_FRACCIONES_LISTAR",
+            "APP24_Q_ANEXO30_REVISION_DESCARGAS_LISTAR",
             "APP24_Q_CATEGORIAS_LISTAR", "APP24_Q_CLIENTES_LISTAR",
             "APP24_Q_COMPULSA_LISTAR", "APP24_Q_DATOS_GENERALES_OBTENER",
             "APP24_Q_DIRIGIDOS_LISTAR", "APP24_Q_ENTRADAS_LISTAR",
@@ -212,7 +214,7 @@ class RuntimeIdentityDeploymentScriptsIT {
         assertEquals(1, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE r.name = 'app24_runtime' AND m.name = '" + RUNTIME + "'"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('" + RUNTIME + "') AND NOT (class_desc = 'DATABASE' AND permission_name = 'CONNECT' AND state = 'G')"));
 
-        // Idempotencia: segunda aplicación no falla ni altera los conteos.
+        // Idempotencia: segunda aplicaciÃ³n no falla ni altera los conteos.
         aplicar04();
         aplicar05();
         assertEquals(33, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
@@ -246,7 +248,7 @@ class RuntimeIdentityDeploymentScriptsIT {
 
         String thumbOrigen = textoAdmin("master", "SELECT CONVERT(VARCHAR(64), thumbprint, 2) FROM CALE_IMMEX.sys.certificates WHERE name = '" + CERT + "'");
         String thumbDestino = textoAdmin("master", "SELECT CONVERT(VARCHAR(64), thumbprint, 2) FROM ANEXO24_DEV.sys.certificates WHERE name = '" + CERT + "'");
-        assertEquals(thumbOrigen, thumbDestino, "CERTIFICATE_MIRROR_MATCH: los thumbprints deben ser idénticos");
+        assertEquals(thumbOrigen, thumbDestino, "CERTIFICATE_MIRROR_MATCH: los thumbprints deben ser idÃ©nticos");
 
         String permisos = textoAdmin(APP, "SELECT STRING_AGG(p.permission_name COLLATE DATABASE_DEFAULT + '|' + s.name COLLATE DATABASE_DEFAULT + '.' + o.name COLLATE DATABASE_DEFAULT, '; ') "
                 + "WITHIN GROUP (ORDER BY p.permission_name COLLATE DATABASE_DEFAULT, s.name COLLATE DATABASE_DEFAULT, o.name COLLATE DATABASE_DEFAULT) "
@@ -273,7 +275,7 @@ class RuntimeIdentityDeploymentScriptsIT {
             ejecutar(app, "IF CERT_ID('" + CERT + "') IS NOT NULL DROP CERTIFICATE [" + CERT + "]");
             ejecutar(app, "IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')"
                     + " CREATE MASTER KEY ENCRYPTION BY PASSWORD = N'" + DMK_PASSWORD + "'");
-            ejecutar(app, "CREATE CERTIFICATE " + CERT + " WITH SUBJECT = N'drift sintético'");
+            ejecutar(app, "CREATE CERTIFICATE " + CERT + " WITH SUBJECT = N'drift sintÃ©tico'");
         }
         // 06 completo con el certificado drift: debe fallar ANTES de crear user/permisos.
         SQLException error = assertThrows(SQLException.class,
@@ -286,7 +288,7 @@ class RuntimeIdentityDeploymentScriptsIT {
                         + " WHERE u.name = '" + CERT_USER + "'"),
                 "THUMBPRINT_FAIL_HAS_NO_PERMISSION_SIDE_EFFECTS: no debe haber grants");
 
-        // Restauración manual (fail closed: el script no repara solo).
+        // RestauraciÃ³n manual (fail closed: el script no repara solo).
         try (Connection app = conectarAdmin(APP)) {
             ejecutar(app, "IF CERT_ID('" + CERT + "') IS NOT NULL DROP CERTIFICATE [" + CERT + "]");
         }
@@ -307,7 +309,7 @@ class RuntimeIdentityDeploymentScriptsIT {
                 "ALTER PROCEDURE elimina la firma");
         SQLException trasAlter = assertDenegado("EXEC cross-db sin firma vigente",
                 () -> ejecutarComoRuntime(CALE, "EXEC dbo.APP24_C_PEDIMENTO_CONFIRMAR"));
-        System.out.println("[DEPLOY-IT] tras ALTER → DENIED: " + trasAlter.getMessage());
+        System.out.println("[DEPLOY-IT] tras ALTER â†’ DENIED: " + trasAlter.getMessage());
 
         aplicar06(Map.of("DmkPassword", DMK_PASSWORD, "CertPublicPath", CERT_PATH_4));
         assertEquals(1, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.crypt_properties WHERE major_id = OBJECT_ID('dbo.APP24_C_PEDIMENTO_CONFIRMAR')"));
@@ -324,7 +326,7 @@ class RuntimeIdentityDeploymentScriptsIT {
             ejecutar(app, "GRANT SELECT ON OBJECT::app24.BitacoraEvento TO " + CERT_USER);
         }
         assertEquals(5, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('" + CERT_USER + "') AND class_desc = 'OBJECT_OR_COLUMN'"),
-                "El count sigue siendo 5; el set es el que está mal");
+                "El count sigue siendo 5; el set es el que estÃ¡ mal");
         SQLException error = ejecutarBatchesConMarcador(conectarAdmin(APP), script06, "CERT_USER_PERMISSION_SET_EXACT");
         assertNotNull(error, "El set incorrecto debe fallar aunque el count sea 5");
         assertTrue(error.getMessage().contains("CERT_USER_PERMISSION_SET_EXACT"), error.getMessage());
@@ -334,8 +336,8 @@ class RuntimeIdentityDeploymentScriptsIT {
             ejecutar(app, "REVOKE SELECT ON OBJECT::app24.BitacoraEvento FROM " + CERT_USER);
         }
         assertNull(ejecutarBatchesConMarcador(conectarAdmin(APP), script06, "CERT_USER_PERMISSION_SET_EXACT"),
-                "Tras revertir, la verificación exacta debe volver a pasar");
-        System.out.println("[DEPLOY-IT] wrong-five-grants → FAIL (count=5 no era suficiente)");
+                "Tras revertir, la verificaciÃ³n exacta debe volver a pasar");
+        System.out.println("[DEPLOY-IT] wrong-five-grants â†’ FAIL (count=5 no era suficiente)");
     }
 
     @Test
@@ -350,7 +352,7 @@ class RuntimeIdentityDeploymentScriptsIT {
                 () -> ejecutarComoRuntime(CALE, "UPDATE ANEXO24_DEV.app24.CargaPedimento SET Estado = 'X' WHERE CargaPedimentoKey = 1"));
         assertDenegado("DELETE directo",
                 () -> ejecutarComoRuntime(CALE, "DELETE FROM ANEXO24_DEV.app24.CargaPedimento WHERE CargaPedimentoKey = 1"));
-        assertDenegado("SELECT directo desde conexión ANEXO24_DEV",
+        assertDenegado("SELECT directo desde conexiÃ³n ANEXO24_DEV",
                 () -> ejecutarComoRuntime(APP, "SELECT TOP 1 Estado FROM app24.CargaPedimento"));
         assertDenegado("CREATE TABLE", () -> ejecutarComoRuntime(CALE, "CREATE TABLE dbo.lp_probe (id INT)"));
         assertDenegado("ALTER TABLE", () -> ejecutarComoRuntime(CALE, "ALTER TABLE dbo.lp_ddl_probe ADD marca INT NULL"));
@@ -411,7 +413,7 @@ class RuntimeIdentityDeploymentScriptsIT {
             ejecutar(app, "DROP PROCEDURE app24.APP24_Q_EXTRA_FUERA_CONTRATO");
         }
 
-        // (f) grant directo en CALE_IMMEX (sobre tabla: SELECT sobre un SP no es válido).
+        // (f) grant directo en CALE_IMMEX (sobre tabla: SELECT sobre un SP no es vÃ¡lido).
         try (Connection cale = conectarAdmin(CALE)) {
             ejecutar(cale, "GRANT SELECT ON OBJECT::dbo.lp_ddl_probe TO " + RUNTIME);
         }
@@ -581,11 +583,11 @@ class RuntimeIdentityDeploymentScriptsIT {
                 }
             }
         }
-        if (!encontrado) throw new IllegalStateException("No se encontró el batch con marcador '" + marcador + "' en " + archivo.getFileName());
+        if (!encontrado) throw new IllegalStateException("No se encontrÃ³ el batch con marcador '" + marcador + "' en " + archivo.getFileName());
         return null;
     }
 
-    /** Divide en batches por líneas GO, omitiendo directivas sqlcmd (':...'). */
+    /** Divide en batches por lÃ­neas GO, omitiendo directivas sqlcmd (':...'). */
     private static List<String> dividirBatches(String texto) {
         List<String> batches = new ArrayList<>();
         StringBuilder batch = new StringBuilder();
@@ -693,7 +695,7 @@ class RuntimeIdentityDeploymentScriptsIT {
                 || mensaje.contains("do not have permissions")
                 || mensaje.contains("denegado")
                 || mensaje.contains("permiso");
-        assertTrue(denegado, contexto + " → se esperaba DENIED, se obtuvo: [" + error.getErrorCode() + "] " + error.getMessage());
+        assertTrue(denegado, contexto + " â†’ se esperaba DENIED, se obtuvo: [" + error.getErrorCode() + "] " + error.getMessage());
         return error;
     }
 

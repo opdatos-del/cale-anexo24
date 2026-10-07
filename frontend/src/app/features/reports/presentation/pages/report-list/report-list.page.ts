@@ -42,6 +42,8 @@ const REPORTS: ReportOption[] = [
   { type: 'operaciones-bloqueadas', label: 'Operaciones bloqueadas', icon: 'block', available: true },
   { type: 'f4', label: 'F4 (CTM / desperdicio)', icon: 'route', available: true },
   { type: 'anexo30-revision-entradas', label: 'Revision Anexo 30 - Entradas', icon: 'fact_check', available: true },
+  { type: 'anexo30-revision-fracciones', label: 'Revision Anexo 30 - Fracciones de descarga', icon: 'description', available: true },
+  { type: 'anexo30-revision-descargas', label: 'Revision Anexo 30 - Descargas', icon: 'account_tree', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: true },
 ];
 
@@ -131,6 +133,12 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'categoria', label: 'Categoría' },
     { key: 'paisOrigen', label: 'País origen' },
   ],
+  'anexo30-revision-fracciones': [
+    { key: 'tipo', label: 'Tipo' }, { key: 'clavePedimento', label: 'Clave pedimento' }, { key: 'ejercicio', label: 'Ejercicio' }, { key: 'periodo', label: 'Periodo' }, { key: 'fraccion', label: 'Fracción' }, { key: 'valor', label: 'Valor', format: 'quantity' }, { key: 'af', label: 'AF' }, { key: 'archivo', label: 'Archivo' },
+  ],
+  'anexo30-revision-descargas': [
+    { key: 'pedimento', label: 'Pedimento' }, { key: 'fechaEntrada', label: 'Fecha entrada', format: 'date' }, { key: 'clavePedimentoEntrada', label: 'Clave pedimento' }, { key: 'partida', label: 'Partida' }, { key: 'esaf', label: 'ESAF' }, { key: 'fraccionEntrada', label: 'Fracción entrada' }, { key: 'fraccionDescarga', label: 'Fracción descarga' }, { key: 'valorComercialEntrada', label: 'Valor comercial', format: 'quantity' }, { key: 'valorDescargado', label: 'Valor descargado', format: 'quantity' }, { key: 'ejercicio', label: 'Ejercicio' }, { key: 'periodo', label: 'Periodo' }, { key: 'clavePedimentoA31', label: 'Clave pedimento A31' }, { key: 'fraccionA31', label: 'Fracción A31' }, { key: 'archivo', label: 'Archivo' },
+  ],
   'anexo30-revision-entradas': [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'pedimentoOriginal', label: 'Pedimento original' },
     { key: 'fecha', label: 'Fecha', format: 'date' }, { key: 'fechaOriginal', label: 'Fecha original', format: 'date' },
@@ -189,6 +197,10 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <p class="m-0 text-xs text-slate-500">Consulta snapshots históricos de operaciones bloqueadas; no resuelve ni desbloquea.</p>
             } @else if (selectedType() === 'f4') {
               <p class="m-0 text-xs text-slate-500">Consulta líneas dirigidas de salidas F4/A3 con tipo CTM APAA o desperdicio; no genera descargos.</p>
+            } @else if (selectedType() === 'anexo30-revision-fracciones') {
+              <p class="m-0 text-xs text-slate-500">Registros persistidos de fracción utilizados por el proceso Anexo 30.</p>
+            } @else if (selectedType() === 'anexo30-revision-descargas') {
+              <p class="m-0 text-xs text-slate-500">Revisión read-only del �ltimo estado persistido de descargas Anexo 30. Esta consulta no ejecuta ni recalcula el proceso.</p>
             } @else if (selectedType() === 'saldos') {
               <p class="mb-3 text-xs text-slate-500">Consulta read-only del reporte legacy de saldos.</p>
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -302,7 +314,7 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;

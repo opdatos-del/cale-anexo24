@@ -79,7 +79,7 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(cells[9]?.textContent?.trim()).toBe('4.0');
   });
 
-  it('habilita XLSX para el análisis de descargas generado', () => {
+  it('habilita XLSX para el anÃ¡lisis de descargas generado', () => {
     const internals = fixture.componentInstance as unknown as PageInternals;
     internals.selectedType.set('analisis-descargas');
     fixture.detectChanges();
@@ -103,7 +103,7 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(buttons.some((button) => button.textContent?.includes('XLSX'))).toBe(true);
   });
 
-  it('no altera partidas no numéricas ni valores ausentes', () => {
+  it('no altera partidas no numÃ©ricas ni valores ausentes', () => {
     search.execute.mockReturnValue(of({ ...pagina, items: [{ ...fila, partidaEntrada: 'A4', partidaSalida: null }] }));
     const internals = fixture.componentInstance as unknown as PageInternals;
     internals.selectedType.set('analisis-descargas');
@@ -116,4 +116,34 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(cells[1]?.textContent?.trim()).toBe('A4');
     expect(cells[3]?.textContent?.trim()).toBe('—');
   });
+  it('presenta fracciones como reporte textual con columnas y copy read-only', () => {
+    search.execute.mockReturnValue(of({ items: [{ tipo: 'F4', clavePedimento: 'A1', ejercicio: '2026', periodo: '01', fraccion: '84715002', valor: 10, af: 'SI', archivo: 'a.txt' }], total: 1, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-fracciones'); fixture.detectChanges(); internals.generate(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'anexo30-revision-fracciones', page: 1, pageSize: 20 }));
+    expect(fixture.nativeElement.textContent).toContain('Registros persistidos de fracción utilizados por el proceso Anexo 30.');
+    expect(fixture.nativeElement.textContent).toContain('Clave pedimento');
+    expect(fixture.nativeElement.textContent).not.toContain('fraccionKey');
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+  });
+
+  it('presenta descargas como reporte textual sin fechas ni IDs técnicos', () => {
+    search.execute.mockReturnValue(of({ items: [{ pedimento: 'PED-1', fechaEntrada: '2026-01-01T00:00:00', clavePedimentoEntrada: 'A1', partida: '1', esaf: 'SI', fraccionEntrada: '84715002', fraccionDescarga: '84715002', valorComercialEntrada: 10, valorDescargado: 2, ejercicio: '2026', periodo: '01', clavePedimentoA31: 'A1', fraccionA31: '84715002', archivo: 'a.txt' }], total: 1, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-descargas'); fixture.detectChanges(); internals.generate(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'anexo30-revision-descargas', page: 1, pageSize: 20 }));
+    expect(fixture.nativeElement.textContent).toContain('Esta consulta no ejecuta ni recalcula el proceso.');
+    expect(fixture.nativeElement.textContent).toContain('Valor descargado');
+    expect(fixture.nativeElement.textContent).not.toContain('descargaKey');
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+  });
+
+  it('conserva entradas A31 como textual y entradas como reporte con periodo', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-entradas'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    internals.selectedType.set('entradas'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).not.toBeNull();
+  });
+
 });

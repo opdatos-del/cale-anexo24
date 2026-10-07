@@ -32,7 +32,7 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
-  it('usa filtros específicos y exportación XLSX para materiales utilizados', () => {
+  it('usa filtros especÃ­ficos y exportaciÃ³n XLSX para materiales utilizados', () => {
     service.export({ ...criteria, type: 'materiales-utilizados', material: ' MAT ', product: ' PROD ', customsDocument: ' S-1 ', customsCode: ' RT ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/materiales-utilizados/exportacion');
     expect(request.request.responseType).toBe('blob');
@@ -83,7 +83,7 @@ describe('ReportApiService', () => {
     request.flush(new Blob());
   });
 
-  it('consulta análisis de descargas sin periodo y con filtro textual', () => {
+  it('consulta anÃ¡lisis de descargas sin periodo y con filtro textual', () => {
     service.search({ ...criteria, type: 'analisis-descargas', filter: ' 190-1562 ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/analisis-descargas');
     expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
@@ -91,7 +91,7 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
-  it('exporta análisis de descargas con la proyección actual y sin periodo', () => {
+  it('exporta anÃ¡lisis de descargas con la proyecciÃ³n actual y sin periodo', () => {
     service.export({ ...criteria, type: 'analisis-descargas', filter: ' MAT-1 ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/analisis-descargas/exportacion');
     expect(request.request.responseType).toBe('blob');
@@ -116,7 +116,7 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
-  it('exporta F4 con la proyección y sin periodo', () => {
+  it('exporta F4 con la proyecciÃ³n y sin periodo', () => {
     service.export({ ...criteria, type: 'f4', filter: ' MAT-1 ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/f4/exportacion');
     expect(request.request.responseType).toBe('blob');
@@ -125,7 +125,7 @@ describe('ReportApiService', () => {
     request.flush(new Blob());
   });
 
-  it('convierte el periodo completo de bitácora a instantes ISO', () => {
+  it('convierte el periodo completo de bitÃ¡cora a instantes ISO', () => {
     service.search({ ...criteria, type: 'bitacora', module: 'SEGURIDAD', result: 'EXITO' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/bitacora');
     expect(request.request.params.get('desde')).toMatch(/T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
@@ -133,7 +133,7 @@ describe('ReportApiService', () => {
     expect(request.request.params.get('modulo')).toBe('SEGURIDAD');
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
-  it('consulta saldos s�lo con periodo, documento y paginaci�n', () => {
+  it('consulta saldos sólo con periodo, documento y paginación', () => {
     service.search({ ...criteria, type: 'saldos', from: '2025-01-01', to: '2025-12-31', customsDocument: 'PED-1' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/saldos');
     expect(request.request.params.keys().sort()).toEqual(['desde', 'documento', 'hasta', 'pagina', 'tamano']);
@@ -163,6 +163,24 @@ describe('ReportApiService', () => {
     expect(request.request.params.has('material')).toBe(false);
     expect(request.request.params.has('producto')).toBe(false);
     request.flush(new Blob());
+  });
+
+  it('consulta fracciones A31 sólo con filtro y paginación', () => {
+    service.search({ ...criteria, type: 'anexo30-revision-fracciones', filter: ' F4 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/anexo30-revision-fracciones');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('F4');
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('consulta descargas A31 sólo con filtro y paginación', () => {
+    service.search({ ...criteria, type: 'anexo30-revision-descargas', filter: ' PED-1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/anexo30-revision-descargas');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.has('desde')).toBe(false);
+    expect(request.request.params.has('clavePedimento')).toBe(false);
+    expect(request.request.params.has('fraccion')).toBe(false);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
 });

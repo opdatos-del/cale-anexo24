@@ -14,6 +14,8 @@ import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30EntradaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30FraccionDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30DescargaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.SaldoDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
@@ -23,6 +25,8 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4Us
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
@@ -32,6 +36,8 @@ import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada;
+import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Fraccion;
+import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.Saldo;
 import com.jovycandy.anexo24.reports.extended.domain.model.Vencimiento;
 import com.jovycandy.anexo24.reports.infrastructure.export.ExportadorXlsxReportes;
@@ -71,6 +77,8 @@ public class ReportesController {
     private final ListarVencimientosUseCase listarVencimientosUseCase;
     private final ListarLineasF4UseCase listarLineasF4UseCase;
     private final ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
+    private final ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase;
+    private final ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase;
     private final ListarSaldosUseCase listarSaldosUseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
@@ -83,6 +91,8 @@ public class ReportesController {
             ListarVencimientosUseCase listarVencimientosUseCase,
             ListarLineasF4UseCase listarLineasF4UseCase,
             ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase,
+            ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase,
+            ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase,
             ListarSaldosUseCase listarSaldosUseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
@@ -94,6 +104,8 @@ public class ReportesController {
         this.listarVencimientosUseCase = listarVencimientosUseCase;
         this.listarLineasF4UseCase = listarLineasF4UseCase;
         this.listarAnexo30EntradasUseCase = listarAnexo30EntradasUseCase;
+        this.listarAnexo30FraccionesUseCase = listarAnexo30FraccionesUseCase;
+        this.listarAnexo30DescargasUseCase = listarAnexo30DescargasUseCase;
         this.listarSaldosUseCase = listarSaldosUseCase;
     }
 
@@ -163,7 +175,7 @@ public class ReportesController {
     public ResponseEntity<byte[]> exportarAnalisisDescargas(@RequestParam(required = false) String filtro) {
         List<AnalisisDescarga> resultado = listarAnalisisDescargasUseCase.exportar(filtro);
         return archivo("analisis-descargas", List.of("Descarga", "Pedimento entrada", "Partida entrada",
-                "Pedimento salida", "Partida salida", "Material", "Producto", "Fecha importación",
+                "Pedimento salida", "Partida salida", "Material", "Producto", "Fecha importaciÃ³n",
                 "Fecha salida", "Fecha vencimiento", "Cantidad importada", "Cantidad exportada",
                 "Cantidad incorporada", "Merma", "Desperdicio", "Unidad"),
                 resultado.stream().map(item -> fila(item.descargaId(), item.pedimentoEntrada(), item.partidaEntrada(),
@@ -212,7 +224,7 @@ public class ReportesController {
         List<OperacionDirigida> resultado = listarOperacionesDirigidasUseCase.exportar(filtro);
         return archivo("dirigidos", List.of("Salida", "Partida salida", "Documento", "Fecha salida",
                 "Clave pedimento", "Secuencia", "Producto", "Cantidad", "Factura", "Descargo", "Dirigido",
-                "Valor descarga dólares", "Valor descarga pesos", "Tiene estructura", "Número materiales"),
+                "Valor descarga dÃ³lares", "Valor descarga pesos", "Tiene estructura", "NÃºmero materiales"),
                 resultado.stream().map(item -> fila(item.salidaKey(), item.psalidaKey(), item.documento(),
                         item.fechaSalida(), item.clavePedimento(), item.secuencia(), item.producto(), item.cantidad(),
                         item.factura(), item.descargo(), item.dirigido(), item.valorDescargaDolares(),
@@ -304,6 +316,20 @@ public class ReportesController {
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+    @GetMapping("/anexo30-revision-fracciones")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<Anexo30FraccionDto>> anexo30RevisionFracciones(@RequestParam(required = false) String filtro, @RequestParam(defaultValue = "1") int pagina, @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Anexo30Fraccion> resultado = listarAnexo30FraccionesUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30FraccionDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/anexo30-revision-descargas")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<Anexo30DescargaDto>> anexo30RevisionDescargas(@RequestParam(required = false) String filtro, @RequestParam(defaultValue = "1") int pagina, @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Anexo30Descarga> resultado = listarAnexo30DescargasUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30DescargaDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
     @GetMapping("/entradas/exportacion")
     @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
     public ResponseEntity<byte[]> exportarEntradas(
@@ -313,7 +339,7 @@ public class ReportesController {
             @RequestParam(required = false) String fraccion, @RequestParam(required = false) String numeroParte) {
         List<EntradaLineaDto> resultado = consultarReportesUseCase.exportarEntradas(
                 desde, hasta, pedimento, clavePedimento, fraccion, numeroParte);
-        return archivo("entradas", List.of("Importación", "Partida", "Pedimento", "Clave pedimento", "Fecha entrada", "Fracción", "Unidad comercial", "Cantidad comercial", "Número parte", "Fecha pago"),
+        return archivo("entradas", List.of("ImportaciÃ³n", "Partida", "Pedimento", "Clave pedimento", "Fecha entrada", "FracciÃ³n", "Unidad comercial", "Cantidad comercial", "NÃºmero parte", "Fecha pago"),
                 resultado.stream().map(item -> fila(item.importacionId(), item.partidaId(), item.pedimento(), item.clavePedimento(), item.fechaEntrada(), item.fraccion(), item.unidadComercial(), item.cantidadComercial(), item.numeroParte(), item.fechaPago())).toList());
     }
 
@@ -326,7 +352,7 @@ public class ReportesController {
             @RequestParam(required = false) String fraccion, @RequestParam(required = false) String numeroParte) {
         List<SalidaLineaDto> resultado = consultarReportesUseCase.exportarSalidas(
                 desde, hasta, pedimento, clavePedimento, fraccion, numeroParte);
-        return archivo("salidas", List.of("Salida", "Partida", "Pedimento", "Clave pedimento", "Fracción", "Unidad comercial", "Cantidad", "Número parte", "Fecha pago"),
+        return archivo("salidas", List.of("Salida", "Partida", "Pedimento", "Clave pedimento", "FracciÃ³n", "Unidad comercial", "Cantidad", "NÃºmero parte", "Fecha pago"),
                 resultado.stream().map(item -> fila(item.salidaId(), item.partidaId(), item.pedimento(), item.clavePedimento(), item.fraccion(), item.unidadComercial(), item.cantidad(), item.numeroParte(), item.fechaPago())).toList());
     }
 
@@ -339,7 +365,7 @@ public class ReportesController {
             @RequestParam(required = false) String pedimentoSalida, @RequestParam(required = false) String clavePedimentoSalida) {
         List<MaterialUtilizadoDto> resultado = consultarReportesUseCase.exportarMaterialesUtilizados(
                 desde, hasta, material, producto, pedimentoSalida, clavePedimentoSalida);
-        return archivo("materiales-utilizados", List.of("Descarga", "Entrada", "Partida entrada", "Salida", "Partida salida", "Pedimento entrada", "Pedimento salida", "Material", "Descripción material", "Producto", "Descripción producto", "Cantidad incorporada", "Merma", "Desperdicio", "Total descargado", "Unidad", "Fecha"),
+        return archivo("materiales-utilizados", List.of("Descarga", "Entrada", "Partida entrada", "Salida", "Partida salida", "Pedimento entrada", "Pedimento salida", "Material", "DescripciÃ³n material", "Producto", "DescripciÃ³n producto", "Cantidad incorporada", "Merma", "Desperdicio", "Total descargado", "Unidad", "Fecha"),
                 resultado.stream().map(item -> fila(item.descargaId(), item.entradaId(), item.partidaEntradaId(), item.salidaId(), item.partidaSalidaId(), item.pedimentoEntrada(), item.pedimentoSalida(), item.materialCode(), item.materialDescription(), item.productCode(), item.productDescription(), item.cantidadIncorporada(), item.cantidadMerma(), item.cantidadDesperdicio(), item.cantidadTotalDescargada(), item.unidad(), item.fecha())).toList());
     }
 
@@ -352,7 +378,7 @@ public class ReportesController {
             @RequestParam(required = false) BitacoraResultado resultado, @RequestParam(required = false) String correlationId) {
         List<BitacoraRegistroDto> registros = consultarReportesUseCase.exportarBitacora(
                 aInstant(desde), aInstant(hasta), usuarioId, modulo, resultado, correlationId);
-        return archivo("bitacora", List.of("ID", "Fecha", "Usuario ID", "Usuario", "Módulo", "Acción", "Detalle", "Resultado", "Correlation ID"),
+        return archivo("bitacora", List.of("ID", "Fecha", "Usuario ID", "Usuario", "MÃ³dulo", "AcciÃ³n", "Detalle", "Resultado", "Correlation ID"),
                 registros.stream().map(item -> fila(item.id(), item.fecha(), item.usuarioId(), item.usuario(), item.modulo(), item.accion(), item.detalle(), item.resultado(), item.correlationId())).toList());
     }
 
@@ -360,7 +386,7 @@ public class ReportesController {
     @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
     public ResponseEntity<byte[]> exportarF4(@RequestParam(required = false) String filtro) {
         List<LineaF4> resultado = listarLineasF4UseCase.exportar(filtro);
-        return archivo("f4", List.of("Tipo descarga", "F4", "Fecha", "Importación", "Clave", "Incorporado", "Saldo"),
+        return archivo("f4", List.of("Tipo descarga", "F4", "Fecha", "ImportaciÃ³n", "Clave", "Incorporado", "Saldo"),
                 resultado.stream().map(item -> fila(item.tipoDescarga(), item.f4(), item.fecha(), item.importacion(), item.clave(), item.incorporado(), item.saldo())).toList());
     }
 
