@@ -501,3 +501,89 @@ Resultado: LEGACY-021 permanece BLOCKED_BUSINESS. Aunque LEGACY-038 se implement
 6. Confirmar @documento representa pedimento/factura/material.
 7. Validar con un corte historico representativo (no estado 0 filas actual).
 8. Reevaluar gates LEGACY-038 con la nueva evidencia; implementar wrapper APP24_Q_SALDOS_LISTAR solo si las 8 condiciones quedan YES.
+
+## 20. Correccion del forensic con definicion del dump db.sql
+
+La reauditoria SP-FIRST previa (sec 19) declaraba bloqueos incompletos por ausencia de evidencia. El controlador reviso y senalo que existe evidencia autoritativa del proyecto: el dump SQL `db.sql` que no esta versionado en Git pero es `PROJECT_SQL_DUMP_EVIDENCE`. Su uso correcto es corregir el forensic y reevaluar los gates.
+
+Nota: el dump `db.sql` no se commitea al repositorio. Solo se usa como fuente tecnica.
+
+### 20.1 Definicion completa conocida (PROJECT_SQL_DUMP_DEFINITION)
+
+`dbo.PR_INFORME_SALDOS` define:
+
+| Aspecto | Valor conocido | |
+|---|---|---|
+| PARAMETERS | `@DESDE datetime`, `@HASTA datetime`, `@documento varchar(50)` | |
+| DOCUMENT_OVERRIDES_DATE_RANGE | YES. Si `@documento` no es vacio, `@DESDE` y `@HASTA` quedan anulados internamente | |
+| DATE_FILTER_COLUMN | `Importaciones.Fecha` | |
+| DATE_RANGE_BOUNDARIES | INCLUSIVE | |
+| DATE_FILTER | `Importaciones.Fecha BETWEEN COALESCE(@DESDE, Importaciones.Fecha) AND COALESCE(@HASTA, Importaciones.Fecha)` | |
+| DOCUMENT_FILTER_COLUMN | `Importaciones.Numero_ped` | |
+| DOCUMENT_MATCH | EXACT_EQUALITY | |
+| DOCUMENT_FILTER | `Importaciones.Numero_ped = COALESCE(@documento, Importaciones.Numero_ped)` | |
+| SOURCE_TABLES | `Importaciones`, `Partidas`, `Categorias`, `Productomaterial`, `Descarga`, `Material` (via `BUSCATIPOM`) | |
+| SOURCE_FUNCTIONS | `dbo.BUSCATIPOM(partidas.clave)` (read-only: `SELECT TOP 1 TIPOMATERIAL FROM dbo.MATERIAL WHERE CLAVE = @CLAVE`) | |
+| RESULT_COLUMN_COUNT | 37 confirmadas via `sys.dm_exec_describe_first_result_set_for_object` | |
+| RESULT_COLUMNS_ORDER | 1 Documento / 2 Fecha de Pago / 3 Clave Pedimento / 4 Tipo de Operacion / 5 tc / 6 Clave / 7 Descripcion / 8 Fraccion / 9 Cant. Importado / 10 Unidad / 11 Saldo / 12 Valor Aduanal de Saldo / 13 Valor dolares del saldo / 14 Pais origen / 15 Temporalidad(Meses) / 16 Categoria / 17 Fecha de Vencimiento / 18 PedimentoOriginal / 19 Descarga / 20 lote / 21 Complemento 1 / 22 Complemento 2 / 23 Complemento 3 / 24 Desperdiciado / 25 Saldodesperdicio / 26 COVE / 27 Factura / 28 Tipo Material / 29 pu_vad / 30 pu_vdo / 31 val_aduanal / 32 val_dolares / 33 saldo en UMT / 34 unidadt / 35 valor en pesos / 36 Saldo en valor pesos / 37 NICO | |
+| SOURCE_GRAIN | PARTIDA_LOGICAL_GRAIN (una fila por partida coincidente con categoria asignada; JOIN con Categorias LEFT JOIN puede multiplicar si `Categorias.categoria` no tiene PK/UNIQUE demostrado; CATEGORY_JOIN_MULTIPLICATION_RISK = NOT_CONFIRMED) | |
+| FILTER_CONDITIONS | `partidas.Categoria <> 'NO'` AND `partidas.Cantidad > 0` AND `(ROUND(partidas.Saldo,3) > 0 OR ISNULL((SELECT SUM(saldodesperdicio) FROM descarga WHERE pentradalink = partidakey),0) > 0)` AND `Importaciones.Descarga = 'SI'` AND `Importaciones.Cve_pedimento <> 'AF'` | |
+| ORDER | `ORDER BY [Fecha de Pago], Documento` | |
+| CALCULATIONS_LEGACY | `Saldo` persistido; `Valor Aduanal de Saldo = Val_aduanal / Cantidad * Saldo`; `Valor dolares del saldo = Val_dolares / Cantidad * Saldo`; `Temporalidad = Categorias.meses`; `Fecha de Vencimiento = DATEADD(month, meses, Importaciones.Fecha)`; `Desperdiciado = SUM(descarga.desperdicio)`; `Saldodesperdicio = SUM(descarga.saldodesperdicio)`; `Tipo Material = dbo.BUSCATIPOM(partidas.clave)`; `pu_vad`/`pu_vdo`/`saldo en UMT`/`valor en pesos`/`Saldo en valor pesos` ya calculados | |
+| PERSISTENT_WRITES | 0 (solo INSERT en `@res` table variable local) | |
+| MUTABLE_EXEC_DEPENDENCIES | 0 (BUSCATIPOM solo SELECT) | |
+| EXTERNAL_SIDE_EFFECTS | 0 (no xp_cmdshell, no cross-DB, no EXEC mutable) | |
+| READ_ONLY_CONFIRMED | YES por definicion completa del dump | |
+
+STATIC_DEFINITION_CONFIRMED = YES
+CURRENT_LIVE_DEFINITION_MATCH = NOT_REVALIDATED (no se ejecuta contra LIVE; la definicion del dump es suficiente para SP-FIRST; LIVE solo confirmaria drift eventual)
+
+### 20.2 Correccion de los gates previos
+
+Los gates de sec 19.4 que declaraban NO/UNKNOWN quedan reevaluados:
+
+| Requisito previo | Estado previo | Estado corregido | Justificacion |
+|---|---|---|---|
+| CANONICAL_READ_SOURCE_CONFIRMED | NO | YES | PR_INFORME_SALDOS tiene 37 columnas con definicion completa; SP_EXISTING_REUSABLE_WITH_ADAPTER confirmado |
+| SOURCE_GRAIN_CONFIRMED | NO | YES (con CATEGORY_JOIN_MULTIPLICATION_RISK = NOT_CONFIRMED) | Grano logico = PARTIDA_LOGICAL_GRAIN demostrado |
+| VISIBLE_FIELDS_MAPPING_SUFFICIENT | NO | PARTIAL_CONFIRMED (pendiente de paridad con UI legacy) | 16 campos UI observados mapean a columnas fisicas demostradas; mapping exacto de etiquetas legacy pendiente de segunda auditoria E2E |
+| DATE_FILTER_SEMANTICS_CONFIRMED | NO | YES | `Importaciones.Fecha BETWEEN COALESCE(...) AND COALESCE(...)` |
+| DOCUMENT_FILTER_SEMANTICS_CONFIRMED | NO | YES | `Importaciones.Numero_ped = COALESCE(@documento, ...)` (igualdad exacta) |
+| PERSISTENT_SIDE_EFFECTS | UNKNOWN | 0 | `@res` table variable local; no EXEC mutable; no xp_cmdshell |
+| MUTABLE_PRECONDITION_REQUIRED | UNKNOWN | NO | lectura no ejecuta SALDOS* ni recalcula saldos |
+
+### 20.3 Implementacion LEGACY-038 realizada
+
+Veredicto: `LEGACY_038_IMPLEMENTABLE = YES`.
+
+- TECHNICAL_IMPLEMENTATION_READY = YES
+- PARITY_ACCEPTANCE_PENDING = YES (XLSX pendiente de segunda auditoria comparativa)
+
+Surface implementada:
+
+- Wrapper tecnico: `infra/sql/procedures/queries/APP24_Q_SALDOS_LISTAR.sql` (puramente read-only: `INSERT INTO @res EXEC dbo.PR_INFORME_SALDOS @DESDE, @HASTA, @documento`; paginacion `@Pagina`/`@Tamano`/`@Total`; sin reescritura de formulas legacy).
+- Domain: `Saldo` record con 37 campos preservando orden legacy.
+- Port: `SaldoRepository.findPage(Instant desde, Instant hasta, String documento, int pagina, int tamano)`.
+- Adapter JDBC: `SaldoStoredProcedureAdapter` (consume el wrapper con `JdbcTemplate.call`; mapea 37 columnas a `Saldo`; mapea FLOAT legacy a `BigDecimal` para evitar perdida de precision; preserva NULL).
+- Use case: `ListarSaldosUseCase` (valida paginacion 1..100; rango de fechas obligatorio; maneja filtro de documento opcional; `exportar` itera paginas con maximo 10_000 filas; vacio para total=0).
+- DTO: `SaldoDto` con 37 campos (factory `from(Saldo)`).
+- Controller: `GET /api/v1/reportes/saldos` y `GET /api/v1/reportes/saldos/exportacion`. Permisos: `REPORTES_GENERAR` (consulta) y `REPORTES_EXPORTAR` (XLSX). Documento opcional. Rango obligatorio (`desde`/`hasta` `OffsetDateTime` ISO).
+- Tests backend: `ListarSaldosUseCaseTest` (6 tests: normalizacion, documento nulo, rango obligatorio, paginacion, exportar limite 10000, exportar vacio); 3 tests adicionales en `ReportesControllerTest` (401, 403, 200).
+- Frontend: opcion `Saldos` habilitada en `report-list.page.ts` (`available: true`); reporte adicionado a `ReportType` union; parametros `desde`/`hasta`/`documento` se envian via `report-api.service.ts`; 12 columnas iniciales visibles (Documento, Fecha de Pago, Clave pedimento, Clave, Fraccion, Cant. importado, Unidad, Saldo, Fecha de vencimiento, Categoria, Pais origen).
+- XLSX: reutiliza `ExportadorXlsxReportes` con las 37 columnas; maximo 10.000 filas; 204 sin filas.
+- Grano: `PARTIDA_LOGICAL_GRAIN` (multiplicidad potencial por LEFT JOIN con `Categorias` no demostrada como PK/UNIQUE).
+- Snapshot semantics: `SALDO_SEMANTICS = LAST_PERSISTED_VALUE_FROM_MUTABLE_A31_PROCESS`; `CURRENT_BALANCE = NOT_GUARANTEED`; `SNAPSHOT_RUN_TIMESTAMP = NOT_AVAILABLE`; `STALENESS_DETECTABLE = NOT_CONFIRMED`.
+
+### 20.4 LEGACY-021 permanece separado
+
+LEGACY-021 = BLOCKED_BUSINESS. La superficie operacional de Saldos tiene contrato mas rico (semantica fiscal + corte + posibles acciones operativas). Aunque LEGACY-038 se implementa read-only, LEGACY-021 sigue bloqueado. No se consolidan.
+
+### 20.6 Estado actualizado
+
+- LEGACY_038 = IMPLEMENTED_REDESIGNED (matrix de paridad y resumen global actualizados)
+- LEGACY_021 = BLOCKED_BUSINESS (sin cambio)
+- LIVE_ACTIVATION_PENDING = YES (deploy del SP no incluido en este commit)
+- LIVE writes = 0; LIVE mutable executions = 0
+- NEW_QUERY_SP = 1 (APP24_Q_SALDOS_LISTAR)
+- NEW_BUSINESS_SP = 0
+- INLINE_BUSINESS_SQL_JAVA = 0

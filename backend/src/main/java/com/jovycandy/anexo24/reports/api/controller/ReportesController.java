@@ -14,6 +14,7 @@ import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30EntradaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.SaldoDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
@@ -22,6 +23,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4Us
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionBloqueada;
@@ -30,6 +32,7 @@ import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada;
+import com.jovycandy.anexo24.reports.extended.domain.model.Saldo;
 import com.jovycandy.anexo24.reports.extended.domain.model.Vencimiento;
 import com.jovycandy.anexo24.reports.infrastructure.export.ExportadorXlsxReportes;
 import com.jovycandy.anexo24.shared.api.Pagina;
@@ -68,6 +71,7 @@ public class ReportesController {
     private final ListarVencimientosUseCase listarVencimientosUseCase;
     private final ListarLineasF4UseCase listarLineasF4UseCase;
     private final ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
+    private final ListarSaldosUseCase listarSaldosUseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
             ExportadorXlsxReportes exportadorXlsxReportes,
@@ -78,7 +82,8 @@ public class ReportesController {
             ListarRectificacionesUseCase listarRectificacionesUseCase,
             ListarVencimientosUseCase listarVencimientosUseCase,
             ListarLineasF4UseCase listarLineasF4UseCase,
-            ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase) {
+            ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase,
+            ListarSaldosUseCase listarSaldosUseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
         this.listarAnalisisDescargasUseCase = listarAnalisisDescargasUseCase;
@@ -89,6 +94,7 @@ public class ReportesController {
         this.listarVencimientosUseCase = listarVencimientosUseCase;
         this.listarLineasF4UseCase = listarLineasF4UseCase;
         this.listarAnexo30EntradasUseCase = listarAnexo30EntradasUseCase;
+        this.listarSaldosUseCase = listarSaldosUseCase;
     }
 
     @GetMapping("/entradas")
@@ -244,6 +250,48 @@ public class ReportesController {
         Pagina<LineaF4> resultado = listarLineasF4UseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(LineaF4Dto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/saldos")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<SaldoDto>> saldos(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam(required = false) String documento,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Saldo> resultado = listarSaldosUseCase.ejecutar(aInstant(desde), aInstant(hasta),
+                documento, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(SaldoDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/saldos/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarSaldos(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam(required = false) String documento) {
+        List<Saldo> resultado = listarSaldosUseCase.exportar(aInstant(desde), aInstant(hasta), documento);
+        return archivo("saldos", List.of("Documento", "Fecha de Pago", "Clave Pedimento",
+                "Tipo de Operacion", "tc", "Clave", "Descripcion", "Fraccion",
+                "Cant. Importado", "Unidad", "Saldo", "Valor Aduanal de Saldo",
+                "Valor dolares del saldo", "Pais origen", "Temporalidad(Meses)",
+                "Categoria", "Fecha de Vencimiento", "PedimentoOriginal", "Descarga",
+                "lote", "Complemento 1", "Complemento 2", "Complemento 3",
+                "Desperdiciado", "Saldodesperdicio", "COVE", "Factura",
+                "Tipo Material", "pu_vad", "pu_vdo", "val_aduanal", "val_dolares",
+                "saldo en UMT", "unidadt", "valor en pesos", "Saldo en valor pesos", "NICO"),
+                resultado.stream().map(item -> fila(item.documento(), item.fechaPago(), item.clavePedimento(),
+                        item.tipoOperacion(), item.tcMonetaria(), item.clave(), item.descripcion(),
+                        item.fraccion(), item.cantImportado(), item.unidad(), item.saldo(),
+                        item.valorAduanalDeSaldo(), item.valorDolaresDelSaldo(), item.paisOrigen(),
+                        item.temporalidadMeses(), item.categoria(), item.fechaVencimiento(),
+                        item.pedimentoOriginal(), item.descarga(), item.lote(), item.complemento1(),
+                        item.complemento2(), item.complemento3(), item.desperdiciado(), item.saldodesperdicio(),
+                        item.cove(), item.factura(), item.tipoMaterial(), item.puVad(), item.puVdo(),
+                        item.valAduanal(), item.valDolares(), item.saldoEnUMT(), item.unidadt(),
+                        item.valorEnPesos(), item.saldoEnValorPesos(), item.nico())).toList());
     }
 
     @GetMapping("/anexo30-revision-entradas")

@@ -43,6 +43,8 @@ export class ReportApiService {
       ? { material: criteria.material, producto: criteria.product, pedimentoSalida: criteria.customsDocument, clavePedimentoSalida: criteria.customsCode }
       : criteria.type === 'bitacora'
         ? { usuarioId: criteria.userId?.toString() ?? '', modulo: criteria.module, resultado: criteria.result, correlationId: criteria.correlationId }
+        : criteria.type === 'saldos'
+        ? { documento: criteria.customsDocument }
         : { pedimento: criteria.customsDocument, clavePedimento: criteria.customsCode, fraccion: criteria.tariffFraction, numeroParte: criteria.partNumber };
 
     for (const [name, value] of Object.entries(optional)) {

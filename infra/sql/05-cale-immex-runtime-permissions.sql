@@ -121,7 +121,7 @@ BEGIN
 END
 GO
 
--- 5. EXECUTE por objeto: 32 entry points consumidos por Java (queries read-only
+-- 5. EXECUTE por objeto: 33 entry points consumidos por Java (queries read-only
 --    + commands autoritativos de pedimentos, confirmación de materiales, productos,
 --    clientes, proveedores y agentes aduanales, actas y constancias). Nunca EXECUTE por schema.
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_ACTIVOS_FIJOS_LISTAR TO cale_immex_runtime;
@@ -144,6 +144,7 @@ GRANT EXECUTE ON OBJECT::dbo.APP24_Q_PEDIMENTO_VALIDAR_REGLAS TO cale_immex_runt
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_PRODUCTOS_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_PROVEEDORES_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_RECTIFICACIONES_LISTAR TO cale_immex_runtime;
+GRANT EXECUTE ON OBJECT::dbo.APP24_Q_SALDOS_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_SALIDAS_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_TIPOS_MATERIAL_LISTAR TO cale_immex_runtime;
 GRANT EXECUTE ON OBJECT::dbo.APP24_Q_UNIDADES_LISTAR TO cale_immex_runtime;

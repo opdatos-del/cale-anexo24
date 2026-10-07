@@ -100,7 +100,7 @@ versionada.
 | LEGACY-035 | Descargos y trazabilidad | `NOT_CAPTURED` — Consulta de descargos persistidos | Consultar filas físicas de `DESCARGA` sin mutar | SQL_METADATA, CODE, RUNTIME | Materiales Utilizados es la superficie moderna | `/operaciones/materiales-utilizados` | `GET /api/v1/operaciones/materiales-utilizados` | `dbo.APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | IMPLEMENTED_REDESIGNED | P0 | No equivale a generar descargos | Operaciones / trazabilidad |
 | LEGACY-036 | Reportes y consolidados | `NOT_CAPTURED` — Entradas | Generar y exportar reporte de entradas | AUDIT_UI, CODE | `/reportes`, opción Entradas | `/reportes` | `GET /api/v1/reportes/entradas` y `/entradas/exportacion` | Reutiliza consulta de entradas | IMPLEMENTED_REDESIGNED | P1 | Proyección nueva no replica las 76 columnas legacy | Reportes / operativos |
 | LEGACY-037 | Reportes y consolidados | `NOT_CAPTURED` — Salidas | Generar y exportar reporte de salidas | AUDIT_UI, CODE | `/reportes`, opción Salidas | `/reportes` | `GET /api/v1/reportes/salidas` y `/salidas/exportacion` | Reutiliza consulta de salidas | IMPLEMENTED_REDESIGNED | P1 | Proyección nueva no replica las 49 columnas legacy | Reportes / operativos |
-| LEGACY-038 | Reportes y consolidados | `NOT_CAPTURED` — Saldos | Generar y exportar reporte de saldos | AUDIT_UI, SQL_METADATA | Opción visible pero no disponible | Parcial; botón deshabilitado | No existe endpoint aprobado | `PR_INFORME_SALDOS`, `v_saldos` como referencia | BLOCKED_BUSINESS | P0 | Misma decisión pendiente de Saldos | Reportes / saldos |
+| LEGACY-038 | Reportes y consolidados | `NOT_CAPTURED` — Saldos | Generar y exportar reporte de saldos | AUDIT_UI, SQL_METADATA, CODE, TEST | `/reportes` opción Saldos habilitada | `ReportListPage` | `GET /api/v1/reportes/saldos` y `/saldos/exportacion` | `dbo.PR_INFORME_SALDOS` + wrapper read-only `dbo.APP24_Q_SALDOS_LISTAR` (sin reescritura de formulas legacy) | IMPLEMENTED_REDESIGNED | P0 | Read-only; reusa PR_INFORME_SALDOS sin ejecutar SALDOS* ni recalcular saldos. Paridad exacta de superficie/XLSX pendiente de segunda auditoria comparativa (XLSX_PARITY = PENDING_FINAL_COMPARATIVE_AUDIT). DOCUMENT_OVERRIDES_DATE_RANGE = YES. LIVE_ACTIVATION_PENDING = YES. | Reportes / saldos |
 | LEGACY-039 | Reportes y consolidados | `NOT_CAPTURED` — Materiales utilizados | Generar y exportar reporte de consumo/descarga | AUDIT_UI, CODE, RUNTIME | `/reportes`, opción Materiales utilizados | `/reportes` | `GET /api/v1/reportes/materiales-utilizados` y exportación | Reutiliza `APP24_Q_MATERIALES_UTILIZADOS_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | Mantiene grano físico de `DESCARGA` | Reportes / operativos |
 | LEGACY-040 | Reportes y consolidados | `NOT_CAPTURED` — Bitácora | Consultar y exportar bitácora | AUDIT_UI, CODE, RUNTIME | `/bitacora` y `/reportes` | `AuditLogListPage`, `ReportListPage` | `GET /api/v1/bitacora`, `/reportes/bitacora` y exportación | `app24.APP24_Q_BITACORA_LISTAR` | IMPLEMENTED_REDESIGNED | P1 | La fuente legacy original no está vinculada | Administración / bitácora |
 | LEGACY-041 | Reportes y consolidados | `NOT_CAPTURED` — CTM/F4/HDE | Generar reportes especializados CTM/F4/HDE | SQL_METADATA, CODE, RUNTIME | `/reportes` — consulta read-only de líneas dirigidas F4 (CTM/desperdicio) | `ReportListPage` | `GET /api/v1/reportes/f4` y `/f4/exportacion` | `dbo.V_F4CTMA`, `dbo.V_F4DESP`, `dbo.APP24_Q_F4_LISTAR`; LIVE_ROWS = 0 | PARTIAL | P2 | Sólo líneas dirigidas F4; CTM mutable y HDE fuera de alcance (HDE_CONTRACT = NOT_FOUND) | Reportes / cumplimiento |
@@ -150,12 +150,12 @@ versionada.
 | Catálogos y maestros | 14 | 3 | 8 | 1 | 0 | 0 | 0 | 2 |
 | Operación aduanera/inventario | 14 | 2 | 6 | 3 | 2 | 1 | 0 | 0 |
 | Descargos y trazabilidad | 7 | 0 | 3 | 2 | 0 | 2 | 0 | 0 |
-| Reportes y consolidados | 18 | 0 | 5 | 6 | 0 | 2 | 5 | 0 |
+| Reportes y consolidados | 18 | 0 | 6 | 6 | 0 | 1 | 5 | 0 |
 | Interfaces/importación | 10 | 0 | 4 | 2 | 0 | 0 | 0 | 4 |
 | Ajuste anual | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 5 |
 | Anexo 30 | 5 | 0 | 0 | 1 | 0 | 0 | 0 | 4 |
 | Seguridad/administración | 6 | 0 | 5 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **79** | **5** | **31** | **15** | **2** | **5** | **6** | **15** |
+| **Total** | **79** | **5** | **32** | **15** | **2** | **4** | **6** | **15** |
 
 `LEGACY_CAPABILITIES_TOTAL = 79`. Las filas que permanecen `UNKNOWN` conservan
 capacidades identificadas por la auditoría consolidada, pero el repositorio no
@@ -196,10 +196,10 @@ staging aislado durable en `app24`; no se ejecutan `CARGA_MATERIALES`,
 ### Conteo global
 
 - `IMPLEMENTED_EQUIVALENT = 5`
-- `IMPLEMENTED_REDESIGNED = 31`
-- `PARTIAL = 15 (incluye LEGACY-023, LEGACY-024 y LEGACY-048 como PARTIAL_EVIDENCE_BLOCKED_CONTRACT; LEGACY-056 conserva alta sin actualización; LEGACY-073 ahora cubre la subcapacidad entradas A31 read-only)`
+- `IMPLEMENTED_REDESIGNED = 32` (LEGACY-038 Saldos reusando `PR_INFORME_SALDOS` + wrapper read-only)
+- `PARTIAL = 15` (incluye LEGACY-023, LEGACY-024 y LEGACY-048 como PARTIAL_EVIDENCE_BLOCKED_CONTRACT; LEGACY-056 conserva alta sin actualización; LEGACY-073 cubre subcapacidad entradas A31 read-only)
 - `MISSING = 2`
-- `BLOCKED_BUSINESS = 5`
+- `BLOCKED_BUSINESS = 4` (LEGACY-038 Saldos paso a IMPLEMENTED_REDESIGNED con PR_INFORME_SALDOS read-only)
 - `CONSOLIDATE = 6`
 - `UNKNOWN = 15`
 - `NOT_REQUIRED = 0`

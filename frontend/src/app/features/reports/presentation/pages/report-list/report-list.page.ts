@@ -42,7 +42,7 @@ const REPORTS: ReportOption[] = [
   { type: 'operaciones-bloqueadas', label: 'Operaciones bloqueadas', icon: 'block', available: true },
   { type: 'f4', label: 'F4 (CTM / desperdicio)', icon: 'route', available: true },
   { type: 'anexo30-revision-entradas', label: 'Revision Anexo 30 - Entradas', icon: 'fact_check', available: true },
-  { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: false },
+  { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: true },
 ];
 
 const COLUMNS: Record<ReportType, ReportColumn[]> = {
@@ -117,6 +117,19 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'fecha', label: 'Fecha', format: 'date' }, { key: 'importacion', label: 'Importación' },
     { key: 'clave', label: 'Clave' }, { key: 'incorporado', label: 'Incorporado', format: 'quantity' },
     { key: 'saldo', label: 'Saldo', format: 'quantity' },
+  ],
+  saldos: [
+    { key: 'documento', label: 'Documento' },
+    { key: 'fechaPago', label: 'Fecha de Pago', format: 'date' },
+    { key: 'clavePedimento', label: 'Clave pedimento' },
+    { key: 'clave', label: 'Clave' },
+    { key: 'fraccion', label: 'Fracción' },
+    { key: 'cantImportado', label: 'Cant. importado', format: 'quantity' },
+    { key: 'unidad', label: 'Unidad' },
+    { key: 'saldo', label: 'Saldo', format: 'quantity' },
+    { key: 'fechaVencimiento', label: 'Fecha de vencimiento', format: 'date' },
+    { key: 'categoria', label: 'Categoría' },
+    { key: 'paisOrigen', label: 'País origen' },
   ],
   'anexo30-revision-entradas': [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'pedimentoOriginal', label: 'Pedimento original' },
@@ -273,7 +286,7 @@ export class ReportListPage {
   private readonly notifications = inject(NotificationService);
 
   protected selectReport(report: ReportOption): void {
-    if (!report.available || report.type === 'saldos') return;
+    if (!report.available) return;
     this.selectedType.set(report.type);
     this.resetResults();
   }
