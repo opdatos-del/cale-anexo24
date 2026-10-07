@@ -1,7 +1,11 @@
 # Saldos — auditoría técnica, separación de cálculo y alcance V1
 
-> **Estado:** auditoría cerrada para alcance V1. No existe contrato HTTP de
-> Saldos aprobado todavía.
+> **Estado actual:** LEGACY-038 esta implementado como reporte read-only;
+> LEGACY-021 permanece bloqueado por contrato de negocio. La activacion LIVE y
+> la aceptacion final de paridad quedan pendientes de auditoria comparativa.
+>
+> **Nota historica:** las secciones 1-19 conservan el historial de discovery.
+> La seccion 20 y posteriores describen el estado implementado vigente.
 >
 > **Evidencia:** definiciones y metadata read-only capturadas el 15/09/2026,
 > snapshots read-only documentados principalmente el 21/09/2026 y mapeos ya
@@ -578,6 +582,40 @@ Surface implementada:
 ### 20.4 LEGACY-021 permanece separado
 
 LEGACY-021 = BLOCKED_BUSINESS. La superficie operacional de Saldos tiene contrato mas rico (semantica fiscal + corte + posibles acciones operativas). Aunque LEGACY-038 se implementa read-only, LEGACY-021 sigue bloqueado. No se consolidan.
+
+### 20.5 Alcance de evidencia, paridad y fechas
+
+PROJECT_SQL_DUMP_DEFINITION = CONFIRMED. El controlador revalido la definicion
+del dump de proyecto para PR_INFORME_SALDOS y BUSCATIPOM; no es evidencia LIVE.
+
+| Evidencia | Estado |
+|---|---|
+| WRAPPER_CAPTURE_SCHEMA_VS_PROJECT_DUMP | PASS |
+| WRAPPER_OUTPUT_ORDER_VS_PROJECT_DUMP | PASS |
+| LEGACY_SP_READ_ONLY_VS_PROJECT_DUMP | PASS |
+| FIXTURE_PARITY_SCOPE | STRUCTURAL_CONTRACT_ONLY |
+| REAL_LEGACY_SP_RUNTIME_PARITY | NOT_EXECUTED |
+| CURRENT_LIVE_DEFINITION_MATCH | NOT_REVALIDATED |
+| FINAL_LEGACY_PARITY | PENDING_SECOND_E2E_AUDIT |
+
+SaldosSqlIT ejecuta el wrapper versionado en SQL Server Testcontainers contra un
+procedimiento fixture sintetico. Demuestra ejecucion SQL Server, INSERT EXEC,
+proyeccion de 37 columnas, paginacion, filtros del fixture y permisos runtime.
+No demuestra las formulas del cuerpo autoritativo, datos reales de CALE_IMMEX ni
+ausencia de drift LIVE.
+
+Contrato de fecha implementado, sin cambiar la semantica del procedimiento:
+
+| Aspecto | Estado |
+|---|---|
+| API_DATE_TYPE | LocalDate |
+| JDBC_DATE_MAPPING | YYYY-MM-DD 00:00:00 |
+| PR_FILTER | Importaciones.Fecha BETWEEN @DESDE AND @HASTA |
+| END_DATE_FULL_DAY_PARITY | NOT_CONFIRMED |
+
+El code-behind legacy que define la hora enviada para HASTA no esta capturado.
+No se altera HASTA a fin de dia ni a limite exclusivo hasta la auditoria
+comparativa final.
 
 ### 20.6 Estado actualizado
 

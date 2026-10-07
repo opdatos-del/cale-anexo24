@@ -75,8 +75,16 @@ class SaldosSqlIT {
         assertEquals("2025-07-01 00:00:00.0", firstPart.get(16));
     }
 
+    /**
+     * FIXTURE_SCOPE = STRUCTURAL_CONTRACT_TEST.
+     * REAL_LEGACY_SP_RUNTIME_PARITY = NOT_EXECUTED.
+     *
+     * Verifica ejecucion SQL Server, INSERT EXEC, proyeccion de 37 columnas,
+     * filtros y paginacion del fixture contractual; no las formulas del cuerpo
+     * autoritativo ni datos de CALE_IMMEX.
+     */
     @Test
-    void wrapperConservaParidad37ColumnasYValores() throws Exception {
+    void wrapperConservaContratoFixture37ColumnasYValores() throws Exception {
         Result legacy = callLegacy(null, null, null);
         Result wrapper = callWrapper(null, null, null, 1, 20);
         assertEquals(legacy.columns, wrapper.columns);
