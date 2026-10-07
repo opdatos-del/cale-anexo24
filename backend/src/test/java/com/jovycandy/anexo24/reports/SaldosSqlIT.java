@@ -70,8 +70,8 @@ class SaldosSqlIT {
         List<String> wastePart = result.rows.stream().filter(row -> "MAT-2".equals(row.get(5))).findFirst().orElseThrow();
         assertTrue(result.rows.stream().anyMatch(row -> "MAT-3".equals(row.get(5))));
         assertEquals("TM-MAT-1", firstPart.get(27));
+        assertEquals("2.0000", wastePart.get(23));
         assertEquals("3.0000", wastePart.get(24));
-        assertEquals("3.0000", wastePart.get(25));
         assertEquals("2025-07-01 10:00:00.0", firstPart.get(16));
     }
 
@@ -117,7 +117,6 @@ class SaldosSqlIT {
                     cs.registerOutParameter(6, Types.BIGINT);
                     cs.execute();
                     assertEquals(3, cs.getLong(6));
-                    read(cs.getResultSet());
                 }
                 try (ResultSet rs = s.executeQuery("SELECT HAS_PERMS_BY_NAME('dbo.PR_INFORME_SALDOS','OBJECT','EXECUTE')")) {
                     assertTrue(rs.next());
