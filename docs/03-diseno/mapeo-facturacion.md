@@ -380,3 +380,109 @@ anteriores; las secciones previas documentan auditoría y decisiones de diseño.
   cambios a `PSALIDAS` en `CALE_IMMEX`.
 - Cero procedimientos legacy ejecutados y cero cambios al esquema legacy.
 - No se persisten credenciales, JWT ni archivos XLS/XLSX.
+
+## 18. Forensic focalizado de GUARDAR (2026-10-07)
+
+Esta seccion conserva el resultado de la busqueda ampliada para LEGACY-058.
+No cambia el staging app24 ni ejecuta procedimientos legacy mutables.
+
+### 18.1 Alcance y evidencia consultada
+
+Se revisaron el inventario versionado de procedimientos, los mapeos de
+Facturacion, Salidas, Productos, Pedimentos y Actas, el codigo moderno, los
+archivos SQL versionados y las rutas WebForms disponibles en el repositorio.
+No se localizo codigo legacy ASPX/code-behind, SQL Agent job, trigger, view,
+funcion o literal SQL versionado que invoque CARGA_FACTURAS,
+CARGAFACTURASENPSALIDAS, CREAPRODUCTOSCARGAFACTURA o INSTERTAFACTURASFC desde
+la pantalla Facturacion.
+
+- LEGACY_UI_LOAD_CALLER = NOT_AVAILABLE
+- LEGACY_UI_SAVE_CALLER = NOT_AVAILABLE
+- LEGACY_UI_DOWNLOAD_CALLER = NOT_AVAILABLE
+- CARGAFACTURAS_PLURAL_READER_OR_WRITER = NOT_FOUND_IN_VERSIONED_EVIDENCE
+- LIVE_CURRENT_REVALIDATION = NOT_AVAILABLE
+
+La ausencia de caller versionado no prueba que los flujos no sean usados. Solo
+impide atribuirles la accion GUARDAR.
+
+### 18.2 Candidatos y efectos demostrados
+
+| Candidato | Stage | Efectos demostrados | Compatibilidad con layout | Clasificacion |
+|---|---|---|---|---|
+| Flow A: CARGA_FACTURAS | TFACTURA | PRODUCTOS, CLIENTES, FACTURA, SALIDAS, PSALIDAS y GENERADORES; cursor, stage global y MAX+1 observados | No hay schema de TFACTURA que permita correlacionar las 13 columnas | SP_EXISTING_UNSAFE |
+| Flow B: CREAPRODUCTOSCARGAFACTURA + CARGAFACTURASENPSALIDAS | CARGAFACTURA | PRODUCTOS, PSALIDAS, ERRCARGAFACTURA y GENERADORES; SALIDAS solo se consulta por Documento | CONFLICT: faltan ValorDolares, ValorPesos, PaisDestino, Fraccion, CantidadTarifa, UnidadTarifa y Partida en el layout auditado | SP_EXISTING_UNSAFE |
+| Flow C: INSTERTAFACTURASFC | TmpFC | TMPFCERROR y FacturasCreadas; no crea SALIDAS, PSALIDAS ni FACTURA | CONFLICT: la estructura TmpFC representa comercio exterior distinto | SP_EXISTING_UNSAFE / NO_ACTIVE_CONTRACT_FOUND |
+| dbo.cargafacturas plural | cargafacturas | schema conocido, pero no reader, writer, trigger, job o dependency versionado localizado | PARTIAL: coincide con algunos campos, sin pipeline demostrable | UNKNOWN_LIFECYCLE |
+| INSERTAPEDIMENTO, CARGA_ENCABEZADOS, CARGAPEDIMENTOS | stages de pedimentos | escriben operaciones de pedimento, importaciones y/o salidas | ADJACENT_FALSE_POSITIVE: no hay prueba de invocacion desde Facturacion | ADJACENT_FALSE_POSITIVE |
+
+Ningun candidato sobreviviente identifica de forma demostrable el efecto
+autoritativo de GUARDAR.
+
+### 18.3 Matriz de compatibilidad por campo
+
+Estados: EXACT significa que el campo existe con semantica compatible dentro del
+candidato; STRONG_CANDIDATE significa similitud estructural sin caller;
+NO_MAPPING significa que la evidencia no muestra destino; CONFLICT indica que el
+candidato exige datos ausentes o semantica incompatible. La coincidencia de
+nombre no convierte un campo en contrato.
+
+| Layout legacy | Staging moderno | Flow A TFACTURA | Flow B CARGAFACTURA | Flow C TmpFC | cargafacturas plural | Confianza final |
+|---|---|---|---|---|---|---|
+| Documento | documento | NO_MAPPING | STRONG_CANDIDATE: NumeroFactura o @PEDIMENTO ambiguos | STRONG_CANDIDATE: Factura | STRONG_CANDIDATE: numfactura | NOT_CONFIRMED |
+| Fecha | fecha | NO_MAPPING | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: FechaFactura | STRONG_CANDIDATE: fechafactura | NOT_CONFIRMED |
+| Almacen | almacen | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
+| Observaciones | observaciones | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
+| Descarga | descarga | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
+| Tipo | tipo | NO_MAPPING | NO_MAPPING | STRONG_CANDIDATE: TipoOperacion | NO_MAPPING | NOT_CONFIRMED |
+| Linea | linea | NO_MAPPING | STRONG_CANDIDATE: Partida | NO_MAPPING | STRONG_CANDIDATE: orden | NOT_CONFIRMED |
+| Clave | clave | NO_MAPPING | STRONG_CANDIDATE: CodigoProducto | NO_MAPPING | STRONG_CANDIDATE: numeroparte | NOT_CONFIRMED |
+| Lote | lote | NO_MAPPING | NO_MAPPING | NO_MAPPING | STRONG_CANDIDATE: lote | NOT_CONFIRMED |
+| Cantidad | cantidad | NO_MAPPING | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: Cantidad | STRONG_CANDIDATE: cantidad | NOT_CONFIRMED |
+| Unidad | unidad | NO_MAPPING | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: Unidad | STRONG_CANDIDATE: unidad | NOT_CONFIRMED |
+| Dirigido | dirigido | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING | NO_MAPPING |
+| Cliente | cliente | NO_MAPPING | STRONG_CANDIDATE: CodigoCliente o NombreCliente | STRONG_CANDIDATE: Destinatario | STRONG_CANDIDATE: codigocliente o nombrecliente | NOT_CONFIRMED |
+
+La fila moderna conserva las 13 columnas del layout, pero esa persistencia es
+staging aislado y no demuestra que algun stage legacy sea el receptor inicial.
+
+### 18.4 Semantica pendiente de los campos operativos
+
+| Campo | Conclusion |
+|---|---|
+| Documento | FACTURA, PEDIMENTO, salida u otro identificador: NOT_CONFIRMED. Flow B mantiene ambiguedad entre @PEDIMENTO, @FACTURA y SALIDAS.Documento. |
+| Tipo | Tipo de venta, operacion, descarga u otro: NOT_CONFIRMED. |
+| Linea | PSALIDAS.partida, linea de factura o secuencia: NOT_CONFIRMED. |
+| Descarga | SALIDAS.DESCARGA, PSALIDAS.descargaDirigida, DIRIGIDO o solo stage: NOT_CONFIRMED. |
+| Dirigido | PSALIDAS.descargaDirigida, DIRIGIDO o solo stage: NOT_CONFIRMED. |
+| Almacen | PSALIDAS.Almacenkey, catalogo de division/almacen u otro: NOT_CONFIRMED. |
+| Lote | PSALIDAS.Lote u otro destino: NOT_CONFIRMED. |
+
+### 18.5 Gate de confirmacion
+
+| Requisito | Estado |
+|---|---|
+| LEGACY_SAVE_PIPELINE_CONFIRMED | NO |
+| INPUT_MAPPING_CONFIRMED | NO |
+| TARGETS_CONFIRMED | NO |
+| ROW_GRAIN_CONFIRMED | NO |
+| DUPLICATE_RULE_CONFIRMED | NO |
+| NEW_PRODUCT_BEHAVIOR_CONFIRMED | NO |
+| NEW_CLIENT_BEHAVIOR_CONFIRMED | NO |
+| ERROR_BEHAVIOR_CONFIRMED | NO |
+| ATOMICITY_EXPECTATION_CONFIRMED | NO |
+
+Resultado: FACTURACION_CONFIRM = PENDING_BUSINESS y LEGACY-058 permanece
+PARTIAL. No se crea APP24_C_FACTURACION_CONFIRMAR, endpoint, permiso ni boton
+de confirmacion.
+
+EXACT_BLOCKER = LEGACY_UI_SAVE_CALLER_NOT_AVAILABLE combinado con ausencia de
+una correlacion demostrable de las 13 columnas hacia un stage, grano, targets,
+duplicados y regla de alta de productos/clientes.
+
+REQUIRED_EXTERNAL_EVIDENCE = codigo o traza del caller de GUARDAR; o un caso
+real anonimizado de una a tres filas que incluya archivo/layout, stage antes y
+despues, parametros invocados, targets afectados y resultado de reintento; o
+capturas antes/despues aprobadas por el responsable funcional.
+
+LIVE writes = 0. LIVE mutable executions = 0. NEW_BUSINESS_SP = 0.
+INLINE_BUSINESS_SQL_JAVA = 0.
