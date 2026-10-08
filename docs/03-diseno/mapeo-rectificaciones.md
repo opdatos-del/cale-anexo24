@@ -84,6 +84,31 @@ filtros necesarios para el resumen.
 - XLSX: `NOT_IMPLEMENTED`.
 - Procesamiento: no hay command ni endpoint de confirmación.
 
+## Detalle read-only
+
+- SP versionado: `dbo.APP24_Q_RECTIFICACIONES_DETALLE_LISTAR`.
+- Fuente: `dbo.v_rectificaciones` (read-only, deriva de `dbo.v_operaciones`; sin DML). La vista ya aplica `DISTINCT` y filtra `Pedimento Original <> ''`; el wrapper no agrega `DISTINCT`.
+- API: `GET /api/v1/reportes/rectificaciones/detalle`.
+- Permiso: `REPORTES_GENERAR` (sin permiso nuevo).
+- Proyección (8 columnas): `Pedimento`, `Clave Pedimento`, `Descarga`, `Pedimento Original`, `Existe Pedimento`, `Clave Pedimento Original`, `Descarga Original`, `Status`.
+- `Status` se preserva literalmente (`"CUIDADO AMBOS DESCARGAN"` cuando `Descarga = Descarga Original`, en otro caso vacío); no se reinterpreta ni se convierte a enum.
+- Filtro opcional (`LIKE`) sobre `Pedimento`, `Clave Pedimento`, `Pedimento Original`, `Clave Pedimento Original`, `Existe Pedimento` y `Status`; blank equivale a `NULL`.
+- Paginación: `pagina` 1-based, `tamano` entre 1 y 100; `@Total` cuenta después del filtro y antes de `OFFSET/FETCH`.
+- Orden: `Pedimento Original`, `Pedimento`, `Clave Pedimento`, `Clave Pedimento Original`, `Descarga`, `Descarga Original`, `Existe Pedimento`, `Status`.
+- UI: opción `Rectificaciones - detalle` dentro de `/reportes`; reporte textual sin periodo; sin sidebar nuevo ni XLSX.
+- Evidencia LIVE previa: `v_rectificaciones` tenía `0` filas en la auditoría anterior; no se revalidó en esta feature (LIVE reads = 0). Con ese dataset el detalle puede responder vacío.
+- Tipos de columna de la vista: la proyección se lee como texto; el IT usa un fixture `VARCHAR` y no prueba los tipos LIVE reales.
+
+```text
+RECTIFICATIONS_SUMMARY_READ = IMPLEMENTED
+RECTIFICATIONS_DETAIL_READ = IMPLEMENTED
+RECTIFICATION_DETAIL_SOURCE = dbo.v_rectificaciones
+RECTIFICATION_MUTABLE_PROCESSING = NOT_IMPLEMENTED
+PHYSICAL_ROW_KEY = NONE
+STABLE_ORDER_FOR_NON_IDENTICAL_ROWS = YES
+EXACT_DUPLICATE_ROWS = COLLAPSED_BY_LEGACY_VIEW_DISTINCT
+```
+
 ## UI
 
 La opción `Rectificaciones` vive dentro de `/reportes`, comparte la superficie
@@ -166,6 +191,7 @@ legacy mutable SP executed = 0
 CALE_IMMEX writes = 0
 inline Java SQL = 0
 RECTIFICATIONS_XLSX = NOT_IMPLEMENTED
+RECTIFICATION_DETAIL_XLSX = NOT_IMPLEMENTED
 ```
 
 ## Paridad
@@ -175,5 +201,5 @@ LEGACY-051 before = UNKNOWN
 LEGACY-051 proposed = PARTIAL
 ```
 
-La V1 cubre sólo consulta/resumen read-only. No modifica la clasificación de
-procesos de rectificación ni habilita `INSERTAPEDIMENTO`.
+Resumen y detalle read-only implementados; procesamiento mutable y paridad final pendientes. LEGACY-051 permanece PARTIAL.
+No modifica la clasificación de procesos de rectificación ni habilita `INSERTAPEDIMENTO`.

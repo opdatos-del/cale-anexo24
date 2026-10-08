@@ -199,4 +199,29 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('consulta rectificaciones detalle en su endpoint, solo con filtro y paginacion', () => {
+    service.search({ ...criteria, type: 'rectificaciones-detalle', filter: ' CUIDADO ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/rectificaciones/detalle');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('CUIDADO');
+    expect(request.request.params.get('pagina')).toBe('2');
+    expect(request.request.params.get('tamano')).toBe('20');
+    expect(request.request.params.has('desde')).toBe(false);
+    expect(request.request.params.has('hasta')).toBe(false);
+    expect(request.request.params.has('pedimento')).toBe(false);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('omite el filtro vacio en rectificaciones detalle', () => {
+    service.search({ ...criteria, type: 'rectificaciones-detalle', filter: '   ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/rectificaciones/detalle');
+    expect(request.request.params.keys().sort()).toEqual(['pagina', 'tamano']);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('conserva el endpoint del resumen de rectificaciones', () => {
+    service.search({ ...criteria, type: 'rectificaciones', filter: '26' }).subscribe();
+    http.expectOne((candidate) => candidate.url === '/api/v1/reportes/rectificaciones').flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
 });

@@ -244,4 +244,82 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).not.toBeNull();
   });
 
+  const filaDetalle: ReportRow = {
+    pedimento: 'P-0003', clavePedimento: 'A1', descarga: 'D1', pedimentoOriginal: 'P-0001', existePedimento: 'SI',
+    clavePedimentoOriginal: 'A1', descargaOriginal: 'D1', status: 'CUIDADO AMBOS DESCARGAN',
+  };
+
+  function botones(): HTMLButtonElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+  }
+
+  it('ofrece rectificaciones resumen y detalle como opciones separadas', () => {
+    const etiquetas = botones().map((button) => button.textContent ?? '');
+    expect(etiquetas.some((text) => text.includes('Rectificaciones - detalle'))).toBe(true);
+    expect(etiquetas.some((text) => text.includes('Rectificaciones') && !text.includes('detalle'))).toBe(true);
+  });
+
+  it('selecciona rectificaciones detalle como reporte textual sin fechas ni XLSX', () => {
+    search.execute.mockReturnValue(of({ items: [filaDetalle], total: 1, page: 1, pageSize: 20 }));
+    const opcion = botones().find((button) => button.textContent?.includes('Rectificaciones - detalle')) as HTMLButtonElement;
+    opcion.click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Detalle read-only de relaciones de rectificaci\u00f3n persistidas. La consulta no aplica ni procesa rectificaciones.');
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.generate(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'rectificaciones-detalle', page: 1, pageSize: 20, from: '', to: '' }));
+    const texto = fixture.nativeElement.textContent as string;
+    for (const columna of ['Pedimento', 'Clave pedimento', 'Descarga', 'Pedimento original', 'Existe pedimento', 'Clave pedimento original', 'Descarga original', 'Estado']) {
+      expect(texto).toContain(columna);
+    }
+    expect(texto).toContain('CUIDADO AMBOS DESCARGAN');
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
+  });
+
+  it('rectificaciones detalle: loading, vacio, error y reintento', () => {
+    const pending = new Subject<ReportPage>();
+    search.execute.mockReturnValueOnce(pending);
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('rectificaciones-detalle'); fixture.detectChanges();
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Generando reporte"]')).not.toBeNull();
+    pending.next({ items: [filaDetalle], total: 1, page: 1, pageSize: 20 }); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('tbody tr')).not.toBeNull();
+    search.execute.mockReturnValueOnce(of({ items: [], total: 0, page: 1, pageSize: 20 }));
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No se encontraron resultados');
+    search.execute.mockReset().mockReturnValueOnce(throwError(() => new Error('fallo'))).mockReturnValueOnce(of(pagina));
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No pudimos generar el reporte');
+    const retry = botones().find((button) => button.textContent?.includes('Reintentar')) as HTMLButtonElement;
+    retry.click(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).not.toContain('No pudimos generar el reporte');
+  });
+
+  it('rectificaciones detalle pagina conservando el filtro', () => {
+    search.execute.mockReturnValue(of({ items: [filaDetalle], total: 45, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('rectificaciones-detalle'); fixture.detectChanges();
+    const filter = fixture.nativeElement.querySelector('input[name=filter]') as HTMLInputElement; filter.value = 'CUIDADO'; filter.dispatchEvent(new Event('input'));
+    internals.generate(); internals.changePage({ pageIndex: 1, pageSize: 20, length: 45 }); fixture.detectChanges();
+    expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'rectificaciones-detalle', filter: 'CUIDADO', page: 2, pageSize: 20, from: '', to: '' }));
+  });
+
+  it.each(['rectificaciones', 'compulsa', 'anexo30-revision-entradas', 'anexo30-revision-fracciones', 'anexo30-revision-descargas', 'anexo30-revision-comparativa'] as const)('regresion: %s sigue como reporte textual', (type) => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
+  });
+
+  it('regresion: rectificaciones resumen conserva su contrato de consulta', () => {
+    search.execute.mockReturnValue(of({ items: [{ pedimento: '26', total: 3 }], total: 1, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('rectificaciones'); fixture.detectChanges(); internals.generate(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'rectificaciones' }));
+    expect(fixture.nativeElement.textContent).toContain('Rectificaciones');
+  });
+
 });

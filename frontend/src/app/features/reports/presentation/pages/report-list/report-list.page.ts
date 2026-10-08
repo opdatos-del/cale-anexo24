@@ -36,6 +36,7 @@ const REPORTS: ReportOption[] = [
   { type: 'bitacora', label: 'Bitácora', icon: 'manage_search', available: true },
   { type: 'compulsa', label: 'Compulsa', icon: 'compare_arrows', available: true },
   { type: 'rectificaciones', label: 'Rectificaciones', icon: 'rule', available: true },
+  { type: 'rectificaciones-detalle', label: 'Rectificaciones - detalle', icon: 'rule_folder', available: true },
   { type: 'vencimientos', label: 'Vencimientos de desperdicio', icon: 'event_busy', available: true },
   { type: 'dirigidos', label: 'Dirigidos', icon: 'alt_route', available: true },
   { type: 'analisis-descargas', label: 'Análisis de descargas', icon: 'account_tree', available: true },
@@ -81,6 +82,12 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
   ],
   rectificaciones: [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'total', label: 'Rectificaciones', format: 'quantity' },
+  ],
+  'rectificaciones-detalle': [
+    { key: 'pedimento', label: 'Pedimento' }, { key: 'clavePedimento', label: 'Clave pedimento' },
+    { key: 'descarga', label: 'Descarga' }, { key: 'pedimentoOriginal', label: 'Pedimento original' },
+    { key: 'existePedimento', label: 'Existe pedimento' }, { key: 'clavePedimentoOriginal', label: 'Clave pedimento original' },
+    { key: 'descargaOriginal', label: 'Descarga original' }, { key: 'status', label: 'Estado' },
   ],
   vencimientos: [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'fechaBase', label: 'Fecha base', format: 'date' },
@@ -185,13 +192,15 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
               @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
             } @else {
-              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : selectedType() === 'vencimientos' ? 'Pedimento, clave o factura' : selectedType() === 'dirigidos' ? 'Documento, clave, producto o factura' : selectedType() === 'analisis-descargas' ? 'Importación, exportación, material o producto' : selectedType() === 'operaciones-bloqueadas' ? 'Pedimento, clave, producto, material o folio' : selectedType() === 'f4' ? 'Documento, importación, clave o tipo' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
+              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : selectedType() === 'rectificaciones-detalle' ? 'Pedimento, clave, pedimento original, existe o estado' : selectedType() === 'vencimientos' ? 'Pedimento, clave o factura' : selectedType() === 'dirigidos' ? 'Documento, clave, producto o factura' : selectedType() === 'analisis-descargas' ? 'Importación, exportación, material o producto' : selectedType() === 'operaciones-bloqueadas' ? 'Pedimento, clave, producto, material o folio' : selectedType() === 'f4' ? 'Documento, importación, clave o tipo' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
             }
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
             @if (selectedType() === 'compulsa') {
               <p class="m-0 text-xs text-slate-500">Compara registros generales de glosa contra Anexo 24.</p>
+            } @else if (selectedType() === 'rectificaciones-detalle') {
+              <p class="m-0 text-xs text-slate-500">Detalle read-only de relaciones de rectificaci&oacute;n persistidas. La consulta no aplica ni procesa rectificaciones.</p>
             } @else if (selectedType() === 'rectificaciones') {
               <p class="m-0 text-xs text-slate-500">Resume pedimentos con relaciones de rectificación observadas.</p>
             } @else if (selectedType() === 'vencimientos') {
@@ -323,7 +332,7 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'rectificaciones-detalle' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;

@@ -9,6 +9,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUs
 import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesDetalleUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
@@ -74,6 +75,9 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarRectificacionesUseCase listarRectificacionesUseCase;
+
+    @MockitoBean
+    private ListarRectificacionesDetalleUseCase listarRectificacionesDetalleUseCase;
 
     @MockitoBean
     private ListarVencimientosUseCase listarVencimientosUseCase;
@@ -289,6 +293,22 @@ class ReportesControllerTest {
         when(listarRectificacionesUseCase.ejecutar(any(), anyInt(), anyInt()))
                 .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/rectificaciones")
+                        .param("filtro", "26")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void listarRectificacionesDetalleExigeAutenticacionPermisoYRespondePagina() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/rectificaciones/detalle")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/reportes/rectificaciones/detalle")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+        when(listarRectificacionesDetalleUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/rectificaciones/detalle")
                         .param("filtro", "26")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isOk())

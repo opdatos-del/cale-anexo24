@@ -14,7 +14,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 | Dirigidos | `V_STATUS_DESCARGAS` expone flag read-only `DIRIGIDO`; `DIRIGIDO` está vacío; `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` y `Trazo_report` son mutables | PARTIAL | Exponer sólo consulta paginada de líneas marcadas como dirigidas; no generar descargos ni calcular saldos |<!--  -->
 | Análisis de descargas | `V_INFORMEDESCARGAS` tiene 3866 filas y depende de `DESCARGA`, `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS` y `SALIDAS`; `TRAZO` está vacío y `Trazo_report` es WRITE/MIXED | PARTIAL | Exponer relaciones históricas enriquecidas importación → descarga → salida; no exponer saldos fiscales, faltantes, trazo ni motor |<!--  -->
 | Operaciones bloqueadas | `DESCARGOSBLOQUEADOS` tiene 0 filas, PK `DESCARGOSBLOQUEADOSKEY` NOT NULL/única y snapshot generado por `BLOQUEA_DOCUMENTO`; no hay referencias LIVE a DELETE/TRUNCATE/MERGE; `PSALIDAS.bloqueado` está NULL en 3392/3392 filas | PARTIAL | Exponer sólo snapshot histórico paginado; resolver, desbloquear, reprocesar y estado activo quedan fuera |<!--  -->
-| Rectificaciones | `v_rectificaciones` tiene detalle explícito pero 0 filas; `v_total_rectificaciones` tiene 662 agregados | PARTIAL | Implementar resumen read-only paginado desde `v_total_rectificaciones`; detalle y procesamiento quedan fuera de V1 |
+| Rectificaciones | `v_rectificaciones` tiene detalle explícito pero 0 filas; `v_total_rectificaciones` tiene 662 agregados | PARTIAL | Resumen read-only paginado desde `v_total_rectificaciones` y detalle read-only paginado desde `v_rectificaciones`; procesamiento mutable y paridad final pendientes |
 | Activo fijo especializado | Consulta operativa `APP24_Q_ACTIVOS_FIJOS_LISTAR` ya implementada | CONSOLIDATE | No duplicar dentro de Reportes |
 | Consolidado materiales | Sin contrato independiente confirmado | UNKNOWN | No implementar |
 | Consolidado productos | Sin contrato independiente confirmado | UNKNOWN | No implementar |
@@ -83,7 +83,9 @@ actual y no cambia el contrato de consulta.
 - Orden: `pedimento`, con `NULL` primero; la vista proyecta únicamente esa columna como identidad lógica y no se inventa una PK.
 - UI: opción `Rectificaciones` dentro de `/reportes`; sin nueva entrada lateral.
 - XLSX: `NOT_IMPLEMENTED` en esta V1.
-- Detalle: `dbo.v_rectificaciones` auditada, pero `0` filas en LIVE; no se expone como detalle.
+- Detalle: `GET /api/v1/reportes/rectificaciones/detalle` sobre `dbo.v_rectificaciones` mediante `dbo.APP24_Q_RECTIFICACIONES_DETALLE_LISTAR` (filtro opcional, paginación 1-100, `Status` literal legacy, sin llave física). La auditoría LIVE previa observó `0` filas; no se revalidó.
+- UI detalle: opción `Rectificaciones - detalle` dentro de `/reportes`; reporte textual sin XLSX.
+- `RECTIFICATIONS_SUMMARY_READ = IMPLEMENTED`; `RECTIFICATIONS_DETAIL_READ = IMPLEMENTED`; `RECTIFICATION_DETAIL_SOURCE = dbo.v_rectificaciones`; `RECTIFICATION_MUTABLE_PROCESSING = NOT_IMPLEMENTED`.
 - Procesamiento: no se ejecutan `INSERTAPEDIMENTO`, `CARGAPEDIMENTOS` ni otros procedimientos mutables.
 
 ## Reconciliación de Rectificaciones

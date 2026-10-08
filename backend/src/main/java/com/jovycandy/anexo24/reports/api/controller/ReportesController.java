@@ -13,6 +13,7 @@ import com.jovycandy.anexo24.reports.extended.api.dto.LineaF4Dto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDetalleDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30EntradaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30FraccionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30DescargaDto;
@@ -25,6 +26,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUs
 import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesDetalleUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
@@ -37,6 +39,7 @@ import com.jovycandy.anexo24.reports.extended.domain.model.Compulsa;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
+import com.jovycandy.anexo24.reports.extended.domain.model.RectificacionDetalle;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Fraccion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga;
@@ -77,6 +80,7 @@ public class ReportesController {
     private final ListarCompulsaUseCase listarCompulsaUseCase;
     private final ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase;
     private final ListarRectificacionesUseCase listarRectificacionesUseCase;
+    private final ListarRectificacionesDetalleUseCase listarRectificacionesDetalleUseCase;
     private final ListarVencimientosUseCase listarVencimientosUseCase;
     private final ListarLineasF4UseCase listarLineasF4UseCase;
     private final ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
@@ -92,6 +96,7 @@ public class ReportesController {
             ListarCompulsaUseCase listarCompulsaUseCase,
             ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase,
             ListarRectificacionesUseCase listarRectificacionesUseCase,
+            ListarRectificacionesDetalleUseCase listarRectificacionesDetalleUseCase,
             ListarVencimientosUseCase listarVencimientosUseCase,
             ListarLineasF4UseCase listarLineasF4UseCase,
             ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase,
@@ -106,6 +111,7 @@ public class ReportesController {
         this.listarCompulsaUseCase = listarCompulsaUseCase;
         this.listarOperacionesDirigidasUseCase = listarOperacionesDirigidasUseCase;
         this.listarRectificacionesUseCase = listarRectificacionesUseCase;
+        this.listarRectificacionesDetalleUseCase = listarRectificacionesDetalleUseCase;
         this.listarVencimientosUseCase = listarVencimientosUseCase;
         this.listarLineasF4UseCase = listarLineasF4UseCase;
         this.listarAnexo30EntradasUseCase = listarAnexo30EntradasUseCase;
@@ -245,6 +251,17 @@ public class ReportesController {
             @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Rectificacion> resultado = listarRectificacionesUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(RectificacionDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/rectificaciones/detalle")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<RectificacionDetalleDto>> rectificacionesDetalle(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<RectificacionDetalle> resultado = listarRectificacionesDetalleUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(RectificacionDetalleDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
