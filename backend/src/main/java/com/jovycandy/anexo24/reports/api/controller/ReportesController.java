@@ -9,6 +9,7 @@ import com.jovycandy.anexo24.operations.usedmaterials.api.dto.MaterialUtilizadoD
 import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.api.dto.AnalisisDescargaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.CompulsaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.CompulsaDetalleDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.LineaF4Dto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionBloqueadaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.OperacionDirigidaDto;
@@ -23,6 +24,7 @@ import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaDetalleUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
@@ -36,6 +38,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimient
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionBloqueada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Compulsa;
+import com.jovycandy.anexo24.reports.extended.domain.model.CompulsaDetalle;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
 import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
@@ -78,6 +81,7 @@ public class ReportesController {
     private final ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase;
     private final ListarOperacionesBloqueadasUseCase listarOperacionesBloqueadasUseCase;
     private final ListarCompulsaUseCase listarCompulsaUseCase;
+    private final ListarCompulsaDetalleUseCase listarCompulsaDetalleUseCase;
     private final ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase;
     private final ListarRectificacionesUseCase listarRectificacionesUseCase;
     private final ListarRectificacionesDetalleUseCase listarRectificacionesDetalleUseCase;
@@ -94,6 +98,7 @@ public class ReportesController {
             ListarAnalisisDescargasUseCase listarAnalisisDescargasUseCase,
             ListarOperacionesBloqueadasUseCase listarOperacionesBloqueadasUseCase,
             ListarCompulsaUseCase listarCompulsaUseCase,
+            ListarCompulsaDetalleUseCase listarCompulsaDetalleUseCase,
             ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase,
             ListarRectificacionesUseCase listarRectificacionesUseCase,
             ListarRectificacionesDetalleUseCase listarRectificacionesDetalleUseCase,
@@ -109,6 +114,7 @@ public class ReportesController {
         this.listarAnalisisDescargasUseCase = listarAnalisisDescargasUseCase;
         this.listarOperacionesBloqueadasUseCase = listarOperacionesBloqueadasUseCase;
         this.listarCompulsaUseCase = listarCompulsaUseCase;
+        this.listarCompulsaDetalleUseCase = listarCompulsaDetalleUseCase;
         this.listarOperacionesDirigidasUseCase = listarOperacionesDirigidasUseCase;
         this.listarRectificacionesUseCase = listarRectificacionesUseCase;
         this.listarRectificacionesDetalleUseCase = listarRectificacionesDetalleUseCase;
@@ -216,6 +222,17 @@ public class ReportesController {
             @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Compulsa> resultado = listarCompulsaUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(CompulsaDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/compulsa/detalle")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<CompulsaDetalleDto>> compulsaDetalle(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<CompulsaDetalle> resultado = listarCompulsaDetalleUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(CompulsaDetalleDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 

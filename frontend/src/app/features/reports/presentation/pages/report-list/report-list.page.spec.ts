@@ -244,6 +244,19 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).not.toBeNull();
   });
 
+  const filaCompulsaDetalle: ReportRow = {
+    pedimentoGlosa: 'G-001', secGlosa: '1', pedimentoA24: 'A-001', secA24: '1',
+    clavePedimentoGlosa: 'CL-G1', clavePedimentoA24: 'CL-A1', statusClavePedimento: 'OK',
+    fechaGlosa: '2026-01-01T00:00:00', fechaA24: '2026-01-02T00:00:00', statusFechas: 'OK',
+    fraccionGlosa: '84715001', fraccionA24: '84715001', statusFraccion: 'OK',
+    paisOdGlosa: 'MX', paisOdA24: 'MX', statusPaisOd: 'OK', paisCvGlosa: 'US', paisCvA24: 'US', statusPaisCv: 'OK',
+    valorAduanaGlosa: '100', valorAduanaA24: '100', statusValorAduana: 'OK',
+    valorComercialGlosa: '120', valorComercialA24: '120', statusValorComercial: 'OK',
+    cantidadUmcGlosa: '10', cantidadUmcA24: '10', statusCantidadComercial: 'OK',
+    cantidadUmtGlosa: '10', cantidadUmtA24: '10', statusCantidadTarifa: 'OK',
+    tipoOperacionGlosa: 'IMP', tipoPedimentoGlosa: 'IM',
+  };
+
   const filaDetalle: ReportRow = {
     pedimento: 'P-0003', clavePedimento: 'A1', descarga: 'D1', pedimentoOriginal: 'P-0001', existePedimento: 'SI',
     clavePedimentoOriginal: 'A1', descargaOriginal: 'D1', status: 'CUIDADO AMBOS DESCARGAN',
@@ -305,6 +318,58 @@ describe('ReportListPage (formato de partidas)', () => {
     const filter = fixture.nativeElement.querySelector('input[name=filter]') as HTMLInputElement; filter.value = 'CUIDADO'; filter.dispatchEvent(new Event('input'));
     internals.generate(); internals.changePage({ pageIndex: 1, pageSize: 20, length: 45 }); fixture.detectChanges();
     expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'rectificaciones-detalle', filter: 'CUIDADO', page: 2, pageSize: 20, from: '', to: '' }));
+  });
+
+  it('ofrece compulsa resumen y detalle como opciones separadas', () => {
+    const etiquetas = botones().map((button) => button.textContent ?? '');
+    expect(etiquetas.some((text) => text.includes('Compulsa - detalle'))).toBe(true);
+    expect(etiquetas.some((text) => text.includes('Compulsa') && !text.includes('detalle'))).toBe(true);
+  });
+
+  it('selecciona compulsa detalle como reporte textual sin fechas ni XLSX y con 33 columnas', () => {
+    search.execute.mockReturnValue(of({ items: [filaCompulsaDetalle], total: 1, page: 1, pageSize: 20 }));
+    const opcion = botones().find((button) => button.textContent?.includes('Compulsa - detalle')) as HTMLButtonElement;
+    opcion.click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Detalle read-only de la compulsa Glosa vs Anexo 24. Los estados y diferencias provienen de la vista legacy; la consulta no genera ni recalcula la compulsa.');
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.generate(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'compulsa-detalle', page: 1, pageSize: 20, from: '', to: '' }));
+    const texto = fixture.nativeElement.textContent as string;
+    const columnas = ['Pedimento Glosa', 'SEC Glosa', 'Pedimento A24', 'SEC A24', 'Clave pedimento Glosa', 'Clave pedimento A24', 'Estado clave', 'Fecha Glosa', 'Fecha A24', 'Estado fechas', 'Fracci\u00f3n Glosa', 'Fracci\u00f3n A24', 'Estado fracci\u00f3n', 'Pa\u00eds OD Glosa', 'Pa\u00eds OD A24', 'Estado pa\u00eds OD', 'Pa\u00eds CV Glosa', 'Pa\u00eds CV A24', 'Estado pa\u00eds CV', 'Valor aduana Glosa', 'Valor aduana A24', 'Estado valor aduana', 'Valor comercial Glosa', 'Valor comercial A24', 'Estado valor comercial', 'Cantidad UMC Glosa', 'Cantidad UMC A24', 'Estado cantidad comercial', 'Cantidad UMT Glosa', 'Cantidad UMT A24', 'Estado cantidad tarifa', 'Tipo operaci\u00f3n Glosa', 'Tipo pedimento Glosa'];
+    expect(columnas.every((columna) => texto.includes(columna))).toBe(true);
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
+  });
+
+  it('compulsa detalle muestra loading, exito, vacio, error y reintento', () => {
+    const pending = new Subject<ReportPage>();
+    search.execute.mockReturnValueOnce(pending);
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('compulsa-detalle'); fixture.detectChanges();
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Generando reporte"]')).not.toBeNull();
+    pending.next({ items: [filaCompulsaDetalle], total: 1, page: 1, pageSize: 20 }); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('tbody tr')).not.toBeNull();
+    search.execute.mockReturnValueOnce(of({ items: [], total: 0, page: 1, pageSize: 20 }));
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No se encontraron resultados');
+    search.execute.mockReset().mockReturnValueOnce(throwError(() => new Error('fallo'))).mockReturnValueOnce(of(pagina));
+    internals.generate(); fixture.detectChanges();
+    const retry = botones().find((button) => button.textContent?.includes('Reintentar')) as HTMLButtonElement;
+    retry.click(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('compulsa detalle pagina conservando filtro tecnico y resumen conserva seleccion', () => {
+    search.execute.mockReturnValue(of({ items: [filaCompulsaDetalle], total: 45, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('compulsa-detalle'); fixture.detectChanges();
+    const filter = fixture.nativeElement.querySelector('input[name=filter]') as HTMLInputElement; filter.value = 'DIFERENCIA'; filter.dispatchEvent(new Event('input'));
+    internals.generate(); internals.changePage({ pageIndex: 1, pageSize: 20, length: 45 }); fixture.detectChanges();
+    expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'compulsa-detalle', filter: 'DIFERENCIA', page: 2, pageSize: 20, from: '', to: '' }));
+    internals.selectedType.set('compulsa'); fixture.detectChanges(); internals.generate();
+    expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'compulsa' }));
   });
 
   it.each(['rectificaciones', 'compulsa', 'anexo30-revision-entradas', 'anexo30-revision-fracciones', 'anexo30-revision-descargas', 'anexo30-revision-comparativa'] as const)('regresion: %s sigue como reporte textual', (type) => {

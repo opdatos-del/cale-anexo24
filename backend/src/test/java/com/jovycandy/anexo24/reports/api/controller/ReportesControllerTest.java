@@ -6,6 +6,7 @@ import com.jovycandy.anexo24.reports.application.query.ConsultarReportesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesBloqueadasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarCompulsaDetalleUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarLineasF4UseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarOperacionesDirigidasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificacionesUseCase;
@@ -69,6 +70,9 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarCompulsaUseCase listarCompulsaUseCase;
+
+    @MockitoBean
+    private ListarCompulsaDetalleUseCase listarCompulsaDetalleUseCase;
 
     @MockitoBean
     private ListarOperacionesDirigidasUseCase listarOperacionesDirigidasUseCase;
@@ -328,6 +332,22 @@ class ReportesControllerTest {
         when(listarCompulsaUseCase.ejecutar(any(), anyInt(), anyInt()))
                 .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/compulsa")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void listarCompulsaDetalleExigeAutenticacionPermisoYRespondePagina() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/compulsa/detalle")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/reportes/compulsa/detalle")
+                        .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
+                .andExpect(status().isForbidden());
+        when(listarCompulsaDetalleUseCase.ejecutar(any(), anyInt(), anyInt()))
+                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/compulsa/detalle")
+                        .param("filtro", "A1")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())

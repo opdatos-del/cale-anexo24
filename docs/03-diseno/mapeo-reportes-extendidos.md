@@ -9,7 +9,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 | Candidato | Evidencia | Clasificación | Decisión V1 |
 |---|---|---|---|
 | Vencimientos | `vDESPERDICIOS.VENCIMIENTO` y `VReporteAplicaciondesperdicios.VENCIMIENTO`; ambas views tienen 0 filas; fórmula `DATEADD(month, categorias.meses, Importaciones.Fecha)` | PARTIAL | Implementar consulta read-only del subconjunto de desperdicios; saldos, descargos y estados quedan fuera de V1 |
-| Compulsa | `v_compulsa_gen` (8 columnas, 662 filas) y `v_compulsa` (33 columnas, 3394 filas) comparan glosa contra Anexo 24 | PARTIAL | Implementar sólo consulta resumen paginada desde `v_compulsa_gen`; detalle y generación quedan pendientes |
+| Compulsa | `v_compulsa_gen` (8 columnas, 662 filas) y `v_compulsa` (33 columnas, 3394 filas) comparan glosa contra Anexo 24 | PARTIAL | Implementar resumen y detalle read-only paginados desde `v_compulsa_gen` y `v_compulsa`; generación y reconciliación mutable quedan fuera |
 | Scrap / desperdicios | `vDESPERDICIOS`, `VReporteAplicaciondesperdicios`, `vDesperdiciosDetalleAplicacion`, `DESCARGA_DESPERDICIO`, `PED_DESPERDICIOS` y `DescargaDesp`; todos los datasets auditados tienen 0 filas | PARTIAL | Reutilizar sólo el agregado de desperdicio ya expuesto por Vencimientos; no afirmar equivalencia con aplicación, detalle, descargo o pendientes; `LEGACY-048` permanece UNKNOWN |
 | Dirigidos | `V_STATUS_DESCARGAS` expone flag read-only `DIRIGIDO`; `DIRIGIDO` está vacío; `DESCDIRIGIDA`, `SALDOSDIRIGIDOS` y `Trazo_report` son mutables | PARTIAL | Exponer sólo consulta paginada de líneas marcadas como dirigidas; no generar descargos ni calcular saldos |<!--  -->
 | Análisis de descargas | `V_INFORMEDESCARGAS` tiene 3866 filas y depende de `DESCARGA`, `PARTIDAS`, `IMPORTACIONES`, `PSALIDAS` y `SALIDAS`; `TRAZO` está vacío y `Trazo_report` es WRITE/MIXED | PARTIAL | Exponer relaciones históricas enriquecidas importación → descarga → salida; no exponer saldos fiscales, faltantes, trazo ni motor |<!--  -->
@@ -37,7 +37,7 @@ Auditoría read-only sobre metadata, definiciones, dependencias, columnas y cont
 
 Fuente del resumen implementado: `dbo.v_compulsa_gen`.
 
-Fuente detallada auditada pero no implementada: `dbo.v_compulsa`.
+Fuente detallada implementada: `dbo.v_compulsa` mediante wrapper read-only versionado.
 
 Columnas del resumen: pedimento, fecha, clave y fracción, cada una en versión glosa y Anexo 24. La consulta nueva no ejecuta generadores legacy: expone el snapshot read-only existente.
 
@@ -48,8 +48,10 @@ Columnas del resumen: pedimento, fecha, clave y fracción, cada una en versión 
 - Permiso: `REPORTES_GENERAR`.
 - UI: opción `Compulsa` dentro de `/reportes`; sin nueva entrada lateral.
 - `COMPULSA_SUMMARY_READ = IMPLEMENTED`.
-- `COMPULSA_DETAIL_READ = NOT_IMPLEMENTED`; `dbo.v_compulsa` permanece sólo auditada.
-- `COMPULSA_GENERATION = NOT_IMPLEMENTED`; `PR_CompulsaDSA24` y `PR_COMPULSACANTIDADES` no se ejecutan.
+- Detalle: `GET /api/v1/reportes/compulsa/detalle` mediante `dbo.APP24_Q_COMPULSA_DETALLE_LISTAR`; filtro técnico opcional, paginación 1-100 y 33 columnas legacy sin recalcular estatus.
+- `COMPULSA_DETAIL_READ = IMPLEMENTED`; `COMPULSA_DETAIL_SOURCE = dbo.v_compulsa`; `PHYSICAL_ROW_KEY = NONE`; `STABLE_ORDER_FOR_NON_IDENTICAL_ROWS = YES`; `EXACT_DUPLICATE_RELATIVE_ORDER = NOT_GUARANTEED`.
+- SQL IT: `FIXTURE_PARITY_SCOPE = VIEW_PROJECTION_CONTRACT_ONLY`; `REAL_DBSQL_VIEW_DEFINITION = CONFIRMED_BY_CONTROLLER`; `REAL_LEGACY_VIEW_RUNTIME_PARITY = NOT_EXECUTED`.
+- `COMPULSA_GENERATION = NOT_IMPLEMENTED`; `COMPULSA_MUTABLE_PROCESSES = NOT_EXECUTED`; `QUERY_MUTABLE_PRECONDITION_REQUIRED = NO`; `DATA_FRESHNESS_EXTERNAL_DEPENDENCY = YES`; `CURRENT_DATA_GUARANTEED = NO`. `PR_CompulsaDSA24` y `PR_COMPULSACANTIDADES` no se ejecutan.
 - `COMPULSA_XLSX = NOT_IMPLEMENTED`; se evita exportar un contrato que aún no incluye detalle de estatus.
 - Filtro: sólo pedimentos, claves y fracciones demostrados en `v_compulsa_gen`.
 - Orden: `Pedimento A24`, `Pedimento Glosa`, `Fecha A24`, `Fecha Glosa`, `Clave A24`, `Clave Glosa`, `Fraccion A24`, `Fraccion Glosa`; se usan todas las columnas proyectadas porque la vista no expone una PK aprobada.

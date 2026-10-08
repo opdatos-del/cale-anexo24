@@ -199,6 +199,28 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+  it('consulta compulsa detalle en su endpoint, solo con filtro y paginacion', () => {
+    service.search({ ...criteria, type: 'compulsa-detalle', filter: ' DIFERENCIA ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/compulsa/detalle');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('DIFERENCIA');
+    expect(request.request.params.get('pagina')).toBe('2');
+    expect(request.request.params.get('tamano')).toBe('20');
+    expect(request.request.params.has('desde')).toBe(false);
+    expect(request.request.params.has('hasta')).toBe(false);
+    expect(request.request.params.has('pedimento')).toBe(false);
+    expect(request.request.params.has('clavePedimento')).toBe(false);
+    expect(request.request.params.has('fraccion')).toBe(false);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
+  it('omite filtro vacio en compulsa detalle', () => {
+    service.search({ ...criteria, type: 'compulsa-detalle', filter: '   ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/compulsa/detalle');
+    expect(request.request.params.keys().sort()).toEqual(['pagina', 'tamano']);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
   it('consulta rectificaciones detalle en su endpoint, solo con filtro y paginacion', () => {
     service.search({ ...criteria, type: 'rectificaciones-detalle', filter: ' CUIDADO ' }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/rectificaciones/detalle');

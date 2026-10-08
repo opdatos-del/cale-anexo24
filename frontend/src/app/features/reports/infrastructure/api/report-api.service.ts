@@ -24,7 +24,7 @@ export class ReportApiService {
   }
 
   private url(criteria: ReportSearchCriteria): string {
-    const path = criteria.type === 'rectificaciones-detalle' ? 'rectificaciones/detalle' : criteria.type;
+    const path = criteria.type === 'rectificaciones-detalle' ? 'rectificaciones/detalle' : criteria.type === 'compulsa-detalle' ? 'compulsa/detalle' : criteria.type;
     return `/api/v1/reportes/${path}`;
   }
 
@@ -32,13 +32,13 @@ export class ReportApiService {
     let params = new HttpParams()
       .set('pagina', criteria.page)
       .set('tamano', pageSize);
-    if (criteria.type !== 'compulsa' && criteria.type !== 'rectificaciones' && criteria.type !== 'vencimientos' && criteria.type !== 'dirigidos' && criteria.type !== 'analisis-descargas' && criteria.type !== 'operaciones-bloqueadas' && criteria.type !== 'f4' && criteria.type !== 'anexo30-revision-entradas' && criteria.type !== 'anexo30-revision-fracciones' && criteria.type !== 'anexo30-revision-descargas' && criteria.type !== 'anexo30-revision-comparativa' && criteria.type !== 'rectificaciones-detalle') {
+    if (criteria.type !== 'compulsa' && criteria.type !== 'rectificaciones' && criteria.type !== 'vencimientos' && criteria.type !== 'dirigidos' && criteria.type !== 'analisis-descargas' && criteria.type !== 'operaciones-bloqueadas' && criteria.type !== 'f4' && criteria.type !== 'anexo30-revision-entradas' && criteria.type !== 'anexo30-revision-fracciones' && criteria.type !== 'anexo30-revision-descargas' && criteria.type !== 'anexo30-revision-comparativa' && criteria.type !== 'rectificaciones-detalle' && criteria.type !== 'compulsa-detalle') {
       params = params
         .set('desde', criteria.type === 'bitacora' ? this.startOfDayInstant(criteria.from) : criteria.from)
         .set('hasta', criteria.type === 'bitacora' ? this.endOfDayInstant(criteria.to) : criteria.to);
     }
 
-    const optional = criteria.type === 'compulsa' || criteria.type === 'rectificaciones' || criteria.type === 'vencimientos' || criteria.type === 'dirigidos' || criteria.type === 'analisis-descargas' || criteria.type === 'operaciones-bloqueadas' || criteria.type === 'f4' || criteria.type === 'anexo30-revision-entradas' || criteria.type === 'anexo30-revision-fracciones' || criteria.type === 'anexo30-revision-descargas' || criteria.type === 'anexo30-revision-comparativa' || criteria.type === 'rectificaciones-detalle'
+    const optional = criteria.type === 'compulsa' || criteria.type === 'rectificaciones' || criteria.type === 'vencimientos' || criteria.type === 'dirigidos' || criteria.type === 'analisis-descargas' || criteria.type === 'operaciones-bloqueadas' || criteria.type === 'f4' || criteria.type === 'anexo30-revision-entradas' || criteria.type === 'anexo30-revision-fracciones' || criteria.type === 'anexo30-revision-descargas' || criteria.type === 'anexo30-revision-comparativa' || criteria.type === 'rectificaciones-detalle' || criteria.type === 'compulsa-detalle'
       ? { filtro: criteria.filter }
       : criteria.type === 'materiales-utilizados'
       ? { material: criteria.material, producto: criteria.product, pedimentoSalida: criteria.customsDocument, clavePedimentoSalida: criteria.customsCode }

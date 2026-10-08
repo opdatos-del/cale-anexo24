@@ -35,6 +35,7 @@ const REPORTS: ReportOption[] = [
   { type: 'materiales-utilizados', label: 'Materiales utilizados', icon: 'layers', available: true },
   { type: 'bitacora', label: 'Bitácora', icon: 'manage_search', available: true },
   { type: 'compulsa', label: 'Compulsa', icon: 'compare_arrows', available: true },
+  { type: 'compulsa-detalle', label: 'Compulsa - detalle', icon: 'difference', available: true },
   { type: 'rectificaciones', label: 'Rectificaciones', icon: 'rule', available: true },
   { type: 'rectificaciones-detalle', label: 'Rectificaciones - detalle', icon: 'rule_folder', available: true },
   { type: 'vencimientos', label: 'Vencimientos de desperdicio', icon: 'event_busy', available: true },
@@ -79,6 +80,20 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'fechaGlosa', label: 'Fecha glosa', format: 'date' }, { key: 'fechaAnexo24', label: 'Fecha Anexo 24', format: 'date' },
     { key: 'claveGlosa', label: 'Clave glosa' }, { key: 'claveAnexo24', label: 'Clave Anexo 24' },
     { key: 'fraccionGlosa', label: 'Fracción glosa' }, { key: 'fraccionAnexo24', label: 'Fracción Anexo 24' },
+  ],
+  'compulsa-detalle': [
+    { key: 'pedimentoGlosa', label: 'Pedimento Glosa' }, { key: 'secGlosa', label: 'SEC Glosa' },
+    { key: 'pedimentoA24', label: 'Pedimento A24' }, { key: 'secA24', label: 'SEC A24' },
+    { key: 'clavePedimentoGlosa', label: 'Clave pedimento Glosa' }, { key: 'clavePedimentoA24', label: 'Clave pedimento A24' }, { key: 'statusClavePedimento', label: 'Estado clave' },
+    { key: 'fechaGlosa', label: 'Fecha Glosa', format: 'date' }, { key: 'fechaA24', label: 'Fecha A24', format: 'date' }, { key: 'statusFechas', label: 'Estado fechas' },
+    { key: 'fraccionGlosa', label: 'Fracci\u00f3n Glosa' }, { key: 'fraccionA24', label: 'Fracci\u00f3n A24' }, { key: 'statusFraccion', label: 'Estado fracci\u00f3n' },
+    { key: 'paisOdGlosa', label: 'Pa\u00eds OD Glosa' }, { key: 'paisOdA24', label: 'Pa\u00eds OD A24' }, { key: 'statusPaisOd', label: 'Estado pa\u00eds OD' },
+    { key: 'paisCvGlosa', label: 'Pa\u00eds CV Glosa' }, { key: 'paisCvA24', label: 'Pa\u00eds CV A24' }, { key: 'statusPaisCv', label: 'Estado pa\u00eds CV' },
+    { key: 'valorAduanaGlosa', label: 'Valor aduana Glosa', format: 'quantity' }, { key: 'valorAduanaA24', label: 'Valor aduana A24', format: 'quantity' }, { key: 'statusValorAduana', label: 'Estado valor aduana' },
+    { key: 'valorComercialGlosa', label: 'Valor comercial Glosa', format: 'quantity' }, { key: 'valorComercialA24', label: 'Valor comercial A24', format: 'quantity' }, { key: 'statusValorComercial', label: 'Estado valor comercial' },
+    { key: 'cantidadUmcGlosa', label: 'Cantidad UMC Glosa', format: 'quantity' }, { key: 'cantidadUmcA24', label: 'Cantidad UMC A24', format: 'quantity' }, { key: 'statusCantidadComercial', label: 'Estado cantidad comercial' },
+    { key: 'cantidadUmtGlosa', label: 'Cantidad UMT Glosa', format: 'quantity' }, { key: 'cantidadUmtA24', label: 'Cantidad UMT A24', format: 'quantity' }, { key: 'statusCantidadTarifa', label: 'Estado cantidad tarifa' },
+    { key: 'tipoOperacionGlosa', label: 'Tipo operaci\u00f3n Glosa' }, { key: 'tipoPedimentoGlosa', label: 'Tipo pedimento Glosa' },
   ],
   rectificaciones: [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'total', label: 'Rectificaciones', format: 'quantity' },
@@ -192,13 +207,15 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <app-operation-period-filter #periodFilter (periodChange)="onPeriodChange($event)" />
               @if (periodMessage()) { <p class="mb-0 mt-2 text-xs text-amber-700" aria-live="polite">{{ periodMessage() }}</p> }
             } @else {
-              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : selectedType() === 'rectificaciones-detalle' ? 'Pedimento, clave, pedimento original, existe o estado' : selectedType() === 'vencimientos' ? 'Pedimento, clave o factura' : selectedType() === 'dirigidos' ? 'Documento, clave, producto o factura' : selectedType() === 'analisis-descargas' ? 'Importación, exportación, material o producto' : selectedType() === 'operaciones-bloqueadas' ? 'Pedimento, clave, producto, material o folio' : selectedType() === 'f4' ? 'Documento, importación, clave o tipo' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
+              <label><span class="mb-1 block text-xs font-medium text-slate-700">{{ selectedType() === 'rectificaciones' ? 'Pedimento' : selectedType() === 'compulsa-detalle' ? 'Pedimento, clave, fracci\u00f3n, pa\u00eds o estado' : selectedType() === 'rectificaciones-detalle' ? 'Pedimento, clave, pedimento original, existe o estado' : selectedType() === 'vencimientos' ? 'Pedimento, clave o factura' : selectedType() === 'dirigidos' ? 'Documento, clave, producto o factura' : selectedType() === 'analisis-descargas' ? 'Importación, exportación, material o producto' : selectedType() === 'operaciones-bloqueadas' ? 'Pedimento, clave, producto, material o folio' : selectedType() === 'f4' ? 'Documento, importación, clave o tipo' : 'Pedimento, clave o fracción' }}</span><input matInput name="filter" [(ngModel)]="filter" maxlength="60" class="report-input" /></label>
             }
           </div>
 
           <div class="mt-4 border-t border-slate-100 pt-4">
             @if (selectedType() === 'compulsa') {
               <p class="m-0 text-xs text-slate-500">Compara registros generales de glosa contra Anexo 24.</p>
+            } @else if (selectedType() === 'compulsa-detalle') {
+              <p class="m-0 text-xs text-slate-500">Detalle read-only de la compulsa Glosa vs Anexo 24. Los estados y diferencias provienen de la vista legacy; la consulta no genera ni recalcula la compulsa.</p>
             } @else if (selectedType() === 'rectificaciones-detalle') {
               <p class="m-0 text-xs text-slate-500">Detalle read-only de relaciones de rectificaci&oacute;n persistidas. La consulta no aplica ni procesa rectificaciones.</p>
             } @else if (selectedType() === 'rectificaciones') {
@@ -332,7 +349,7 @@ export class ReportListPage {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'rectificaciones-detalle' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'compulsa-detalle' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'rectificaciones-detalle' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;
