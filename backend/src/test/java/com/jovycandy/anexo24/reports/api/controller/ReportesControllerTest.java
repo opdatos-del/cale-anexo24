@@ -18,6 +18,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30Com
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
+import com.jovycandy.anexo24.reports.extended.domain.model.CompulsaDetalle;
 import com.jovycandy.anexo24.reports.extended.domain.model.LineaF4;
 import com.jovycandy.anexo24.reports.extended.domain.model.Saldo;
 import com.jovycandy.anexo24.reports.extended.domain.model.OperacionDirigida;
@@ -344,13 +345,24 @@ class ReportesControllerTest {
         mockMvc.perform(get("/api/v1/reportes/compulsa/detalle")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR"))))
                 .andExpect(status().isForbidden());
+        CompulsaDetalle detalle = new CompulsaDetalle("G-001", 1, "A-001", 1.0d, "CG", "CA", "OK",
+                LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 2, 0, 0), "OK",
+                "8471", "8471", "OK", "MX", "MX", "OK", "US", "US", "OK",
+                100.0d, new BigDecimal("100.0000"), "OK", 120.0d, 120.0d, "OK",
+                10.0d, new BigDecimal("10.0000"), "OK", 10.0d, 10.0d, "OK", 1.0d, 1.0d);
         when(listarCompulsaDetalleUseCase.ejecutar(any(), anyInt(), anyInt()))
-                .thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+                .thenReturn(new Pagina<>(List.of(detalle), 1, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/compulsa/detalle")
                         .param("filtro", "A1")
                         .with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].fechaGlosa").value("2026-01-01T00:00:00"))
+                .andExpect(jsonPath("$.items[0].secGlosa").isNumber())
+                .andExpect(jsonPath("$.items[0].secA24").isNumber())
+                .andExpect(jsonPath("$.items[0].valorAduanaGlosa").isNumber())
+                .andExpect(jsonPath("$.items[0].valorAduanaA24").isNumber())
+                .andExpect(jsonPath("$.items[0].cantidadUmcA24").isNumber())
                 .andExpect(jsonPath("$.pagina").value(1));
     }
 

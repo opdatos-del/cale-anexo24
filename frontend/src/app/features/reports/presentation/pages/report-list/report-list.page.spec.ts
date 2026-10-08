@@ -245,16 +245,16 @@ describe('ReportListPage (formato de partidas)', () => {
   });
 
   const filaCompulsaDetalle: ReportRow = {
-    pedimentoGlosa: 'G-001', secGlosa: '1', pedimentoA24: 'A-001', secA24: '1',
+    pedimentoGlosa: 'G-001', secGlosa: 1, pedimentoA24: 'A-001', secA24: 1,
     clavePedimentoGlosa: 'CL-G1', clavePedimentoA24: 'CL-A1', statusClavePedimento: 'OK',
     fechaGlosa: '2026-01-01T00:00:00', fechaA24: '2026-01-02T00:00:00', statusFechas: 'OK',
     fraccionGlosa: '84715001', fraccionA24: '84715001', statusFraccion: 'OK',
     paisOdGlosa: 'MX', paisOdA24: 'MX', statusPaisOd: 'OK', paisCvGlosa: 'US', paisCvA24: 'US', statusPaisCv: 'OK',
-    valorAduanaGlosa: '100', valorAduanaA24: '100', statusValorAduana: 'OK',
-    valorComercialGlosa: '120', valorComercialA24: '120', statusValorComercial: 'OK',
-    cantidadUmcGlosa: '10', cantidadUmcA24: '10', statusCantidadComercial: 'OK',
-    cantidadUmtGlosa: '10', cantidadUmtA24: '10', statusCantidadTarifa: 'OK',
-    tipoOperacionGlosa: 'IMP', tipoPedimentoGlosa: 'IM',
+    valorAduanaGlosa: 100, valorAduanaA24: 100, statusValorAduana: 'OK',
+    valorComercialGlosa: 120, valorComercialA24: 120, statusValorComercial: 'OK',
+    cantidadUmcGlosa: 10, cantidadUmcA24: 10, statusCantidadComercial: 'OK',
+    cantidadUmtGlosa: 10, cantidadUmtA24: 10, statusCantidadTarifa: 'OK',
+    tipoOperacionGlosa: 1, tipoPedimentoGlosa: 1,
   };
 
   const filaDetalle: ReportRow = {

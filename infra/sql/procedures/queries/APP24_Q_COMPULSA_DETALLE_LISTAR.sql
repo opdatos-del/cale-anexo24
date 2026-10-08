@@ -104,6 +104,6 @@ BEGIN
         c.[STATUS PAIS OD], c.[STATUS PAIS CV], c.[STATUS VALOR ADUANAL],
         c.[STATUS VALOR COMERCIAL], c.[STATUS CANTIDAD COMERCIAL],
         c.[STATUS CANTIDAD TARIFA], c.[toper], c.[tipoped]
-    OFFSET (@Pagina - 1) * @Tamano ROWS FETCH NEXT @Tamano ROWS ONLY;
+    OFFSET CONVERT(BIGINT, @Pagina - 1) * @Tamano ROWS FETCH NEXT @Tamano ROWS ONLY;
 END;
 GO
