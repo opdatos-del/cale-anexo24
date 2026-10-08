@@ -183,4 +183,20 @@ describe('ReportApiService', () => {
     request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+
+  it('consulta comparativa A31/A24 solo con filtro y paginacion', () => {
+    service.search({ ...criteria, type: 'anexo30-revision-comparativa', filter: ' A1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/v1/reportes/anexo30-revision-comparativa');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('A1');
+    expect(request.request.params.has('desde')).toBe(false);
+    expect(request.request.params.has('clavePedimento')).toBe(false);
+    expect(request.request.params.has('fraccion')).toBe(false);
+    expect(request.request.params.has('documento')).toBe(false);
+    expect(request.request.params.has('numeroParte')).toBe(false);
+    expect(request.request.params.has('material')).toBe(false);
+    expect(request.request.params.has('producto')).toBe(false);
+    request.flush({ items: [], total: 0, pagina: 2, tamano: 20 });
+  });
+
 });

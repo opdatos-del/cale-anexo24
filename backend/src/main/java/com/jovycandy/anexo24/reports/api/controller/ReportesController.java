@@ -16,6 +16,7 @@ import com.jovycandy.anexo24.reports.extended.api.dto.RectificacionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30EntradaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30FraccionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30DescargaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30ComparativaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.SaldoDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
@@ -27,6 +28,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificac
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30ComparativaUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
@@ -38,6 +40,7 @@ import com.jovycandy.anexo24.reports.extended.domain.model.Rectificacion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Fraccion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga;
+import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Comparativa;
 import com.jovycandy.anexo24.reports.extended.domain.model.Saldo;
 import com.jovycandy.anexo24.reports.extended.domain.model.Vencimiento;
 import com.jovycandy.anexo24.reports.infrastructure.export.ExportadorXlsxReportes;
@@ -79,6 +82,7 @@ public class ReportesController {
     private final ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase;
     private final ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase;
     private final ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase;
+    private final ListarAnexo30ComparativaUseCase listarAnexo30ComparativaUseCase;
     private final ListarSaldosUseCase listarSaldosUseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
@@ -93,6 +97,7 @@ public class ReportesController {
             ListarAnexo30EntradasUseCase listarAnexo30EntradasUseCase,
             ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase,
             ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase,
+            ListarAnexo30ComparativaUseCase listarAnexo30ComparativaUseCase,
             ListarSaldosUseCase listarSaldosUseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
@@ -106,6 +111,7 @@ public class ReportesController {
         this.listarAnexo30EntradasUseCase = listarAnexo30EntradasUseCase;
         this.listarAnexo30FraccionesUseCase = listarAnexo30FraccionesUseCase;
         this.listarAnexo30DescargasUseCase = listarAnexo30DescargasUseCase;
+        this.listarAnexo30ComparativaUseCase = listarAnexo30ComparativaUseCase;
         this.listarSaldosUseCase = listarSaldosUseCase;
     }
 
@@ -328,6 +334,13 @@ public class ReportesController {
     public ResponseEntity<Pagina<Anexo30DescargaDto>> anexo30RevisionDescargas(@RequestParam(required = false) String filtro, @RequestParam(defaultValue = "1") int pagina, @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Anexo30Descarga> resultado = listarAnexo30DescargasUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30DescargaDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/anexo30-revision-comparativa")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<Anexo30ComparativaDto>> anexo30RevisionComparativa(@RequestParam(required = false) String filtro, @RequestParam(defaultValue = "1") int pagina, @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Anexo30Comparativa> resultado = listarAnexo30ComparativaUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30ComparativaDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
     @GetMapping("/entradas/exportacion")

@@ -184,4 +184,64 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type, filter: 'A31', page: 2, pageSize: 20, from: '', to: '' }));
   });
 
+
+  it('presenta comparativa como reporte textual sin controles de fecha', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Revision Anexo 30 - Comparativa');
+  });
+
+  it('muestra help de comparativa con texto exacto', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Revision read-only de la ultima comparativa A31/A24 persistida');
+  });
+
+  it.each(['anexo30-revision-comparativa'] as const)('muestra loading, exito, vacio y error para %s', (type) => {
+    const pending = new Subject<ReportPage>();
+    search.execute.mockReturnValueOnce(pending);
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges();
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Generando reporte"]')).not.toBeNull();
+    pending.next({ items: [fila], total: 1, page: 1, pageSize: 20 }); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('tbody tr')).not.toBeNull();
+    search.execute.mockReturnValueOnce(of({ items: [], total: 0, page: 1, pageSize: 20 }));
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No se encontraron resultados');
+  });
+
+  it('comparativa error y reintento', () => {
+    search.execute.mockReturnValueOnce(throwError(() => new Error('fallo'))).mockReturnValueOnce(of(pagina));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges(); internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No pudimos generar el reporte');
+    const retry = (Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[]).find((b) => b.textContent?.includes('Reintentar')) as HTMLButtonElement;
+    retry.click(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('comparativa pagina conservando filtro tecnico', () => {
+    search.execute.mockReturnValue(of({ items: [fila], total: 45, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges();
+    const filter = fixture.nativeElement.querySelector('input[name=filter]') as HTMLInputElement; filter.value = 'AA'; filter.dispatchEvent(new Event('input'));
+    internals.generate(); internals.changePage({ pageIndex: 1, pageSize: 20, length: 45 }); fixture.detectChanges();
+    expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'anexo30-revision-comparativa', filter: 'AA', page: 2, pageSize: 20, from: '', to: '' }));
+  });
+
+  it.each(['anexo30-revision-entradas', 'anexo30-revision-fracciones', 'anexo30-revision-descargas'] as const)('regresion: %s sigue como text report', (type) => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+  });
+
+  it('regresion: entradas sigue siendo reporte con periodo', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('entradas'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).not.toBeNull();
+  });
+
 });

@@ -12,6 +12,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarRectificac
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30EntradasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30ComparativaUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
@@ -91,6 +92,9 @@ class ReportesControllerTest {
 
     @MockitoBean
     private ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase;
+
+    @MockitoBean
+    private ListarAnexo30ComparativaUseCase listarAnexo30ComparativaUseCase;
 
     @Test
     void listarAnalisisDescargasSinAutenticacionResponde401() throws Exception {
@@ -573,5 +577,12 @@ class ReportesControllerTest {
         mockMvc.perform(get("/api/v1/reportes/anexo30-revision-descargas").with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR")))).andExpect(status().isForbidden());
         when(listarAnexo30DescargasUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/anexo30-revision-descargas").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
+    }
+    @Test
+    void listarAnexo30ComparativaExigeAutenticacionPermisoYRespondePagina() throws Exception {
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa").with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR")))).andExpect(status().isForbidden());
+        when(listarAnexo30ComparativaUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
+        mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
     }
 }
