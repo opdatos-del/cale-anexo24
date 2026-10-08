@@ -57,7 +57,7 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
               <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><mat-icon class="text-[20px]!">category</mat-icon></span>
               <p class="m-0 text-sm text-slate-700">Productos</p>
             </div>
-            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta del catálogo de productos terminados.</p>
+            @if (isLoading()) { <div class="mt-4 h-7 w-24 animate-pulse rounded bg-slate-100" aria-label="Cargando productos"></div> } @else if (productsTotal() !== null) { <p class="mt-4 mb-0 text-base font-medium text-blue-700">{{ productsTotal() }} registros</p> }
           </a>
         }
         @if (auth.hasPermission('ESTRUCTURAS_CONSULTAR')) {
@@ -66,7 +66,7 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
               <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700"><mat-icon class="text-[20px]!">account_tree</mat-icon></span>
               <p class="m-0 text-sm text-slate-700">Estructuras</p>
             </div>
-            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de estructuras y materiales asociados.</p>
+            @if (isLoading()) { <div class="mt-4 h-7 w-24 animate-pulse rounded bg-slate-100" aria-label="Cargando estructuras"></div> } @else if (structuresTotal() !== null) { <p class="mt-4 mb-0 text-base font-medium text-blue-700">{{ structuresTotal() }} registros</p> }
           </a>
         }
         @if (auth.hasPermission('OPERACIONES_CONSULTAR')) {
@@ -117,12 +117,11 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 
       <section class="mt-8" aria-labelledby="estado-title">
         <h2 id="estado-title" class="mb-3 text-sm font-normal uppercase text-slate-700">Estado</h2>
-      <div class="flex flex-wrap gap-4">
-          <div class="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800">
-            <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
-            Sesión activa
-          </div>
-          <div class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500">Catálogo conectado</div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm"><span class="block text-slate-500">Sistema</span><strong [class.text-emerald-700]="systemStatus()?.status === &quot;UP&quot;" [class.text-rose-700]="systemStatus()?.status !== &quot;UP&quot;">{{ systemStatus()?.status === &quot;UP&quot; ? &quot;Operativo&quot; : &quot;Degradado&quot; }}</strong></div>
+          <div class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm"><span class="block text-slate-500">Módulo C</span><strong [class.text-emerald-700]="systemStatus()?.moduleCDatabase === &quot;UP&quot;" [class.text-rose-700]="systemStatus()?.moduleCDatabase !== &quot;UP&quot;">{{ systemStatus()?.moduleCDatabase === &quot;UP&quot; ? &quot;Conectado&quot; : &quot;No disponible&quot; }}</strong></div>
+          <div class="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm"><span class="block text-slate-500">Base de aplicación</span><strong [class.text-emerald-700]="systemStatus()?.applicationDatabase === &quot;UP&quot;" [class.text-rose-700]="systemStatus()?.applicationDatabase !== &quot;UP&quot;">{{ systemStatus()?.applicationDatabase === &quot;UP&quot; ? &quot;Conectada&quot; : &quot;No disponible&quot; }}</strong></div>
+          <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm"><span class="block text-emerald-700">Sesión</span><strong class="text-emerald-800">Activa</strong></div>
         </div>
       </section>
     </div>
@@ -131,6 +130,9 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 export class DashboardPage implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly materialsTotal = signal<number | null>(null);
+  protected readonly productsTotal = signal<number | null>(null);
+  protected readonly structuresTotal = signal<number | null>(null);
+  protected readonly systemStatus = signal<{ status: string; moduleCDatabase: string; applicationDatabase: string; degraded: boolean } | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly loadError = signal<string | null>(null);
 
@@ -142,18 +144,14 @@ export class DashboardPage implements OnInit {
   }
 
   protected loadSummary(): void {
-    if (!this.auth.hasPermission('MATERIALES_CONSULTAR')) {
-      this.isLoading.set(false);
-      this.loadError.set(null);
-      this.materialsTotal.set(null);
-      return;
-    }
-
     this.isLoading.set(true);
     this.loadError.set(null);
     this.service.resumen().subscribe({
       next: (resumen) => {
         this.materialsTotal.set(resumen.materialsTotal);
+        this.productsTotal.set(resumen.productsTotal);
+        this.structuresTotal.set(resumen.structuresTotal);
+        this.systemStatus.set(resumen.system);
         this.isLoading.set(false);
       },
       error: (error: unknown) => {

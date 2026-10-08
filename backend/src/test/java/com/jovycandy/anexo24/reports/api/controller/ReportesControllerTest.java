@@ -26,6 +26,8 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -636,5 +638,12 @@ class ReportesControllerTest {
         mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa").with(user("usuario").authorities(new SimpleGrantedAuthority("OPERACIONES_CONSULTAR")))).andExpect(status().isForbidden());
         when(listarAnexo30ComparativaUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
+    }
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/reportes/compulsa/exportacion", "/api/v1/reportes/compulsa/detalle/exportacion", "/api/v1/reportes/rectificaciones/exportacion", "/api/v1/reportes/rectificaciones/detalle/exportacion", "/api/v1/reportes/vencimientos/exportacion", "/api/v1/reportes/operaciones-bloqueadas/exportacion"})
+    void nuevasExportacionesExigenAutenticacionYPermisoExportar(String ruta) throws Exception {
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
     }
 }

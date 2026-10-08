@@ -272,7 +272,7 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(etiquetas.some((text) => text.includes('Rectificaciones') && !text.includes('detalle'))).toBe(true);
   });
 
-  it('selecciona rectificaciones detalle como reporte textual sin fechas ni XLSX', () => {
+  it('selecciona rectificaciones detalle como reporte textual sin fechas y con XLSX', () => {
     search.execute.mockReturnValue(of({ items: [filaDetalle], total: 1, page: 1, pageSize: 20 }));
     const opcion = botones().find((button) => button.textContent?.includes('Rectificaciones - detalle')) as HTMLButtonElement;
     opcion.click(); fixture.detectChanges();
@@ -287,7 +287,7 @@ describe('ReportListPage (formato de partidas)', () => {
       expect(texto).toContain(columna);
     }
     expect(texto).toContain('CUIDADO AMBOS DESCARGAN');
-    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(true);
   });
 
   it('rectificaciones detalle: loading, vacio, error y reintento', () => {
@@ -326,7 +326,7 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(etiquetas.some((text) => text.includes('Compulsa') && !text.includes('detalle'))).toBe(true);
   });
 
-  it('selecciona compulsa detalle como reporte textual sin fechas ni XLSX y con 33 columnas', () => {
+  it('selecciona compulsa detalle como reporte textual sin fechas y con XLSX y con 33 columnas', () => {
     search.execute.mockReturnValue(of({ items: [filaCompulsaDetalle], total: 1, page: 1, pageSize: 20 }));
     const opcion = botones().find((button) => button.textContent?.includes('Compulsa - detalle')) as HTMLButtonElement;
     opcion.click(); fixture.detectChanges();
@@ -339,7 +339,7 @@ describe('ReportListPage (formato de partidas)', () => {
     const texto = fixture.nativeElement.textContent as string;
     const columnas = ['Pedimento Glosa', 'SEC Glosa', 'Pedimento A24', 'SEC A24', 'Clave pedimento Glosa', 'Clave pedimento A24', 'Estado clave', 'Fecha Glosa', 'Fecha A24', 'Estado fechas', 'Fracci\u00f3n Glosa', 'Fracci\u00f3n A24', 'Estado fracci\u00f3n', 'Pa\u00eds OD Glosa', 'Pa\u00eds OD A24', 'Estado pa\u00eds OD', 'Pa\u00eds CV Glosa', 'Pa\u00eds CV A24', 'Estado pa\u00eds CV', 'Valor aduana Glosa', 'Valor aduana A24', 'Estado valor aduana', 'Valor comercial Glosa', 'Valor comercial A24', 'Estado valor comercial', 'Cantidad UMC Glosa', 'Cantidad UMC A24', 'Estado cantidad comercial', 'Cantidad UMT Glosa', 'Cantidad UMT A24', 'Estado cantidad tarifa', 'Tipo operaci\u00f3n Glosa', 'Tipo pedimento Glosa'];
     expect(columnas.every((columna) => texto.includes(columna))).toBe(true);
-    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(true);
   });
 
   it('compulsa detalle muestra loading, exito, vacio, error y reintento', () => {

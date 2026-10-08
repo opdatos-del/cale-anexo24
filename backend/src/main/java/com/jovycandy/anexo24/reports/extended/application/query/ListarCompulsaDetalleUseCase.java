@@ -6,9 +6,15 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Lista el detalle read-only de compulsa con filtro tecnico y paginacion acotada. */
 @Service
 public class ListarCompulsaDetalleUseCase {
+    private static final int TAMANO_PAGINA_EXPORTACION = 100;
+    private static final int MAXIMO_FILAS_EXPORTACION = 10_000;
+
     private final CompulsaDetalleRepository repository;
 
     public ListarCompulsaDetalleUseCase(CompulsaDetalleRepository repository) {
@@ -19,6 +25,28 @@ public class ListarCompulsaDetalleUseCase {
         if (pagina < 1 || tamano < 1 || tamano > 100) {
             throw new SolicitudInvalidaException("La paginacion del detalle de compulsa no es valida.");
         }
-        return repository.findPage(filtro == null || filtro.isBlank() ? null : filtro.trim(), pagina, tamano);
+        return repository.findPage(normalizar(filtro), pagina, tamano);
     }
+
+    /** Obtiene todas las filas filtradas aptas para exportacion. */
+    public List<CompulsaDetalle> exportar(String filtro) {
+        String normalizado = normalizar(filtro);
+        Pagina<CompulsaDetalle> primeraPagina = repository.findPage(normalizado, 1, TAMANO_PAGINA_EXPORTACION);
+        if (primeraPagina.total() > MAXIMO_FILAS_EXPORTACION) {
+            throw new SolicitudInvalidaException("La exportacion excede el maximo de " + MAXIMO_FILAS_EXPORTACION + " filas.");
+        }
+        if (primeraPagina.total() == 0) return List.of();
+        List<CompulsaDetalle> resultados = new ArrayList<>((int) primeraPagina.total());
+        resultados.addAll(primeraPagina.items());
+        for (int pagina = 2; pagina <= primeraPagina.totalPaginas(); pagina++) {
+            resultados.addAll(repository.findPage(normalizado, pagina, TAMANO_PAGINA_EXPORTACION).items());
+        }
+        return resultados;
+    }
+
+    private String normalizar(String valor) {
+        if (valor == null || valor.isBlank()) return null;
+        return valor.trim();
+    }
+
 }

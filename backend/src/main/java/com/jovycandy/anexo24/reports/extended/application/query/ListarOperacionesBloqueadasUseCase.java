@@ -6,9 +6,15 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Lista snapshots históricos de operaciones bloqueadas sin resolverlas. */
 @Service
 public class ListarOperacionesBloqueadasUseCase {
+    private static final int TAMANO_PAGINA_EXPORTACION = 100;
+    private static final int MAXIMO_FILAS_EXPORTACION = 10_000;
+
     private final OperacionBloqueadaRepository repository;
 
     public ListarOperacionesBloqueadasUseCase(OperacionBloqueadaRepository repository) {
@@ -34,4 +40,21 @@ public class ListarOperacionesBloqueadasUseCase {
         if (valor == null || valor.isBlank()) return null;
         return valor.trim();
     }
+
+    /** Obtiene todas las filas filtradas aptas para exportacion. */
+    public List<OperacionBloqueada> exportar(String filtro) {
+        String normalizado = normalizar(filtro);
+        Pagina<OperacionBloqueada> primeraPagina = repository.findPage(normalizado, 1, TAMANO_PAGINA_EXPORTACION);
+        if (primeraPagina.total() > MAXIMO_FILAS_EXPORTACION) {
+            throw new SolicitudInvalidaException("La exportacion excede el maximo de " + MAXIMO_FILAS_EXPORTACION + " filas.");
+        }
+        if (primeraPagina.total() == 0) return List.of();
+        List<OperacionBloqueada> resultados = new ArrayList<>((int) primeraPagina.total());
+        resultados.addAll(primeraPagina.items());
+        for (int pagina = 2; pagina <= primeraPagina.totalPaginas(); pagina++) {
+            resultados.addAll(repository.findPage(normalizado, pagina, TAMANO_PAGINA_EXPORTACION).items());
+        }
+        return resultados;
+    }
+
 }

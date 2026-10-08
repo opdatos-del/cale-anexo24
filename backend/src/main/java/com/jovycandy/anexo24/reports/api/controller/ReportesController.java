@@ -214,6 +214,15 @@ public class ReportesController {
                 resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+
+    @GetMapping("/operaciones-bloqueadas/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarOperacionesBloqueadas(@RequestParam(required = false) String filtro) {
+        List<OperacionBloqueada> resultado = listarOperacionesBloqueadasUseCase.exportar(filtro);
+        return archivo("operaciones-bloqueadas", List.of("Fecha bloqueo", "Pedimento exportacion", "Clave exportacion", "Producto", "Cantidad producto", "Pedimento importacion", "Material", "Cantidad material", "Incorporado", "Desperdicio", "Merma", "Folio"),
+                resultado.stream().map(item -> fila(item.fechaBloqueo(), item.pedimentoExportacion(), item.claveExportacion(), item.producto(), item.cantidadProducto(), item.pedimentoImportacion(), item.material(), item.cantidadMaterial(), item.incorporado(), item.desperdicio(), item.merma(), item.folio())).toList());
+    }
+
     @GetMapping("/compulsa")
     @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
     public ResponseEntity<Pagina<CompulsaDto>> compulsa(
@@ -234,6 +243,23 @@ public class ReportesController {
         Pagina<CompulsaDetalle> resultado = listarCompulsaDetalleUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(CompulsaDetalleDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+
+    @GetMapping("/compulsa/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarCompulsa(@RequestParam(required = false) String filtro) {
+        List<Compulsa> resultado = listarCompulsaUseCase.exportar(filtro);
+        return archivo("compulsa", List.of("Pedimento Glosa", "Pedimento Anexo 24", "Fecha Glosa", "Fecha Anexo 24", "Clave Glosa", "Clave Anexo 24", "Fraccion Glosa", "Fraccion Anexo 24"),
+                resultado.stream().map(item -> fila(item.pedimentoGlosa(), item.pedimentoAnexo24(), item.fechaGlosa(), item.fechaAnexo24(), item.claveGlosa(), item.claveAnexo24(), item.fraccionGlosa(), item.fraccionAnexo24())).toList());
+    }
+
+    @GetMapping("/compulsa/detalle/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarCompulsaDetalle(@RequestParam(required = false) String filtro) {
+        List<CompulsaDetalle> resultado = listarCompulsaDetalleUseCase.exportar(filtro);
+        return archivo("compulsa-detalle", List.of("Pedimento Glosa", "SEC Glosa", "Pedimento A24", "SEC A24", "Clave pedimento Glosa", "Clave pedimento A24", "Estado clave", "Fecha Glosa", "Fecha A24", "Estado fechas", "Fraccion Glosa", "Fraccion A24", "Estado fraccion", "Pais OD Glosa", "Pais OD A24", "Estado pais OD", "Pais CV Glosa", "Pais CV A24", "Estado pais CV", "Valor aduana Glosa", "Valor aduana A24", "Estado valor aduana", "Valor comercial Glosa", "Valor comercial A24", "Estado valor comercial", "Cantidad UMC Glosa", "Cantidad UMC A24", "Estado cantidad comercial", "Cantidad UMT Glosa", "Cantidad UMT A24", "Estado cantidad tarifa", "Tipo operacion Glosa", "Tipo pedimento Glosa"),
+                resultado.stream().map(item -> fila(item.pedimentoGlosa(), item.secGlosa(), item.pedimentoA24(), item.secA24(), item.clavePedimentoGlosa(), item.clavePedimentoA24(), item.statusClavePedimento(), item.fechaGlosa(), item.fechaA24(), item.statusFechas(), item.fraccionGlosa(), item.fraccionA24(), item.statusFraccion(), item.paisOdGlosa(), item.paisOdA24(), item.statusPaisOd(), item.paisCvGlosa(), item.paisCvA24(), item.statusPaisCv(), item.valorAduanaGlosa(), item.valorAduanaA24(), item.statusValorAduana(), item.valorComercialGlosa(), item.valorComercialA24(), item.statusValorComercial(), item.cantidadUmcGlosa(), item.cantidadUmcA24(), item.statusCantidadComercial(), item.cantidadUmtGlosa(), item.cantidadUmtA24(), item.statusCantidadTarifa(), item.tipoOperacionGlosa(), item.tipoPedimentoGlosa())).toList());
     }
 
     @GetMapping("/dirigidos")
@@ -291,6 +317,28 @@ public class ReportesController {
         Pagina<Vencimiento> resultado = listarVencimientosUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(VencimientoDto::from).toList(),
                 resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+
+    @GetMapping("/rectificaciones/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarRectificaciones(@RequestParam(required = false) String filtro) {
+        List<Rectificacion> resultado = listarRectificacionesUseCase.exportar(filtro);
+        return archivo("rectificaciones", List.of("Pedimento", "Rectificaciones relacionadas"), resultado.stream().map(item -> fila(item.pedimento(), item.total())).toList());
+    }
+
+    @GetMapping("/rectificaciones/detalle/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarRectificacionesDetalle(@RequestParam(required = false) String filtro) {
+        List<RectificacionDetalle> resultado = listarRectificacionesDetalleUseCase.exportar(filtro);
+        return archivo("rectificaciones-detalle", List.of("Pedimento", "Clave pedimento", "Descarga", "Pedimento original", "Existe pedimento", "Clave pedimento original", "Descarga original", "Estado"), resultado.stream().map(item -> fila(item.pedimento(), item.clavePedimento(), item.descarga(), item.pedimentoOriginal(), item.existePedimento(), item.clavePedimentoOriginal(), item.descargaOriginal(), item.status())).toList());
+    }
+
+    @GetMapping("/vencimientos/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarVencimientos(@RequestParam(required = false) String filtro) {
+        List<Vencimiento> resultado = listarVencimientosUseCase.exportar(filtro);
+        return archivo("vencimientos", List.of("Pedimento", "Fecha base", "Clave pedimento", "Clave", "Desperdicio", "Aplicado", "Factura", "Vencimiento"), resultado.stream().map(item -> fila(item.pedimento(), item.fechaBase(), item.clavePedimento(), item.clave(), item.desperdicio(), item.aplicado(), item.factura(), item.vencimiento())).toList());
     }
 
     @GetMapping("/f4")
