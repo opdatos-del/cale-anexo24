@@ -376,7 +376,7 @@ Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 - Frontend: nueva opcion en report-list.page.ts (Revision Anexo 30 - Entradas). API expone 16 campos (ENTRADA_KEY, DESCARGA, TIPO_OPERACION, PEDIMENTO, PEDIMENTO_ORIGINAL, FECHA, FECHA_ORIGINAL, CLAVE_PEDIMENTO, FRACCION, VALOR_COMERCIAL, IVA_FP21, IVA_FP22, SALDO, OPERACION, PARTIDA, ESAF); la tabla Angular renderiza 13 columnas visibles (excluye ENTRADA_KEY, DESCARGA, TIPO_OPERACION porque no fueron observados como etiquetas en la auditoria legacy). Sin XLSX (no demostrado en legacy para revision).
 - Hexagonal: domain/port/adapter/application/query + api/dto + controller. Cero SQL de negocio inline en Java.
 - LIVE_ACTIVATION_PENDING = YES: el SP no se despliega en LIVE en este commit; queda versionado para que el controlador lo aplique cuando se revalide el acceso a CALE_IMMEX.
-- Entradas, fracciones y descargas cuentan con una ruta read-only implementada. Trazo, comparativa, vencimientos y cualquier mapeo legacy no confirmado permanecen pendientes. FRACCIONES_PARITY_MAPPING = NOT_CONFIRMED; descargas representa unicamente el ultimo snapshot persistido.
+- Entradas, fracciones, descargas y comparativa cuentan con una ruta read-only implementada. Trazo, vencimientos y otros mapeos legacy no confirmados permanecen pendientes. FRACCIONES_PARITY_MAPPING = NOT_CONFIRMED; descargas y comparativa representan unicamente el ultimo snapshot persistido.
 
 ### Gate por capacidad (069..073)
 
@@ -394,7 +394,7 @@ Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 | Implementable ahora | NO | NO | NO | NO | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS_PARTIAL |
 ### Conclusion del bloque
 
-LEGACY-073 implementa como read-only las subcapacidades entradas, fracciones y descargas (SP + endpoint + frontend + SQL IT). Descargas lee unicamente el ultimo snapshot persistido y no ejecuta recalculo. Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (trazo, comparativa, vencimientos y otros mapeos legacy aun no confirmados) permanecen pendientes; su ciclo de vida y paridad requieren evidencia adicional sin ejecutar generadores. Para revisarlas se requeriria:
+LEGACY-073 implementa como read-only las subcapacidades entradas, fracciones, descargas y comparativa (SP + endpoint + frontend + SQL IT). Descargas y comparativa leen unicamente el ultimo snapshot persistido y no ejecutan recalculo. Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (trazo, vencimientos y otros mapeos legacy no confirmados) permanecen pendientes; su ciclo de vida y paridad requieren evidencia adicional sin ejecutar generadores. Para revisarlas se requeriria:
 
 - OBJECT_DEFINITION en vivo de las tablas o vistas A31 snapshot.
 - Demostracion de que las tablas A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA y DIFERENCIASA31 son consultables sin regeneracion.

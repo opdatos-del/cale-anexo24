@@ -190,13 +190,13 @@ describe('ReportListPage (formato de partidas)', () => {
     internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
     expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Revision Anexo 30 - Comparativa');
+    expect(fixture.nativeElement.textContent).toContain('Revisi\u00f3n Anexo 30 - Comparativa');
   });
 
   it('muestra help de comparativa con texto exacto', () => {
     const internals = fixture.componentInstance as unknown as PageInternals;
     internals.selectedType.set('anexo30-revision-comparativa'); fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Revision read-only de la ultima comparativa A31/A24 persistida');
+    expect(fixture.nativeElement.textContent).toContain('Revisi\u00f3n read-only de la \u00faltima comparativa A31/A24 persistida. La consulta no ejecuta ni recalcula el proceso de comparaci\u00f3n.');
   });
 
   it.each(['anexo30-revision-comparativa'] as const)('muestra loading, exito, vacio y error para %s', (type) => {

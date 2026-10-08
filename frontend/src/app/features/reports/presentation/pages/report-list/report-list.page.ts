@@ -44,7 +44,7 @@ const REPORTS: ReportOption[] = [
   { type: 'anexo30-revision-entradas', label: 'Revision Anexo 30 - Entradas', icon: 'fact_check', available: true },
   { type: 'anexo30-revision-fracciones', label: 'Revision Anexo 30 - Fracciones de descarga', icon: 'description', available: true },
   { type: 'anexo30-revision-descargas', label: 'Revision Anexo 30 - Descargas', icon: 'account_tree', available: true },
-  { type: 'anexo30-revision-comparativa', label: 'Revision Anexo 30 - Comparativa', icon: 'difference', available: true },
+  { type: 'anexo30-revision-comparativa', label: 'Revisi\u00f3n Anexo 30 - Comparativa', icon: 'difference', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: true },
 ];
 
@@ -141,7 +141,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'pedimento', label: 'Pedimento' }, { key: 'fechaEntrada', label: 'Fecha entrada', format: 'date' }, { key: 'clavePedimentoEntrada', label: 'Clave pedimento' }, { key: 'partida', label: 'Partida' }, { key: 'esaf', label: 'ESAF' }, { key: 'fraccionEntrada', label: 'Fracci贸n entrada' }, { key: 'fraccionDescarga', label: 'Fracci贸n descarga' }, { key: 'valorComercialEntrada', label: 'Valor comercial', format: 'quantity' }, { key: 'valorDescargado', label: 'Valor descargado', format: 'quantity' }, { key: 'ejercicio', label: 'Ejercicio' }, { key: 'periodo', label: 'Periodo' }, { key: 'clavePedimentoA31', label: 'Clave pedimento A31' }, { key: 'fraccionA31', label: 'Fracci贸n A31' }, { key: 'archivo', label: 'Archivo' },
   ],
   'anexo30-revision-comparativa': [
-    { key: 'clavePedimento', label: 'Clave pedimento' }, { key: 'ejercicio', label: 'Ejercicio' }, { key: 'periodo', label: 'Periodo' }, { key: 'fraccion', label: 'Fraccion' },
+    { key: 'clavePedimento', label: 'Clave pedimento' }, { key: 'ejercicio', label: 'Ejercicio' }, { key: 'periodo', label: 'Periodo' }, { key: 'fraccion', label: 'Fracci\u00f3n' },
     { key: 'valorA31', label: 'Valor A31', format: 'quantity' }, { key: 'valorA24', label: 'Valor A24', format: 'quantity' }, { key: 'diferencia', label: 'Diferencia', format: 'quantity' },
     { key: 'iva21Total', label: 'IVA 21 total', format: 'quantity' }, { key: 'iva22Total', label: 'IVA 22 total', format: 'quantity' }, { key: 'valorTotal', label: 'Valor total', format: 'quantity' },
     { key: 'ivaDescargadoA31', label: 'IVA descargado A31', format: 'quantity' }, { key: 'ivaDescargadoA24', label: 'IVA descargado A24', format: 'quantity' },
@@ -207,9 +207,9 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
             } @else if (selectedType() === 'anexo30-revision-fracciones') {
               <p class="m-0 text-xs text-slate-500">Registros persistidos de fracci贸n utilizados por el proceso Anexo 30.</p>
             } @else if (selectedType() === 'anexo30-revision-descargas') {
-              <p class="m-0 text-xs text-slate-500">Revisi贸n read-only del 锟絣timo estado persistido de descargas Anexo 30. Esta consulta no ejecuta ni recalcula el proceso.</p>
+              <p class="m-0 text-xs text-slate-500">Revisi贸n read-only del 鷏timo estado persistido de descargas Anexo 30. Esta consulta no ejecuta ni recalcula el proceso.</p>
             } @else if (selectedType() === 'anexo30-revision-comparativa') {
-              <p class="m-0 text-xs text-slate-500">Revision read-only de la ultima comparativa A31/A24 persistida. La consulta no ejecuta ni recalcula el proceso de comparacion.</p>
+              <p class="m-0 text-xs text-slate-500">Revisi&oacute;n read-only de la &uacute;ltima comparativa A31/A24 persistida. La consulta no ejecuta ni recalcula el proceso de comparaci&oacute;n.</p>
             } @else if (selectedType() === 'saldos') {
               <p class="mb-3 text-xs text-slate-500">Consulta read-only del reporte legacy de saldos.</p>
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
