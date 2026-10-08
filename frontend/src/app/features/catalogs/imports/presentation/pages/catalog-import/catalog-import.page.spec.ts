@@ -112,6 +112,7 @@ const CONFIRMATION_AGENTE: CatalogAgentImportConfirmation = {
 interface PageHarness {
   result: { set(value: CatalogImportResponse): void; (): CatalogImportResponse | null };
   isConfirming: () => boolean;
+  type: () => string;
   requestConfirmation(): void;
 }
 
@@ -175,6 +176,18 @@ describe('CatalogImportPage', () => {
     const { fixture } = configure({ permissions: ['PRODUCTOS_CARGAR'] });
     expect(fixture.nativeElement.textContent).toContain('Productos');
     expect(fixture.nativeElement.textContent).not.toContain('Materiales');
+  });
+
+  it.each([
+    ['MATERIALES_CARGAR', 'Materiales', 'MATERIAL'],
+    ['PRODUCTOS_CARGAR', 'Productos', 'PRODUCTO'],
+    ['CLIENTES_CARGAR', 'Clientes', 'CLIENTE'],
+    ['PROVEEDORES_CARGAR', 'Proveedores', 'PROVEEDOR'],
+    ['AGENTES_CARGAR', 'Agentes aduanales', 'AGENTE'],
+  ])('muestra sólo tipo autorizado e inicia en %s', (permission, label, type) => {
+    const { fixture, harness } = configure({ permissions: [permission] });
+    expect(fixture.nativeElement.textContent).toContain(label);
+    expect(harness.type()).toBe(type);
   });
 
   it('sube material y muestra preview sin confirmación para quien sólo puede cargar', () => {

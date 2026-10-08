@@ -80,6 +80,17 @@ describe('permissionGuard', () => {
     })).toBe(true);
   });
 
+  it.each(['CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'])('permite importaciones al usuario con sólo %s', (permission) => {
+    const { run } = arrange([permission]);
+    expect(run({ permissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'] })).toBe(true);
+  });
+
+  it('bloquea importaciones con permiso no relacionado', () => {
+    const { run, parseUrl } = arrange(['REPORTES_GENERAR']);
+    expect(run({ permissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'] })).toBe(FORBIDDEN);
+    expect(parseUrl).toHaveBeenCalledWith('/forbidden');
+  });
+
   it('redirige a /forbidden cuando la ruta no declara permisos', () => {
     const { run, parseUrl } = arrange(['MATERIALES_CONSULTAR']);
     expect(run({})).toBe(FORBIDDEN);

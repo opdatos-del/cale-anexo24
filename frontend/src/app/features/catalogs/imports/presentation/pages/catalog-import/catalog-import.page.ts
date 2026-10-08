@@ -127,8 +127,9 @@ export class CatalogImportPage {
     if (this.auth.hasPermission('MATERIALES_CARGAR')) return 'MATERIAL';
     if (this.auth.hasPermission('PRODUCTOS_CARGAR')) return 'PRODUCTO';
     if (this.auth.hasPermission('CLIENTES_CARGAR')) return 'CLIENTE';
+    if (this.auth.hasPermission('PROVEEDORES_CARGAR')) return 'PROVEEDOR';
     if (this.auth.hasPermission('AGENTES_CARGAR')) return 'AGENTE';
-    return 'PROVEEDOR';
+    throw new Error('La ruta de importaciones requiere un permiso de carga.');
   }
 
   selectType(type: CatalogImportType): void {

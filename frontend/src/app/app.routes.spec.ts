@@ -26,7 +26,7 @@ describe('rutas de la aplicación', () => {
     const catalogs = layout?.children?.find((route) => route.path === 'catalogos');
     expect(catalogs).toMatchObject({
       canActivate: [permissionGuard],
-      data: { permission: 'CATALOGOS_AUX_CONSULTAR', permissions: ['CATALOGOS_AUX_CONSULTAR', 'MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
+      data: { permissions: ['CATALOGOS_AUX_CONSULTAR', 'MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'] },
     });
     expect(catalogs?.loadChildren).toBeTypeOf('function');
   });

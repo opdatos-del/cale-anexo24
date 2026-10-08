@@ -19,4 +19,13 @@ describe('navigation.config', () => {
     const catalogos = NAVIGATION_GROUPS.find((group) => group.label === 'Catálogos');
     expect(catalogos?.items.some((item) => item.route === '/operaciones/constancias')).toBe(false);
   });
+
+  it('muestra importaciones para cualquier permiso de carga de catálogo', () => {
+    const interfaces = NAVIGATION_GROUPS.find((group) => group.label === 'Interfaces');
+    const importaciones = interfaces?.items.find((item) => item.label === 'Importaciones de catálogos');
+    expect(importaciones).toMatchObject({
+      route: '/catalogos/importaciones',
+      anyOfPermissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'],
+    });
+  });
 });

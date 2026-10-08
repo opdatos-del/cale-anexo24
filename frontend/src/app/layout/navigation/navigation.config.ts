@@ -31,7 +31,7 @@ export const NAVIGATION_GROUPS: NavigationGroup[] = [
     { label: 'Constancias', icon: 'description', route: '/operaciones/constancias', permission: 'CONSTANCIAS_CARGAR' },
   ]},
   { label: 'Interfaces', icon: 'sync_alt', items: [
-    { label: 'Importaciones de catálogos', icon: 'upload_file', route: '/catalogos/importaciones', anyOfPermissions: ['MATERIALES_CARGAR','PRODUCTOS_CARGAR'] },
+    { label: 'Importaciones de catálogos', icon: 'upload_file', route: '/catalogos/importaciones', anyOfPermissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'] },
     { label: 'Carga de facturación', icon: 'receipt_long', route: '/facturacion', permission: 'FACTURACION_CARGAR' },
   ]},
   { label: 'Reportes', icon: 'assessment', items: [

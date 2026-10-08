@@ -19,7 +19,7 @@ export const AUXILIARY_CATALOGS_ROUTES: Routes = [
   {
     path: 'importaciones',
     canActivate: [permissionGuard],
-    data: { permissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR'] },
+    data: { permissions: ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR'] },
     loadChildren: () => import('@features/catalogs/imports/catalog-import.routes').then((routes) => routes.CATALOG_IMPORT_ROUTES),
   },
 ];
