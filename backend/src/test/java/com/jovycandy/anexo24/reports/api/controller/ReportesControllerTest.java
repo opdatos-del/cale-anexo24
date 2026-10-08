@@ -639,8 +639,71 @@ class ReportesControllerTest {
         when(listarAnexo30ComparativaUseCase.ejecutar(any(), anyInt(), anyInt())).thenReturn(new Pagina<>(List.of(), 0, 1, 20));
         mockMvc.perform(get("/api/v1/reportes/anexo30-revision-comparativa").with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR")))).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
     }
+    @Test
+    void exportarAnexo30RevisionEntradasExigePermisoYRespetaVacioYXlsx() throws Exception {
+        String ruta = "/api/v1/reportes/anexo30-revision-entradas/exportacion";
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+        when(listarAnexo30EntradasUseCase.exportar(any())).thenReturn(List.of());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent());
+        when(listarAnexo30EntradasUseCase.exportar(any())).thenReturn(List.of(org.mockito.Mockito.mock(com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada.class)));
+        MvcResult resultado = mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk()).andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("anexo30-revision-entradas.xlsx"))).andReturn();
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(resultado.getResponse().getContentAsByteArray()))) {
+            org.junit.jupiter.api.Assertions.assertEquals("Entrada", libro.getSheet("anexo30-revision-entradas").getRow(0).getCell(0).getStringCellValue());
+        }
+    }
+
+    @Test
+    void exportarAnexo30RevisionFraccionesExigePermisoYRespetaVacioYXlsx() throws Exception {
+        String ruta = "/api/v1/reportes/anexo30-revision-fracciones/exportacion";
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+        when(listarAnexo30FraccionesUseCase.exportar(any())).thenReturn(List.of());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent());
+        when(listarAnexo30FraccionesUseCase.exportar(any())).thenReturn(List.of(org.mockito.Mockito.mock(com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Fraccion.class)));
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk()).andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("anexo30-revision-fracciones.xlsx")));
+    }
+
+    @Test
+    void exportarAnexo30RevisionDescargasExigePermisoYRespetaVacioYXlsx() throws Exception {
+        String ruta = "/api/v1/reportes/anexo30-revision-descargas/exportacion";
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+        when(listarAnexo30DescargasUseCase.exportar(any())).thenReturn(List.of());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent());
+        when(listarAnexo30DescargasUseCase.exportar(any())).thenReturn(List.of(org.mockito.Mockito.mock(com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga.class)));
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk()).andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("anexo30-revision-descargas.xlsx")));
+    }
+
+    @Test
+    void exportarAnexo30RevisionComparativaExigePermisoYRespetaVacioYXlsx() throws Exception {
+        String ruta = "/api/v1/reportes/anexo30-revision-comparativa/exportacion";
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))
+                .andExpect(status().isForbidden());
+        when(listarAnexo30ComparativaUseCase.exportar(any())).thenReturn(List.of());
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isNoContent());
+        when(listarAnexo30ComparativaUseCase.exportar(any())).thenReturn(List.of(org.mockito.Mockito.mock(com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Comparativa.class)));
+        mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_EXPORTAR"))))
+                .andExpect(status().isOk()).andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("anexo30-revision-comparativa.xlsx")));
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"/api/v1/reportes/compulsa/exportacion", "/api/v1/reportes/compulsa/detalle/exportacion", "/api/v1/reportes/rectificaciones/exportacion", "/api/v1/reportes/rectificaciones/detalle/exportacion", "/api/v1/reportes/vencimientos/exportacion", "/api/v1/reportes/operaciones-bloqueadas/exportacion"})
+    @ValueSource(strings = {"/api/v1/reportes/compulsa/exportacion", "/api/v1/reportes/compulsa/detalle/exportacion", "/api/v1/reportes/rectificaciones/exportacion", "/api/v1/reportes/rectificaciones/detalle/exportacion", "/api/v1/reportes/vencimientos/exportacion", "/api/v1/reportes/operaciones-bloqueadas/exportacion", "/api/v1/reportes/anexo30-revision-entradas/exportacion", "/api/v1/reportes/anexo30-revision-fracciones/exportacion", "/api/v1/reportes/anexo30-revision-descargas/exportacion", "/api/v1/reportes/anexo30-revision-comparativa/exportacion"})
     void nuevasExportacionesExigenAutenticacionYPermisoExportar(String ruta) throws Exception {
         mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
         mockMvc.perform(get(ruta).with(user("usuario").authorities(new SimpleGrantedAuthority("REPORTES_GENERAR"))))

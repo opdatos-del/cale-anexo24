@@ -425,6 +425,60 @@ public class ReportesController {
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30ComparativaDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
     }
 
+    @GetMapping("/anexo30-revision-entradas/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnexo30RevisionEntradas(@RequestParam(required = false) String filtro) {
+        List<Anexo30Entrada> resultado = listarAnexo30EntradasUseCase.exportar(filtro);
+        return archivo("anexo30-revision-entradas", List.of("Entrada", "Descarga", "Tipo operacion", "Pedimento",
+                "Pedimento original", "Fecha", "Fecha original", "Clave pedimento", "Fraccion",
+                "Valor comercial", "IVA FP21", "IVA FP22", "Saldo", "Operacion", "Partida", "ESAF"),
+                resultado.stream().map(item -> fila(item.entradaKey(), item.descarga(), item.tipoOperacion(),
+                        item.pedimento(), item.pedimentoOriginal(), item.fecha(), item.fechaOriginal(),
+                        item.clavePedimento(), item.fraccion(), item.valorComercial(), item.ivaFp21(),
+                        item.ivaFp22(), item.saldo(), item.operacion(), item.partida(), item.esaf())).toList());
+    }
+
+    @GetMapping("/anexo30-revision-fracciones/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnexo30RevisionFracciones(@RequestParam(required = false) String filtro) {
+        List<Anexo30Fraccion> resultado = listarAnexo30FraccionesUseCase.exportar(filtro);
+        return archivo("anexo30-revision-fracciones", List.of("Fraccion key", "Tipo", "Clave pedimento",
+                "Ejercicio", "Periodo", "Fraccion", "Valor", "AF", "Archivo"),
+                resultado.stream().map(item -> fila(item.fraccionKey(), item.tipo(), item.clavePedimento(),
+                        item.ejercicio(), item.periodo(), item.fraccion(), item.valor(), item.af(),
+                        item.archivo())).toList());
+    }
+
+    @GetMapping("/anexo30-revision-descargas/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnexo30RevisionDescargas(@RequestParam(required = false) String filtro) {
+        List<Anexo30Descarga> resultado = listarAnexo30DescargasUseCase.exportar(filtro);
+        return archivo("anexo30-revision-descargas", List.of("Descarga key", "Entrada key", "Fraccion key",
+                "Pedimento", "Pedimento original", "Fecha entrada", "Clave pedimento entrada",
+                "Fraccion entrada", "Valor comercial entrada", "Saldo persistido A31", "ESAF", "Partida",
+                "Fraccion descarga", "Valor descargado", "Tipo A31", "Clave pedimento A31", "Ejercicio",
+                "Periodo", "Fraccion A31", "Valor A31", "AF", "Archivo"),
+                resultado.stream().map(item -> fila(item.descargaKey(), item.entradaKey(), item.fraccionKey(),
+                        item.pedimento(), item.pedimentoOriginal(), item.fechaEntrada(), item.clavePedimentoEntrada(),
+                        item.fraccionEntrada(), item.valorComercialEntrada(), item.saldoPersistidoA31(), item.esaf(),
+                        item.partida(), item.fraccionDescarga(), item.valorDescargado(), item.tipoA31(),
+                        item.clavePedimentoA31(), item.ejercicio(), item.periodo(), item.fraccionA31(),
+                        item.valorA31(), item.af(), item.archivo())).toList());
+    }
+
+    @GetMapping("/anexo30-revision-comparativa/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnexo30RevisionComparativa(@RequestParam(required = false) String filtro) {
+        List<Anexo30Comparativa> resultado = listarAnexo30ComparativaUseCase.exportar(filtro);
+        return archivo("anexo30-revision-comparativa", List.of("Clave pedimento", "Ejercicio", "Periodo",
+                "Fraccion", "Valor A31", "Valor A24", "Diferencia", "IVA21 total", "IVA22 total",
+                "Valor total", "IVA descargado A31", "IVA descargado A24"),
+                resultado.stream().map(item -> fila(item.clavePedimento(), item.ejercicio(), item.periodo(),
+                        item.fraccion(), item.valorA31(), item.valorA24(), item.diferencia(), item.iva21Total(),
+                        item.iva22Total(), item.valorTotal(), item.ivaDescargadoA31(),
+                        item.ivaDescargadoA24())).toList());
+    }
+
     @GetMapping("/entradas/exportacion")
     @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
     public ResponseEntity<byte[]> exportarEntradas(

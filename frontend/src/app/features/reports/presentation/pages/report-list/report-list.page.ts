@@ -360,7 +360,7 @@ export class ReportListPage {
   protected columns(): ReportColumn[] { return COLUMNS[this.selectedType()]; }
   protected displayedColumns(): string[] { return this.columns().map((column) => column.key); }
   protected formatTotal(): string { return new Intl.NumberFormat('es-MX').format(this.totalItems()); }
-  protected canExport(): boolean { return (this.selectedType() === "f4" || this.selectedType() === "dirigidos" || this.selectedType() === "analisis-descargas" || this.selectedType() === "compulsa" || this.selectedType() === "compulsa-detalle" || this.selectedType() === "rectificaciones" || this.selectedType() === "rectificaciones-detalle" || this.selectedType() === "vencimientos" || this.selectedType() === "operaciones-bloqueadas" || !this.isTextReport()) && this.auth.hasPermission("REPORTES_EXPORTAR") && this.hasGenerated() && this.items().length > 0; }
+  protected canExport(): boolean { return (this.selectedType() === "f4" || this.selectedType() === "dirigidos" || this.selectedType() === "analisis-descargas" || this.selectedType() === "compulsa" || this.selectedType() === "compulsa-detalle" || this.selectedType() === "rectificaciones" || this.selectedType() === "rectificaciones-detalle" || this.selectedType() === "vencimientos" || this.selectedType() === "operaciones-bloqueadas" || this.selectedType() === "anexo30-revision-entradas" || this.selectedType() === "anexo30-revision-fracciones" || this.selectedType() === "anexo30-revision-descargas" || this.selectedType() === "anexo30-revision-comparativa" || !this.isTextReport()) && this.auth.hasPermission("REPORTES_EXPORTAR") && this.hasGenerated() && this.items().length > 0; }
 
   protected generate(): void {
     if (!this.canGenerate()) return;

@@ -387,4 +387,32 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(fixture.nativeElement.textContent).toContain('Rectificaciones');
   });
 
+
+
+  it.each([
+    'anexo30-revision-entradas',
+    'anexo30-revision-fracciones',
+    'anexo30-revision-descargas',
+    'anexo30-revision-comparativa',
+  ] as const)('habilita XLSX para %s generado', (type) => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type);
+    fixture.detectChanges();
+    internals.generate();
+    fixture.detectChanges();
+
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(true);
+  });
+
+  it('oculta XLSX de Anexo 30 sin REPORTES_EXPORTAR', () => {
+    const auth = TestBed.inject(AuthService) as unknown as { hasPermission: () => boolean };
+    auth.hasPermission = () => false;
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set('anexo30-revision-comparativa');
+    internals.generate();
+    fixture.detectChanges();
+
+    expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
+  });
+
 });

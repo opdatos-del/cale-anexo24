@@ -246,4 +246,23 @@ describe('ReportApiService', () => {
     http.expectOne((candidate) => candidate.url === '/api/v1/reportes/rectificaciones').flush({ items: [], total: 0, pagina: 2, tamano: 20 });
   });
 
+
+
+  it.each([
+    'anexo30-revision-entradas',
+    'anexo30-revision-fracciones',
+    'anexo30-revision-descargas',
+    'anexo30-revision-comparativa',
+  ] as const)('exporta %s con filtro y sin periodo', (type) => {
+    service.export({ ...criteria, type, filter: ' PED-1 ' }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === `/api/v1/reportes/${type}/exportacion`);
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.params.keys().sort()).toEqual(['filtro', 'pagina', 'tamano']);
+    expect(request.request.params.get('filtro')).toBe('PED-1');
+    expect(request.request.params.get('tamano')).toBe('100');
+    expect(request.request.params.has('desde')).toBe(false);
+    expect(request.request.params.has('hasta')).toBe(false);
+    request.flush(new Blob());
+  });
+
 });

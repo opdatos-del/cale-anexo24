@@ -6,9 +6,15 @@ import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.shared.exception.SolicitudInvalidaException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Lista entradas del snapshot A31 con filtro y paginacion acotada. */
 @Service
 public class ListarAnexo30EntradasUseCase {
+    private static final int TAMANO_PAGINA_EXPORTACION = 100;
+    private static final int MAXIMO_FILAS_EXPORTACION = 10_000;
+
     private final Anexo30EntradaRepository repository;
 
     public ListarAnexo30EntradasUseCase(Anexo30EntradaRepository repository) {
@@ -20,6 +26,24 @@ public class ListarAnexo30EntradasUseCase {
             throw new SolicitudInvalidaException("La paginacion de entradas Anexo 30 no es valida.");
         }
         return repository.findPage(normalizar(filtro), pagina, tamano);
+    }
+
+    /** Obtiene entradas persistidas aptas para exportacion sin recalcular Anexo 30. */
+    public List<Anexo30Entrada> exportar(String filtro) {
+        String normalizado = normalizar(filtro);
+        Pagina<Anexo30Entrada> primeraPagina = repository.findPage(normalizado, 1, TAMANO_PAGINA_EXPORTACION);
+        if (primeraPagina.total() > MAXIMO_FILAS_EXPORTACION) {
+            throw new SolicitudInvalidaException("La exportacion excede el maximo de "
+                    + MAXIMO_FILAS_EXPORTACION + " filas.");
+        }
+        if (primeraPagina.total() == 0) return List.of();
+
+        List<Anexo30Entrada> resultados = new ArrayList<>((int) primeraPagina.total());
+        resultados.addAll(primeraPagina.items());
+        for (int pagina = 2; pagina <= primeraPagina.totalPaginas(); pagina++) {
+            resultados.addAll(repository.findPage(normalizado, pagina, TAMANO_PAGINA_EXPORTACION).items());
+        }
+        return resultados;
     }
 
     private String normalizar(String valor) {
