@@ -259,10 +259,11 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 | PRIOR_LIVE_EVIDENCE | AVAILABLE (esquema documentado; sin OBJECT_DEFINITION local ni conteos LIVE current rows) |
 | CURRENT_LIVE_REVALIDATION | NOT_AVAILABLE |
 | ENTRADAS_GRAIN_CONFIRMED | YES (Entradaskey bigint IDENTITY PK; pedimentoarmado + fecha + fraccion definen el pedimento y su fraccion; saldo se reasigna por row en cada corrida de DESCARGAS_A31) |
-| READ_SUBCAPABILITY_ENTRADAS | YES (consulta read-only sobre A31_ENTRADAS sin EXEC de SP mutable; tabla no truncada por DESCARGAS_A31) |
-| READ_SUBCAPABILITY_DESCARGAS | UNKNOWN (A31_DESCARGAS es truncada por DESCARGAS_A31; depende de la ultima corrida; JOIN A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY sin FK declarada pero referenciada por A31_SALDOS) |
+| READ_SUBCAPABILITY_ENTRADAS | IMPLEMENTED_READ_ONLY |
+| READ_SUBCAPABILITY_FRACCIONES | IMPLEMENTED_READ_ONLY |
+| READ_SUBCAPABILITY_DESCARGAS | IMPLEMENTED_READ_ONLY_LAST_PERSISTED_SNAPSHOT |
 | READ_SUBCAPABILITY_TRAZO | UNKNOWN (idem A31_DESCARGAS; truncada y reconstruida por corrida) |
-| READ_SUBCAPABILITY_COMPARATIVA | UNKNOWN (A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31) |
+| READ_SUBCAPABILITY_COMPARATIVA | PENDING_SEPARATE_FORENSIC |
 | SNAPSHOT_LIFECYCLE | DEMOSTRABLE_DESDE_WRITERS: A31_ENTRADAS no se trunca (writer INSERTAFALTANTESA31 actualiza SALDO y FECHA por fila), A31_DESCARGAS/A31_TRAZO truncadas y reconstruidas por DESCARGAS_A31, A31_COMPARATIVADESCARGA truncada y reconstruida por COMPARADESCARGAA31, DIFERENCIASA31 truncada y reconstruida por COMPARATIVADESCARGA31 |
 | TECHNICAL_FIELD_MAPPING | SUFFICIENT_FOR_PARTIAL_IMPLEMENTATION: A31_ENTRADAS expone columnas fisicas suficientes para construir la subcapacidad entradas (Pedimentoarmado, PEDIMENTOORIGINAL, Fecha, FECHAORIGINAL, Fracccion, Clavepedimento, Valocomercial, IVAFP21, IVAFP22, SALDO, OPERACION, PARTIDA, ESAF, Descarga, Tipooperacion). |
 | TECHNICAL_FILTER_IMPLEMENTED | YES (filtro unico LIKE sobre pedimentoarmado, pedimentooriginal, fraccion, clavepedimento, esaf y operacion; validado por SQL IT con fixtures sinteticos) |
@@ -284,10 +285,10 @@ LEGACY_072 = BLOCKED_NO_READONLY_DATASET
 | API_FIELDS | 16 (ENTRADA_KEY, DESCARGA, TIPO_OPERACION, PEDIMENTO, PEDIMENTO_ORIGINAL, FECHA, FECHA_ORIGINAL, CLAVE_PEDIMENTO, FRACCION, VALOR_COMERCIAL, IVA_FP21, IVA_FP22, SALDO, OPERACION, PARTIDA, ESAF) |
 | UI_VISIBLE_COLUMNS | 13 (excluye ENTRADA_KEY, DESCARGA, TIPO_OPERACION; no renderizados porque no fueron observados como etiquetas en la auditoria legacy) |
 | LIVE_ACCEPTANCE_READY | NO (CURRENT_LIVE_REVALIDATION = NOT_AVAILABLE; el deploy del SP queda pendiente hasta revalidar LIVE) |
-| IMPLEMENTABLE_NOW | YES (subcapacidad entradas A31; el resto de LEGACY-073 queda sin implementar) |
-| BLOCKER | SUB_CAPACITIES_RESTANTES (descargas/trazo/comparativa requieren demostrar snapshot estable sin CURRENT_LIVE_REVALIDATION; vencimientos no mapea a columnas A31 disponibles) |
+| IMPLEMENTABLE_NOW | YES (entradas, fracciones y descargas read-only; comparativa y otras subcapacidades pendientes) |
+| BLOCKER | PARITY_ACCEPTANCE_PENDING y CURRENT_LIVE_REVALIDATION; no se ejecutan generadores mutables |
 
-LEGACY_073 = PARTIAL_IMPLEMENTED_READ_ONLY_ENTRADAS_SUB_CAPABILITY
+LEGACY_073 = PARTIAL
 
 ### LEGACY-073 forensic focalizado y subcapacidad implementada
 
@@ -386,14 +387,14 @@ Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 | SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_PHYSICAL_GRAIN |
 | VISIBLE_FIELDS_MAPPED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | PARTIAL_CONFIRMED |
 | PARITY_FILTER_CONTRACT | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
-| READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | YES_FOR_ENTRADAS |
+| READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS |
 | QUERY_MUTABLE_PRECONDITION_REQUIRED | YES | YES | YES | YES | NO |
 | DATA_FRESHNESS_MUTABLE_DEPENDENCY | YES | YES | YES | YES | YES |
 | NO_GENERATION_REQUIRED_FOR_READ | NO | NO_OR_UNKNOWN | NO | NO_FOR_TXT / UNKNOWN_FOR_READONLY_XLSX | YES_FOR_EXISTING_PERSISTED_ROWS |
-| Implementable ahora | NO | NO | NO | NO | YES_FOR_ENTRADAS_PARTIAL |
+| Implementable ahora | NO | NO | NO | NO | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS_PARTIAL |
 ### Conclusion del bloque
 
-De las cinco capacidades de Anexo 30, solo la subcapacidad entradas de LEGACY-073 cumple el gate tecnico en esta sesion y queda implementada como read-only (SP + endpoint + frontend + SQL IT). Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (descargas, trazo, comparativa, vencimientos) mantienen el bloqueo: el ciclo de vida de las tablas A31_DESCARGAS/A31_TRAZO/A31_COMPARATIVADESCARGA/DIFERENCIASA31 depende de la ultima corrida de los generadores, lo que no se demuestra sin CURRENT_LIVE_REVALIDATION. Para revisarlas se requeriria:
+LEGACY-073 implementa como read-only las subcapacidades entradas, fracciones y descargas (SP + endpoint + frontend + SQL IT). Descargas lee el ultimo snapshot persistido y no ejecuta recalculo. Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (descargas, trazo, comparativa, vencimientos) mantienen el bloqueo: el ciclo de vida de las tablas A31_DESCARGAS/A31_TRAZO/A31_COMPARATIVADESCARGA/DIFERENCIASA31 depende de la ultima corrida de los generadores, lo que no se demuestra sin CURRENT_LIVE_REVALIDATION. Para revisarlas se requeriria:
 
 - OBJECT_DEFINITION en vivo de las tablas o vistas A31 snapshot.
 - Demostracion de que las tablas A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA y DIFERENCIASA31 son consultables sin regeneracion.
@@ -406,7 +407,7 @@ ANNUAL_ADJUSTMENT_DISCOVERY_CORRECTED = YES
 ANEXO30_DISCOVERY_COMPLETE = YES
 READY_FOR_NEXT_IMPLEMENTATION = NO (capacidad recien implementada requiere CI verde y revision del controlador antes de continuar)
 READY_FOR_NEXT_DISCOVERY = YES
-NEW_QUERY_SP = 1 (APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR)
+NEW_QUERY_SP = 3 (APP24_Q_ANEXO30_REVISION_ENTRADAS_LISTAR, APP24_Q_ANEXO30_REVISION_FRACCIONES_LISTAR, APP24_Q_ANEXO30_REVISION_DESCARGAS_LISTAR)
 NEW_BUSINESS_SP = 0
 INLINE_BUSINESS_SQL_JAVA = 0
 LIVE reads = 0
@@ -423,7 +424,7 @@ LEGACY_069 = BLOCKED_MUTABLE_BY_DESIGN
 LEGACY_070 = BLOCKED_BY_MUTABLE_GENERATORS
 LEGACY_071 = BLOCKED_WORKTABLE_LIFECYCLE
 LEGACY_072 = BLOCKED_NO_READONLY_DATASET
-LEGACY_073 = PARTIAL_IMPLEMENTED_READ_ONLY_ENTRADAS_SUB_CAPABILITY
+LEGACY_073 = PARTIAL
 
 
 ### LEGACY-073 — extensión read-only: fracciones y descargas

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
@@ -13,6 +13,7 @@ interface PageInternals {
   selectedType: { set(value: string): void };
   generate(): void;
   hasGenerated(): boolean;
+  changePage(event: { pageIndex: number; pageSize: number; length: number }): void;
 }
 
 const fila: ReportRow = {
@@ -144,6 +145,43 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
     internals.selectedType.set('entradas'); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).not.toBeNull();
+  });
+
+  it.each(['anexo30-revision-fracciones', 'anexo30-revision-descargas'] as const)('muestra loading, éxito y vacío para %s', (type) => {
+    const pending = new Subject<ReportPage>();
+    search.execute.mockReturnValueOnce(pending);
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('input[name=filter]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Generando reporte"]')).not.toBeNull();
+    pending.next({ items: [fila], total: 1, page: 1, pageSize: 20 }); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[aria-label="Generando reporte"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('tbody tr')).not.toBeNull();
+    search.execute.mockReturnValueOnce(of({ items: [], total: 0, page: 1, pageSize: 20 }));
+    internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No se encontraron resultados');
+  });
+
+  it.each(['anexo30-revision-fracciones', 'anexo30-revision-descargas'] as const)('muestra error y reintenta %s', (type) => {
+    search.execute.mockReturnValueOnce(throwError(() => new Error('fallo'))).mockReturnValueOnce(of(pagina));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges(); internals.generate(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No pudimos generar el reporte');
+    const retry = (Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[]).find((button) => button.textContent?.includes('Reintentar')) as HTMLButtonElement;
+    retry.click(); fixture.detectChanges();
+    expect(search.execute).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).not.toContain('No pudimos generar el reporte');
+  });
+
+  it.each(['anexo30-revision-fracciones', 'anexo30-revision-descargas'] as const)('pagina %s conservando filtro técnico', (type) => {
+    search.execute.mockReturnValue(of({ items: [fila], total: 45, page: 1, pageSize: 20 }));
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.selectedType.set(type); fixture.detectChanges();
+    const filter = fixture.nativeElement.querySelector('input[name=filter]') as HTMLInputElement; filter.value = 'A31'; filter.dispatchEvent(new Event('input'));
+    internals.generate(); internals.changePage({ pageIndex: 1, pageSize: 20, length: 45 }); fixture.detectChanges();
+    expect(search.execute).toHaveBeenLastCalledWith(expect.objectContaining({ type, filter: 'A31', page: 2, pageSize: 20, from: '', to: '' }));
   });
 
 });

@@ -220,7 +220,7 @@ class RuntimeIdentityDeploymentScriptsIT {
         aplicar05();
         assertEquals(CALE_SP.length, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
         assertEquals(55, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
-        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=33 APP=55");
+        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=" + CALE_SP.length + " APP=55");
     }
 
     @Test
@@ -470,7 +470,7 @@ class RuntimeIdentityDeploymentScriptsIT {
             ejecutar(cale, "CREATE TABLE dbo.lp_ddl_probe (id INT)");
             ejecutar(cale, "CREATE PROCEDURE dbo.LEGACY_DANGEROUS_SP AS BEGIN SET NOCOUNT ON; SELECT 1 AS operacion; END");
             ejecutar(cale, "DECLARE @n SYSNAME;"
-                    + " DECLARE cur CURSOR LOCAL FAST_FORWARD FOR SELECT name FROM (VALUES " + listaSql(CALE_SP) + ") v(name);"
+                    + " DECLARE cur CURSOR LOCAL FAST_FORWARD FOR SELECT name FROM (VALUES " + listaSql(CALE_SP) + ") v(name) WHERE name <> 'APP24_C_PEDIMENTO_CONFIRMAR';"
                     + " OPEN cur; FETCH NEXT FROM cur INTO @n;"
                     + " WHILE @@FETCH_STATUS = 0 BEGIN"
                     + "   EXEC(N'CREATE PROCEDURE dbo.' + @n + N' AS BEGIN SET NOCOUNT ON; SELECT 1 AS dummy; END');"
