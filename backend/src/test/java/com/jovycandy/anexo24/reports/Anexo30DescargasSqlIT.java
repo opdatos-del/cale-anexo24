@@ -51,8 +51,8 @@ class Anexo30DescargasSqlIT {
         Resultado resultado=listar(null,1,20);
         assertEquals(List.of("DESCARGA_KEY","ENTRADA_KEY","A31_FRACCION_KEY","PEDIMENTO","PEDIMENTO_ORIGINAL","FECHA_ENTRADA","CLAVE_PEDIMENTO_ENTRADA","FRACCION_ENTRADA","VALOR_COMERCIAL_ENTRADA","SALDO_PERSISTIDO_A31","ESAF","PARTIDA","FRACCION_DESCARGA","VALOR_DESCARGADO","TIPO_A31","CLAVE_PEDIMENTO_A31","EJERCICIO","PERIODO","FRACCION_A31","VALOR_A31","AF","ARCHIVO"),resultado.columnas());
         assertEquals(8,resultado.total());
-        assertEquals(2,resultado.filas().stream().filter(f->Long.valueOf(1).equals(((Number)f.get("ENTRADA_KEY")).longValue())).count());
-        assertEquals(3,resultado.filas().stream().filter(f->Long.valueOf(1).equals(((Number)f.get("A31_FRACCION_KEY")).longValue())).count());
+        assertEquals(2,resultado.filas().stream().filter(f->f.get("ENTRADA_KEY") instanceof Number entrada && entrada.longValue() == 1).count());
+        assertEquals(3,resultado.filas().stream().filter(f->f.get("A31_FRACCION_KEY") instanceof Number fraccion && fraccion.longValue() == 1).count());
         assertEquals(new BigDecimal("10.0000"),fila(resultado,"D-UNO").get("VALOR_DESCARGADO"));
     }
 
