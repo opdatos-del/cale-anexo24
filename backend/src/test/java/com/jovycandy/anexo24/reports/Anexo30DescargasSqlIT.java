@@ -20,7 +20,11 @@ class Anexo30DescargasSqlIT {
 
     @BeforeAll static void iniciar() throws Exception {
         disponible = DockerClientFactory.instance().isDockerAvailable();
-        Assumptions.assumeTrue(disponible, "Docker no disponible localmente"); SQL.start();
+        if (!disponible && "true".equalsIgnoreCase(System.getenv("CI"))) {
+            throw new IllegalStateException("Docker no disponible en CI: los tests SQL de reportes son obligatorios (CI_SQL_GATE_REQUIRED).");
+        }
+        Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite la prueba SQL.");
+        SQL.start();
         try(Connection c=conectar("master"); Statement s=c.createStatement()){s.execute("CREATE DATABASE "+DB);}
         try(Connection c=conectar(DB); Statement s=c.createStatement()) {
             s.execute("CREATE TABLE dbo.A31_ENTRADAS(Entradaskey BIGINT IDENTITY PRIMARY KEY,Descarga varchar(5) NULL,Tipooperacion varchar(2) NULL,Pedimentoarmado varchar(30) NULL,Fecha datetime NULL,Fracccion varchar(10) NULL,Valocomercial numeric(18,4) NULL,Clavepedimento varchar(5) NULL,IVAFP21 numeric(18,4) NULL,IVAFP22 numeric(18,4) NULL,SALDO numeric(18,4) NULL,PEDIMENTOORIGINAL varchar(30) NULL,FECHAORIGINAL datetime NULL,ESAF varchar(5) NULL,OPERACION bigint NULL,PARTIDA varchar(10) NULL)");

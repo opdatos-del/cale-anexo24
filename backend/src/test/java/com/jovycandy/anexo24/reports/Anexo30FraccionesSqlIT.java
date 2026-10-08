@@ -20,7 +20,10 @@ class Anexo30FraccionesSqlIT {
 
     @BeforeAll static void iniciar() throws Exception {
         disponible = DockerClientFactory.instance().isDockerAvailable();
-        Assumptions.assumeTrue(disponible, "Docker no disponible localmente");
+        if (!disponible && "true".equalsIgnoreCase(System.getenv("CI"))) {
+            throw new IllegalStateException("Docker no disponible en CI: los tests SQL de reportes son obligatorios (CI_SQL_GATE_REQUIRED).");
+        }
+        Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite la prueba SQL.");
         SQL.start();
         try (Connection c = conectar("master"); Statement s = c.createStatement()) { s.execute("CREATE DATABASE " + DB); }
         try (Connection c = conectar(DB); Statement s = c.createStatement()) {

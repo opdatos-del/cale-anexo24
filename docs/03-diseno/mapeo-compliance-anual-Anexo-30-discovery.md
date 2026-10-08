@@ -312,7 +312,7 @@ LEGACY_073 = PARTIAL
 - A31_DESCARGAS.A31_FRACCIONLINK -> A31_DESCARGASF.A31_FRACCIONKEY (REFERENCE_CANDIDATE; FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO; EXPECTED_CHILD_TO_PARENT = N:1).
 - A31_TRAZO.A31_FRACCIONKEY -> A31_DESCARGASF.A31_FRACCIONKEY (REFERENCE_CANDIDATE; FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO; EXPECTED_CHILD_TO_PARENT = N:1).
 
-No se declaran constraints FK en la fuente. La aplicacion NO debe inferir cardinalidad contractual ni joins multiplicativos hasta revalidacion LIVE / paridad audit. Estos joins solo se usan para describir el contrato JOIN de la subcapacidad entradas (que actualmente no los requiere).
+No se declaran constraints FK en la fuente. La aplicacion NO debe inferir cardinalidad contractual ni joins multiplicativos hasta revalidacion LIVE / paridad audit. Los enlaces de A31_DESCARGAS se usan por la ruta read-only de descargas mediante LEFT JOIN, preservando enlaces huerfanos y nulos. FK_PHYSICAL = NO; CARDINALITY_ENFORCED = NO.
 
 #### Lifecycle de snapshots (desde writers declarados)
 
@@ -376,15 +376,15 @@ Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 - Frontend: nueva opcion en report-list.page.ts (Revision Anexo 30 - Entradas). API expone 16 campos (ENTRADA_KEY, DESCARGA, TIPO_OPERACION, PEDIMENTO, PEDIMENTO_ORIGINAL, FECHA, FECHA_ORIGINAL, CLAVE_PEDIMENTO, FRACCION, VALOR_COMERCIAL, IVA_FP21, IVA_FP22, SALDO, OPERACION, PARTIDA, ESAF); la tabla Angular renderiza 13 columnas visibles (excluye ENTRADA_KEY, DESCARGA, TIPO_OPERACION porque no fueron observados como etiquetas en la auditoria legacy). Sin XLSX (no demostrado en legacy para revision).
 - Hexagonal: domain/port/adapter/application/query + api/dto + controller. Cero SQL de negocio inline en Java.
 - LIVE_ACTIVATION_PENDING = YES: el SP no se despliega en LIVE en este commit; queda versionado para que el controlador lo aplique cuando se revalide el acceso a CALE_IMMEX.
-- Resto de LEGACY-073 (descargas, trazo, comparativa, vencimientos): mantienen el blocker original; este commit solo cubre la subcapacidad entradas.
+- Entradas, fracciones y descargas cuentan con una ruta read-only implementada. Trazo, comparativa, vencimientos y cualquier mapeo legacy no confirmado permanecen pendientes. FRACCIONES_PARITY_MAPPING = NOT_CONFIRMED; descargas representa unicamente el ultimo snapshot persistido.
 
 ### Gate por capacidad (069..073)
 
 | Requisito | LEGACY-069 | LEGACY-070 | LEGACY-071 | LEGACY-072 | LEGACY-073 |
 |---|---|---|---|---|---|
 | SCREEN_CONTRACT_CONFIRMED | PARTIAL | PARTIAL | PARTIAL | PARTIAL | PARTIAL |
-| SOURCE_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_FROM_PROJECT_SQL_DUMP |
-| SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_PHYSICAL_GRAIN |
+| SOURCE_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS_FROM_PROJECT_SQL_DUMP |
+| SOURCE_GRAIN_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS_PHYSICAL_GRAIN |
 | VISIBLE_FIELDS_MAPPED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | PARTIAL_CONFIRMED |
 | PARITY_FILTER_CONTRACT | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED | NOT_CONFIRMED |
 | READ_ONLY_PATH_CONFIRMED | NO (no SP read-only equivalente) | NO | NO | NO | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS |
@@ -394,7 +394,7 @@ Conjunto: PARITY_FIELD_MAPPING = PARTIAL_CONFIRMED.
 | Implementable ahora | NO | NO | NO | NO | YES_FOR_ENTRADAS_FRACCIONES_DESCARGAS_PARTIAL |
 ### Conclusion del bloque
 
-LEGACY-073 implementa como read-only las subcapacidades entradas, fracciones y descargas (SP + endpoint + frontend + SQL IT). Descargas lee el ultimo snapshot persistido y no ejecuta recalculo. Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (descargas, trazo, comparativa, vencimientos) mantienen el bloqueo: el ciclo de vida de las tablas A31_DESCARGAS/A31_TRAZO/A31_COMPARATIVADESCARGA/DIFERENCIASA31 depende de la ultima corrida de los generadores, lo que no se demuestra sin CURRENT_LIVE_REVALIDATION. Para revisarlas se requeriria:
+LEGACY-073 implementa como read-only las subcapacidades entradas, fracciones y descargas (SP + endpoint + frontend + SQL IT). Descargas lee unicamente el ultimo snapshot persistido y no ejecuta recalculo. Las capacidades 069-072 siguen bloqueadas por la naturaleza mutable de sus SPs. Las subcapacidades restantes de LEGACY-073 (trazo, comparativa, vencimientos y otros mapeos legacy aun no confirmados) permanecen pendientes; su ciclo de vida y paridad requieren evidencia adicional sin ejecutar generadores. Para revisarlas se requeriria:
 
 - OBJECT_DEFINITION en vivo de las tablas o vistas A31 snapshot.
 - Demostracion de que las tablas A31_ENTRADAS, A31_DESCARGAS, A31_TRAZO, A31_COMPARATIVADESCARGA y DIFERENCIASA31 son consultables sin regeneracion.
