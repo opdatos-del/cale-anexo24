@@ -55,9 +55,9 @@ class RectificacionesDetalleSqlIT {
         }
         try (Connection c = conectar(DB); Statement s = c.createStatement()) {
             s.execute("CREATE TABLE dbo.v_rectificaciones ("
-                    + "[Pedimento] VARCHAR(30) NULL, [Clave Pedimento] VARCHAR(5) NULL, [Descarga] VARCHAR(5) NULL,"
-                    + "[Pedimento Original] VARCHAR(30) NULL, [Existe Pedimento] VARCHAR(5) NULL,"
-                    + "[Clave Pedimento Original] VARCHAR(5) NULL, [Descarga Original] VARCHAR(5) NULL, [Status] VARCHAR(30) NULL)");
+                    + "[Pedimento] VARCHAR(60) NULL, [Clave Pedimento] VARCHAR(5) NULL, [Descarga] VARCHAR(2) NULL,"
+                    + "[Pedimento Original] VARCHAR(20) NULL, [Existe Pedimento] VARCHAR(10) NOT NULL,"
+                    + "[Clave Pedimento Original] VARCHAR(5) NOT NULL, [Descarga Original] VARCHAR(2) NOT NULL, [Status] VARCHAR(23) NOT NULL)");
             aplicarArchivo(c, rutaSql());
         }
     }
@@ -74,7 +74,7 @@ class RectificacionesDetalleSqlIT {
             // Insertadas fuera de orden a propósito: el orden lo impone el wrapper.
             s.execute("INSERT dbo.v_rectificaciones VALUES "
                     + "('P-0004','C3','D3','P-0005','NO','C9','D3','" + STATUS_LEGACY + "'),"
-                    + "('P-0006','D4',NULL,'P-0007',NULL,NULL,NULL,NULL),"
+                    + "('P-0006','D4',NULL,'P-0007','','','',''),"
                     + "('P-0003','A1','D1','P-0001','SI','A1','D1','" + STATUS_LEGACY + "'),"
                     + "('P-0002','B2','D2','P-0001','SI','A1','D9','')");
         }
@@ -113,11 +113,12 @@ class RectificacionesDetalleSqlIT {
     }
 
     @Test
-    void preservaNulos() throws Exception {
+    void preservaNuloDeDescargaYVaciosLegacyParaRelacionNoEncontrada() throws Exception {
         Map<String, Object> fila = listar("P-0007", 1, 20).filas().getFirst();
         assertEquals("P-0006", fila.get("PEDIMENTO"));
-        for (String columna : List.of("DESCARGA", "EXISTE_PEDIMENTO", "CLAVE_PEDIMENTO_ORIGINAL", "DESCARGA_ORIGINAL", "STATUS")) {
-            assertNull(fila.get(columna), columna);
+        assertNull(fila.get("DESCARGA"));
+        for (String columna : List.of("EXISTE_PEDIMENTO", "CLAVE_PEDIMENTO_ORIGINAL", "DESCARGA_ORIGINAL", "STATUS")) {
+            assertEquals("", fila.get(columna), columna);
         }
     }
 

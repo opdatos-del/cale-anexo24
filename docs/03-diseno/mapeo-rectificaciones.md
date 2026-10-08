@@ -2,8 +2,8 @@
 
 ## Alcance y seguridad
 
-La V1 implementa únicamente la consulta paginada y filtrable del resumen
-read-only de rectificaciones. No implementa alta, aplicación, confirmación,
+La V1 implementa consultas paginadas y filtrables read-only del resumen y
+el detalle de rectificaciones. No implementa alta, aplicación, confirmación,
 procesamiento, ajuste de pedimentos ni exportación XLSX.
 
 La auditoría LIVE se realizó sobre metadata, definiciones, dependencias y
@@ -12,7 +12,7 @@ mutables ni se escribieron tablas de negocio.
 
 ```text
 RECTIFICATIONS_SUMMARY_CONTRACT = CONFIRMED
-RECTIFICATIONS_DETAIL_CONTRACT = NOT_IMPLEMENTED / DATASET_EMPTY
+RECTIFICATIONS_DETAIL_CONTRACT = IMPLEMENTED_READ_ONLY
 RECTIFICATION_VIEW_RELATION = PARTIAL
 ```
 
@@ -53,9 +53,9 @@ proyección distinta de pedimentos y calcula el agregado de relaciones.
 | `Descarga Original` | `varchar(2)` | No | Descarga encontrada para el pedimento original | `PARTIAL` |
 | `Status` | `varchar(23)` | No | Advertencia cuando descarga y descarga original coinciden | `CONFIRMED_MEANING` |
 
-El detalle tuvo `0` filas LIVE durante la auditoría. Sus columnas se conservan
-como evidencia, pero no se exponen en esta V1 ni se infiere un contrato de
-consulta detalle a partir de un dataset vacío.
+La auditoría previa observó `0` filas LIVE para el detalle. Su contrato
+read-only se implementa desde la definición estática de la vista; esa observación
+no se revalidó en esta feature (LIVE reads = 0).
 
 ## Procedimientos relacionados
 
@@ -97,7 +97,7 @@ filtros necesarios para el resumen.
 - Orden: `Pedimento Original`, `Pedimento`, `Clave Pedimento`, `Clave Pedimento Original`, `Descarga`, `Descarga Original`, `Existe Pedimento`, `Status`.
 - UI: opción `Rectificaciones - detalle` dentro de `/reportes`; reporte textual sin periodo; sin sidebar nuevo ni XLSX.
 - Evidencia LIVE previa: `v_rectificaciones` tenía `0` filas en la auditoría anterior; no se revalidó en esta feature (LIVE reads = 0). Con ese dataset el detalle puede responder vacío.
-- Tipos de columna de la vista: la proyección se lee como texto; el IT usa un fixture `VARCHAR` y no prueba los tipos LIVE reales.
+- Tipos de columna: el fixture SQL IT replica el contrato estático (`VARCHAR(60/5/2/20/10/5/2/23)`) y su nulabilidad; `Descarga` puede ser `NULL`, mientras las cuatro proyecciones de `CASE`/`ISNULL` preservan cadena vacía.
 
 ```text
 RECTIFICATIONS_SUMMARY_READ = IMPLEMENTED
@@ -120,7 +120,7 @@ consolidada y muestra:
 - número de rectificaciones relacionadas;
 - estados de carga, vacío y error mediante la infraestructura existente.
 
-No se agregó ruta ni item de sidebar independiente.
+También expone `Rectificaciones - detalle` como reporte textual sin periodo, con filtro técnico y paginación. No se agregó ruta ni item de sidebar independiente.
 
 ## Reconciliación LIVE
 
