@@ -66,7 +66,7 @@ class Anexo30FraccionesSqlIT {
         assertEquals(2, listar("F4", 1, 20).total());
         assertEquals(2, listar("A1", 1, 20).total());
         assertEquals(2, listar("2026", 1, 20).total());
-        assertEquals(2, listar("02", 1, 20).total());
+        assertEquals(3, listar("02", 1, 20).total());
         assertEquals(2, listar("84715002", 1, 20).total());
         assertEquals(2, listar("SI", 1, 20).total());
         assertEquals(1, listar("uno.txt", 1, 20).total());

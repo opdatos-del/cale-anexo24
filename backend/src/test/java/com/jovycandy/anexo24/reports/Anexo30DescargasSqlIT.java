@@ -43,7 +43,7 @@ class Anexo30DescargasSqlIT {
                 + "('F4','C3','2024','11','33333333',300.0000,'AF3','tres.txt')");
             s.execute("INSERT dbo.A31_DESCARGAS(ENTRADALINK,FRACCION,VALORDESCARGADO,A31_FRACCIONLINK) VALUES "
                 + "(1,'D-UNO',10.0000,1),(1,'D-UNO-2',20.0000,1),(2,'D-DOS',30.0000,2),(3,'D-TRES',40.0000,3),"
-                + "(999,'98000000',123.4567,998),(NULL,'D-SIN-ENTRADA',50.0000,1),(1,'D-SIN-FRACCION',60.0000,NULL),(NULL,'D-SIN-PADRES',70.0000,NULL)");
+                + "(999,'98000000',123.4567,998),(NULL,'D-SIN-ENT',50.0000,1),(1,'D-SIN-FRA',60.0000,NULL),(NULL,'D-SIN-PAD',70.0000,NULL)");
         }
     }
 
@@ -64,9 +64,9 @@ class Anexo30DescargasSqlIT {
     }
 
     @Test void conservaLinksNulosYProyeccionDePadresNulos() throws Exception {
-        Map<String,Object> sinEntrada=fila(listar("D-SIN-ENTRADA",1,20),"D-SIN-ENTRADA");
-        Map<String,Object> sinFraccion=fila(listar("D-SIN-FRACCION",1,20),"D-SIN-FRACCION");
-        Map<String,Object> sinPadres=fila(listar("D-SIN-PADRES",1,20),"D-SIN-PADRES");
+        Map<String,Object> sinEntrada=fila(listar("D-SIN-ENT",1,20),"D-SIN-ENT");
+        Map<String,Object> sinFraccion=fila(listar("D-SIN-FRA",1,20),"D-SIN-FRA");
+        Map<String,Object> sinPadres=fila(listar("D-SIN-PAD",1,20),"D-SIN-PAD");
         assertNull(sinEntrada.get("PEDIMENTO")); assertEquals("uno.txt",sinEntrada.get("ARCHIVO"));
         assertEquals("PED-UNO",sinFraccion.get("PEDIMENTO")); assertNull(sinFraccion.get("ARCHIVO"));
         assertNull(sinPadres.get("PEDIMENTO")); assertNull(sinPadres.get("ARCHIVO"));
