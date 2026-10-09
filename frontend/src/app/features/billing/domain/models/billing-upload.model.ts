@@ -45,3 +45,15 @@ export interface BillingTemplate {
   hoja: string;
   columnas: BillingTemplateColumn[];
 }
+
+export interface BillingLoadDetail {
+  id: number;
+  archivo: string;
+  hash: string;
+  estado: BillingLoadStatus;
+  totalRegistros: number;
+  registrosValidos: number;
+  registrosInvalidos: number;
+  preview: { filas: Record<string, string | null>[]; pagina: number; tamano: number };
+  errores: BillingValidationError[];
+}

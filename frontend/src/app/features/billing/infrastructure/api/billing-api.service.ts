@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
+import { BillingLoadDetail, BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
 
 @Injectable({ providedIn: 'root' })
 export class BillingApiService {
@@ -15,8 +15,8 @@ export class BillingApiService {
     return this.http.get('/api/v1/facturacion/plantilla/archivo', { responseType: 'blob' });
   }
 
-  load(id: number, pagina = 1, tamano = 100): Observable<unknown> {
-    return this.http.get(`/api/v1/facturacion/cargas/${id}`, { params: { pagina, tamano } });
+  load(id: number, pagina = 1, tamano = 100): Observable<BillingLoadDetail> {
+    return this.http.get<BillingLoadDetail>(`/api/v1/facturacion/cargas/${id}`, { params: { pagina, tamano } });
   }
 
   upload(files: File[]): Observable<BillingUploadResponse> {

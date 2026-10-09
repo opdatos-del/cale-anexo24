@@ -1,17 +1,25 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { EMPTY, catchError, finalize } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
-import { BillingLoad, BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
+import { BillingLoad, BillingLoadDetail, BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
 import { BillingApiService } from '@features/billing/infrastructure/api/billing-api.service';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+interface BillingPreviewState {
+  page: number;
+  pageSize: number;
+  loading: boolean;
+  error: string | null;
+}
+
 @Component({
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MatPaginatorModule],
   selector: 'app-billing-upload',
   template: `
     <main class="mx-auto min-h-full w-full max-w-7xl bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
@@ -64,6 +72,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
               @if (load.preview.columnas.length) {
                 <div class="border-t border-slate-100 p-4 sm:px-5"><h4 class="mb-3 mt-0 text-sm font-semibold text-slate-700">Vista previa <span class="font-normal text-slate-400">(hasta las filas devueltas por el servidor)</span></h4>@if (load.preview.filas.length) { <div class="overflow-x-auto rounded-lg border border-slate-200"><table class="w-full min-w-max text-left text-xs"><thead class="bg-slate-50"><tr>@for (column of load.preview.columnas; track column) { <th class="whitespace-nowrap px-3 py-2 font-semibold text-slate-600">{{ column }}</th> }</tr></thead><tbody class="divide-y divide-slate-100">@for (row of load.preview.filas; track $index) { <tr>@for (column of load.preview.columnas; track column) { <td class="max-w-64 whitespace-nowrap px-3 py-2 text-slate-600">{{ row[column] ?? '—' }}</td> }</tr> }</tbody></table></div> } @else { <p class="m-0 text-xs text-slate-500">No hay filas disponibles para mostrar.</p> }</div>
               }
+              @if (pageState(load.id); as state) { @if (load.totalRegistros > state.pageSize) { <mat-paginator class='border-t border-slate-100' [length]='load.totalRegistros' [pageIndex]='state.page - 1' [pageSize]='state.pageSize' [pageSizeOptions]='[25, 50, 100]' showFirstLastButtons aria-label='Paginacion de vista previa' (page)='changePreviewPage(load.id, $event)' /> } @if (state.error) { <div class='m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800' role='alert'>{{ state.error }} <button type='button' class='ml-2 underline' (click)='retryPreviewPage(load.id)'>Reintentar</button></div> } }
               @if (load.errores.length) { <div class="border-t border-slate-100 p-4 sm:px-5"><h4 class="mb-3 mt-0 text-sm font-semibold text-slate-700">Errores de validación</h4><div class="space-y-2">@for (issue of load.errores; track $index) { <div class="rounded-lg border border-red-100 bg-red-50/60 p-3"><p class="m-0 text-sm font-medium text-red-800">{{ issue.mensaje }}</p><p class="mb-0 mt-1 text-xs text-red-700">{{ errorLocation(issue) }} · {{ issue.codigo }}@if (issue.valorEnmascarado) { · Valor: {{ issue.valorEnmascarado }} }</p></div> }</div></div> }
             </article>
           } @empty { <div class="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">La respuesta no contiene cargas.</div> }
@@ -86,6 +95,7 @@ export class BillingUploadPage implements OnInit {
   protected readonly downloadError = signal<string | null>(null);
   protected readonly response = signal<BillingUploadResponse | null>(null);
   protected readonly template = signal<BillingTemplate | null>(null);
+  protected readonly previewStates = signal<Record<number, BillingPreviewState>>({});
   private readonly uploadFiles = inject(UploadBillingFilesUseCase);
   private readonly billingApi = inject(BillingApiService);
 
@@ -133,6 +143,7 @@ export class BillingUploadPage implements OnInit {
     this.selectionMessage.set(null);
     this.error.set(null);
     this.response.set(null);
+    this.previewStates.set({});
   }
 
   protected formatSize(size: number): string {
@@ -151,7 +162,49 @@ export class BillingUploadPage implements OnInit {
         return EMPTY;
       }),
       finalize(() => this.isLoading.set(false)),
-    ).subscribe((result) => this.response.set(result));
+    ).subscribe((result) => {
+      this.response.set(result);
+      this.previewStates.set(Object.fromEntries(result.cargas.map((load) => [load.id, { page: 1, pageSize: 100, loading: false, error: null }])));
+    });
+  }
+
+  protected pageState(id: number): BillingPreviewState {
+    return this.previewStates()[id] ?? { page: 1, pageSize: 100, loading: false, error: null };
+  }
+
+  protected changePreviewPage(id: number, event: PageEvent): void {
+    this.updatePreviewState(id, { page: event.pageIndex + 1, pageSize: event.pageSize, error: null });
+    this.loadPersistedPreview(id);
+  }
+
+  protected retryPreviewPage(id: number): void {
+    this.loadPersistedPreview(id);
+  }
+
+  private loadPersistedPreview(id: number): void {
+    const state = this.pageState(id);
+    if (state.loading) return;
+    this.updatePreviewState(id, { loading: true, error: null });
+    this.billingApi.load(id, state.page, state.pageSize).pipe(finalize(() => this.updatePreviewState(id, { loading: false }))).subscribe({
+      next: (detail) => this.applyDetail(detail),
+      error: (cause: unknown) => this.updatePreviewState(id, { error: userFacingApiError(cause, 'No fue posible cargar esta pagina.') }),
+    });
+  }
+
+  private applyDetail(detail: BillingLoadDetail): void {
+    const current = this.response();
+    if (!current) return;
+    this.response.set({
+      ...current,
+      cargas: current.cargas.map((load) => load.id !== detail.id ? load : {
+        ...load, ...detail,
+        preview: { columnas: load.preview.columnas.length ? load.preview.columnas : Object.keys(detail.preview.filas[0] ?? {}), filas: detail.preview.filas },
+      }),
+    });
+  }
+
+  private updatePreviewState(id: number, changes: Partial<BillingPreviewState>): void {
+    this.previewStates.update((states) => ({ ...states, [id]: { ...this.pageState(id), ...changes } }));
   }
 
   protected statusLabel(status: BillingLoad['estado']): string {

@@ -27,4 +27,11 @@ describe('BillingApiService', () => {
     expect(request.request.headers.has('Content-Type')).toBe(false);
     request.flush({ cargas: [], correlationId: 'test', plantilla: 'FACTURACION:LEGACY-2026-09', confirmacionDisponible: false });
   });
+
+  it('carga detalle tipado con pagina y tamano', () => {
+    service.load(9, 2, 50).subscribe((detail) => expect(detail.preview.pagina).toBe(2));
+    const request = http.expectOne('/api/v1/facturacion/cargas/9?pagina=2&tamano=50');
+    expect(request.request.method).toBe('GET');
+    request.flush({ id: 9, archivo: 'uno.xlsx', hash: 'hash', estado: 'VALIDADA', totalRegistros: 101, registrosValidos: 101, registrosInvalidos: 0, preview: { filas: [], pagina: 2, tamano: 50 }, errores: [] });
+  });
 });
