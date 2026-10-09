@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
@@ -10,6 +11,7 @@ import { SearchMaterialsUseCase } from '@features/catalogs/materials/application
 import { NotificationService } from '@core/notifications/notification.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, serializeCsv } from '@core/export/csv-export';
 
 /**
  * Consulta del catálogo de materiales (RF-010).
@@ -52,6 +54,7 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
             Actualizar
           </button>
           <span class="text-xs text-slate-500" aria-live="polite">{{ totalItems() }} registros encontrados</span>
+          <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="exportCsv()" [disabled]="isLoading() || isExporting() || totalItems() === 0"><mat-icon>download</mat-icon>{{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}</button>
         </div>
 
         @if (isLoading()) {
@@ -126,6 +129,7 @@ export class MaterialListPage implements OnInit {
   protected totalItems = signal(0);
   protected isLoading = signal(false);
   protected error = signal<string | null>(null);
+  protected readonly isExporting = signal(false);
   protected readonly loadingRows = [1, 2, 3, 4, 5];
   protected filter = '';
   protected currentPage = 1;
@@ -153,6 +157,19 @@ export class MaterialListPage implements OnInit {
     this.currentPage = event.pageIndex + 1;
     this.pageSize = event.pageSize;
     this.loadMaterials();
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const filter = this.filter;
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.searchMaterials.execute({ filter, page, pageSize })));
+      if (!rows.length) { this.notifications.info('No hay registros para exportar.'); return; }
+      const csv = serializeCsv(['N° parte', 'Descripción', 'Fracción', 'Unidad', 'UMC', 'Tipo'], rows.map((row) => [row.partNumber, row.description, row.tariffFraction, row.unit, row.umc, row.materialType]));
+      downloadCsv('materiales.csv', csv);
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar los materiales.');
+    } finally { this.isExporting.set(false); }
   }
 
   protected loadMaterials(): void {

@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,6 +9,7 @@ import { MatTableModule } from '@angular/material/table';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, normalizeCsvDate, serializeCsv } from '@core/export/csv-export';
 import { StructureLine } from '@features/catalogs/structures/domain/models/structure-line.model';
 import { SearchStructuresUseCase } from '@features/catalogs/structures/application/use-cases/search-structures.use-case';
 
@@ -45,6 +47,7 @@ import { SearchStructuresUseCase } from '@features/catalogs/structures/applicati
             <mat-icon>refresh</mat-icon> Actualizar
           </button>
           <span class="text-xs text-slate-500" aria-live="polite">{{ totalItems() }} registros encontrados</span>
+          <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="exportCsv()" [disabled]="isLoading() || isExporting() || totalItems() === 0"><mat-icon>download</mat-icon>{{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}</button>
         </div>
 
         @if (isLoading()) {
@@ -116,6 +119,7 @@ export class StructureListPage implements OnInit {
   protected readonly totalItems = signal(0);
   protected readonly isLoading = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly isExporting = signal(false);
   protected readonly loadingRows = [1, 2, 3, 4, 5];
   protected product = '';
   protected material = '';
@@ -157,6 +161,20 @@ export class StructureListPage implements OnInit {
   protected formatQuantity(value: number | string): string {
     if (typeof value === 'string') return value;
     return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 20 }).format(value);
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const product = this.product;
+    const material = this.material;
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.searchStructures.execute({ product, material, page, pageSize })));
+      if (!rows.length) { this.notifications.info('No hay registros para exportar.'); return; }
+      const csv = serializeCsv(['Producto', 'Descripción producto', 'Unidad producto', 'Inicio', 'Fin', 'Material', 'Descripción material', 'Unidad material', 'Fracción material', 'Incorporada', 'Merma', 'Desperdicio'], rows.map((row) => [row.productCode, row.productDescription, row.productUnit, normalizeCsvDate(row.startDate), normalizeCsvDate(row.endDate), row.materialCode, row.materialDescription, row.materialUnit, row.materialTariffFraction, row.incorporatedQuantity, row.wasteQuantity, row.scrapQuantity]));
+      downloadCsv('estructuras.csv', csv);
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar las estructuras.');
+    } finally { this.isExporting.set(false); }
   }
 
   protected loadStructures(): void {

@@ -6,8 +6,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, serializeCsv } from '@core/export/csv-export';
 import { NotificationService } from '@core/notifications/notification.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { SearchAuxiliaryCatalogUseCase } from '@features/catalogs/auxiliary/application/use-cases/search-auxiliary-catalog.use-case';
@@ -69,6 +70,7 @@ interface CatalogOption {
         <div class="mb-4 flex flex-wrap items-center gap-3">
           <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="loadCatalog()"><mat-icon>refresh</mat-icon>Actualizar</button>
           <span class="text-xs text-slate-500" aria-live="polite">{{ totalItems() }} registros encontrados</span>
+          <button mat-stroked-button type="button" class="h-10 rounded-xl!" (click)="exportCsv()" [disabled]="isLoading() || isExporting() || totalItems() === 0"><mat-icon>download</mat-icon>{{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}</button>
         </div>
 
         @if (isLoading()) {
@@ -128,6 +130,7 @@ export class AuxiliaryCatalogsPage implements OnInit {
   protected readonly totalItems = signal(0);
   protected readonly isLoading = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly isExporting = signal(false);
   protected readonly displayedColumns = computed(() => {
     switch (this.selectedCatalog()) {
       case 'units': return ['code', 'name', 'alias'];
@@ -174,6 +177,35 @@ export class AuxiliaryCatalogsPage implements OnInit {
     this.currentPage = event.pageIndex + 1;
     this.pageSize = event.pageSize;
     this.loadCatalog();
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const catalog = this.selectedCatalog();
+    const filter = this.filter;
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.queryFor(catalog, { filter, page, pageSize })));
+      if (!rows.length) { this.notifications.info('No hay registros para exportar.'); return; }
+      const config: Record<AuxiliaryCatalogKey, { filename: string; headers: string[]; values: (row: AuxiliaryTableRow) => (string | number | null | undefined)[] }> = {
+        units: { filename: 'catalogo-unidades.csv', headers: ['Clave', 'Nombre', 'Alias'], values: (row) => [row.code, row.name, row.alias] },
+        materialTypes: { filename: 'catalogo-tipos-material.csv', headers: ['Tipo de material'], values: (row) => [row.name] },
+        warehouses: { filename: 'catalogo-almacenes.csv', headers: ['Id', 'Clave', 'Descripción'], values: (row) => [row.id, row.code, row.description] },
+        categories: { filename: 'catalogo-categorias.csv', headers: ['Clave', 'Descripción', 'Días válidos', 'Meses'], values: (row) => [row.code, row.description, row.validDays, row.months] },
+      };
+      const selectedConfig = config[catalog];
+      downloadCsv(selectedConfig.filename, serializeCsv(selectedConfig.headers, rows.map(selectedConfig.values)));
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar el catálogo auxiliar.');
+    } finally { this.isExporting.set(false); }
+  }
+
+  private queryFor(catalog: AuxiliaryCatalogKey, criteria: AuxiliarySearchCriteria): Observable<AuxiliaryPage> {
+    switch (catalog) {
+      case 'units': return this.searchCatalog.units(criteria);
+      case 'materialTypes': return this.searchCatalog.materialTypes(criteria);
+      case 'warehouses': return this.searchCatalog.warehouses(criteria);
+      case 'categories': return this.searchCatalog.categories(criteria);
+    }
   }
 
   protected loadCatalog(): void {
