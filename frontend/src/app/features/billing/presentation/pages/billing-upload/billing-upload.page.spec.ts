@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { appConfig } from '@app/app.config';
 import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
 import { BillingRepository } from '@features/billing/domain/repositories/billing.repository';
-import { BillingTemplate } from '@features/billing/domain/models/billing-upload.model';
+import { BillingPersistedLoadStatus, BillingTemplate } from '@features/billing/domain/models/billing-upload.model';
 import { BillingApiService } from '@features/billing/infrastructure/api/billing-api.service';
 import { HttpBillingRepository } from '@features/billing/infrastructure/repositories/http-billing.repository';
 import { BillingUploadPage } from './billing-upload.page';
@@ -125,17 +125,25 @@ describe('BillingUploadPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Descargando');
   });
 
-  it('pagina una carga sin alterar las otras cargas del lote', () => {
-    const detail = { id: 1, archivo: 'uno.xlsx', hash: 'a', estado: 'VALIDADA' as const, totalRegistros: 101, registrosValidos: 101, registrosInvalidos: 0, preview: { filas: [{ Documento: 'B' }], pagina: 2, tamano: 50 }, errores: [] };
+  it.each([
+    { initialStatus: 'VALIDADA' as const, persistedStatus: 'PREVISUALIZADA' as BillingPersistedLoadStatus, label: 'Validada' },
+    { initialStatus: 'CON_ERRORES' as const, persistedStatus: 'INVALIDA' as BillingPersistedLoadStatus, label: 'Con errores' },
+    { initialStatus: 'FALLIDA' as const, persistedStatus: 'INVALIDA' as BillingPersistedLoadStatus, label: 'Fallida' },
+  ])('preserva estado de presentación $initialStatus ante estado persistido $persistedStatus', ({ initialStatus, persistedStatus, label }) => {
+    const detail = { id: 1, archivo: 'uno.xlsx', hash: 'a', estado: persistedStatus, totalRegistros: 101, registrosValidos: 101, registrosInvalidos: 0, preview: { filas: [{ Documento: 'B' }], pagina: 2, tamano: 50 }, errores: [] };
     const { fixture, billingApi } = configurePage({ load: vi.fn(() => of(detail)) });
-    const page = fixture.componentInstance as unknown as { response: { set(value: unknown): void }; previewStates: { set(value: unknown): void; (): Record<number, { page: number; pageSize: number }> }; changePreviewPage(id: number, event: { pageIndex: number; pageSize: number }): void };
+    const page = fixture.componentInstance as unknown as { response: { set(value: unknown): void; (): { cargas: { estado: string }[] } }; previewStates: { set(value: unknown): void; (): Record<number, { page: number; pageSize: number }> }; changePreviewPage(id: number, event: { pageIndex: number; pageSize: number }): void };
     page.response.set({ correlationId: 'corr', plantilla: 'FACTURACION:V1', confirmacionDisponible: false, cargas: [
-      { ...detail, preview: { columnas: ['Documento'], filas: [{ Documento: 'A' }] } },
-      { ...detail, id: 2, archivo: 'dos.xlsx', preview: { columnas: ['Documento'], filas: [{ Documento: 'C' }] } },
+      { ...detail, estado: initialStatus, preview: { columnas: ['Documento'], filas: [{ Documento: 'A' }] } },
     ] });
-    page.previewStates.set({ 1: { page: 1, pageSize: 100, loading: false, error: null }, 2: { page: 1, pageSize: 100, loading: false, error: null } });
+    page.previewStates.set({ 1: { page: 1, pageSize: 100, loading: false, error: null } });
+
     page.changePreviewPage(1, { pageIndex: 1, pageSize: 50 });
+    fixture.detectChanges();
+
     expect(billingApi.load).toHaveBeenCalledWith(1, 2, 50);
-    expect(page.previewStates()[2]).toMatchObject({ page: 1, pageSize: 100 });
+    expect(page.response().cargas[0].estado).toBe(initialStatus);
+    expect(fixture.nativeElement.textContent).toContain(label);
   });
+
 });

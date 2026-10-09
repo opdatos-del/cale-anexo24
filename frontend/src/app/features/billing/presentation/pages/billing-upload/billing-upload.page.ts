@@ -197,7 +197,13 @@ export class BillingUploadPage implements OnInit {
     this.response.set({
       ...current,
       cargas: current.cargas.map((load) => load.id !== detail.id ? load : {
-        ...load, ...detail,
+        ...load,
+        archivo: detail.archivo,
+        hash: detail.hash,
+        totalRegistros: detail.totalRegistros,
+        registrosValidos: detail.registrosValidos,
+        registrosInvalidos: detail.registrosInvalidos,
+        errores: detail.errores,
         preview: { columnas: load.preview.columnas.length ? load.preview.columnas : Object.keys(detail.preview.filas[0] ?? {}), filas: detail.preview.filas },
       }),
     });

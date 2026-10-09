@@ -32,6 +32,6 @@ describe('BillingApiService', () => {
     service.load(9, 2, 50).subscribe((detail) => expect(detail.preview.pagina).toBe(2));
     const request = http.expectOne('/api/v1/facturacion/cargas/9?pagina=2&tamano=50');
     expect(request.request.method).toBe('GET');
-    request.flush({ id: 9, archivo: 'uno.xlsx', hash: 'hash', estado: 'VALIDADA', totalRegistros: 101, registrosValidos: 101, registrosInvalidos: 0, preview: { filas: [], pagina: 2, tamano: 50 }, errores: [] });
+    request.flush({ id: 9, archivo: 'uno.xlsx', hash: 'hash', estado: 'PREVISUALIZADA', totalRegistros: 101, registrosValidos: 101, registrosInvalidos: 0, preview: { filas: [], pagina: 2, tamano: 50 }, errores: [] });
   });
 });

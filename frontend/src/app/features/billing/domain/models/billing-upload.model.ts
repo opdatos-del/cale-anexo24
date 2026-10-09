@@ -1,5 +1,8 @@
 export type BillingLoadStatus = 'VALIDADA' | 'CON_ERRORES' | 'FALLIDA';
 
+// Estado de presentación derivado durante la carga.
+export type BillingPersistedLoadStatus = 'PREVISUALIZADA' | 'INVALIDA';
+
 export interface BillingValidationError {
   hoja: string | null;
   fila: number | null;
@@ -50,7 +53,7 @@ export interface BillingLoadDetail {
   id: number;
   archivo: string;
   hash: string;
-  estado: BillingLoadStatus;
+  estado: BillingPersistedLoadStatus;
   totalRegistros: number;
   registrosValidos: number;
   registrosInvalidos: number;
