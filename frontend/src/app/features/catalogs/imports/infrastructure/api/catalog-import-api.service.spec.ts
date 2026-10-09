@@ -125,4 +125,41 @@ describe('CatalogImportApiService', () => {
     request.flush({ cargaId: 19, estado: 'CONFIRMADA', totalFilas: 1, filasValidas: 1, filasConError: 0, confirmadaEn: '2026-10-05T12:00:00' });
     http.verify();
   });
+
+
+  it.each([
+    ['MATERIAL', 'materiales'],
+    ['PRODUCTO', 'productos'],
+    ['CLIENTE', 'clientes'],
+    ['PROVEEDOR', 'proveedores'],
+    ['AGENTE', 'agentes'],
+  ])('obtiene preview paginado de %s', (type, endpoint) => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.get(type as never, 9, 2, 50).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/' + endpoint + '/9?pagina=2&tamano=50');
+    expect(request.request.method).toBe('GET');
+    request.flush({});
+    http.verify();
+  });
+
+  it.each([
+    ['MATERIAL', 'materiales'],
+    ['PRODUCTO', 'productos'],
+    ['CLIENTE', 'clientes'],
+    ['PROVEEDOR', 'proveedores'],
+    ['AGENTE', 'agentes'],
+  ])('obtiene errores paginados de %s', (type, endpoint) => {
+    TestBed.configureTestingModule({ providers: [CatalogImportApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(CatalogImportApiService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.getErrors(type as never, 9, 3, 100).subscribe();
+    const request = http.expectOne('/api/v1/catalogos/importaciones/' + endpoint + '/9/errores?pagina=3&tamano=100');
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+    http.verify();
+  });
 });

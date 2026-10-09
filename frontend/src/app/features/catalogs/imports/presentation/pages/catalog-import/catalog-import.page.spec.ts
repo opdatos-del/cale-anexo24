@@ -10,6 +10,8 @@ import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/ap
 import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
 import { ConfirmCatalogAgentImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-agent-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
+import { GetCatalogImportPreviewUseCase } from '@features/catalogs/imports/application/use-cases/get-catalog-import-preview.use-case';
+import { CatalogImportErrorCsvService } from '@features/catalogs/imports/application/catalog-import-error-csv.service';
 import { CatalogImportResponse, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { CatalogImportPage } from './catalog-import.page';
 
@@ -114,11 +116,16 @@ interface PageHarness {
   isConfirming: () => boolean;
   type: () => string;
   requestConfirmation(): void;
+  changePreviewPage(event: { pageIndex: number; pageSize: number }): void;
+  downloadErrors(): void;
+  selectType(type: string): void;
 }
 
 function configure(options: {
   permissions?: string[];
   upload?: ReturnType<typeof vi.fn>;
+  preview?: ReturnType<typeof vi.fn>;
+  errorDownload?: ReturnType<typeof vi.fn>;
   confirmMaterial?: ReturnType<typeof vi.fn>;
   confirmProduct?: ReturnType<typeof vi.fn>;
   confirmClient?: ReturnType<typeof vi.fn>;
@@ -128,6 +135,8 @@ function configure(options: {
 } = {}) {
   const permissions = options.permissions ?? ['MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR'];
   const upload = options.upload ?? vi.fn(() => of(RESPONSE_MATERIAL));
+  const preview = options.preview ?? vi.fn(() => of(RESPONSE_MATERIAL));
+  const errorDownload = options.errorDownload ?? vi.fn(() => of(undefined));
   const confirmMaterial = options.confirmMaterial ?? vi.fn(() => of(CONFIRMATION_MATERIAL));
   const confirmProduct = options.confirmProduct ?? vi.fn(() => of(CONFIRMATION_PRODUCTO));
   const confirmClient = options.confirmClient ?? vi.fn(() => of(CONFIRMATION_CLIENTE));
@@ -139,6 +148,8 @@ function configure(options: {
     imports: [CatalogImportPage],
     providers: [
       { provide: UploadCatalogImportUseCase, useValue: { execute: upload } },
+      { provide: GetCatalogImportPreviewUseCase, useValue: { execute: preview } },
+      { provide: CatalogImportErrorCsvService, useValue: { download: errorDownload } },
       { provide: ConfirmCatalogMaterialImportUseCase, useValue: { execute: confirmMaterial } },
       { provide: ConfirmCatalogProductImportUseCase, useValue: { execute: confirmProduct } },
       { provide: ConfirmCatalogClientImportUseCase, useValue: { execute: confirmClient } },
@@ -155,6 +166,8 @@ function configure(options: {
     fixture,
     harness: fixture.componentInstance as unknown as PageHarness,
     upload,
+    preview,
+    errorDownload,
     confirmMaterial,
     confirmProduct,
     confirmClient,
@@ -434,5 +447,68 @@ describe('CatalogImportPage', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Selecciona un archivo .xls o .xlsx');
+  });
+
+  it('muestra paginador solo cuando la previsualizacion supera su tamano de pagina', () => {
+    const { fixture, harness } = configure();
+    harness.result.set({ ...RESPONSE_MATERIAL, totalPersistido: 101 });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('mat-paginator')).not.toBeNull();
+  });
+
+  it('consulta la pagina solicitada sin volver a subir el archivo', () => {
+    const response = { ...RESPONSE_MATERIAL, filas: [{ ClaveMaterial: 'MAT101' }], totalPersistido: 150 };
+    const { fixture, harness, preview, upload } = configure({ preview: vi.fn(() => of(response)) });
+    harness.result.set({ ...RESPONSE_MATERIAL, totalPersistido: 150 });
+
+    harness.changePreviewPage({ pageIndex: 1, pageSize: 50 });
+    fixture.detectChanges();
+
+    expect(preview).toHaveBeenCalledWith('MATERIAL', 7, 2, 50);
+    expect(upload).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('MAT101');
+  });
+
+  it('muestra error recuperable al fallar una pagina de previsualizacion', () => {
+    const { fixture, harness, notifications } = configure({ preview: vi.fn(() => throwError(() => ({ error: { message: 'Pagina no disponible' } }))) });
+    harness.result.set({ ...RESPONSE_MATERIAL, totalPersistido: 101 });
+
+    harness.changePreviewPage({ pageIndex: 1, pageSize: 100 });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Pagina no disponible');
+    expect(notifications.error).toHaveBeenCalledWith(expect.stringContaining('previsualiz'));
+  });
+
+  it('resetea la previsualizacion al cambiar de tipo', () => {
+    const { harness } = configure();
+    harness.result.set({ ...RESPONSE_MATERIAL, totalPersistido: 150 });
+
+    harness.selectType('PRODUCTO');
+
+    expect(harness.result()).toBeNull();
+  });
+
+  it('muestra y descarga errores sin borrar la previsualizacion', () => {
+    const { fixture, harness, errorDownload } = configure();
+    harness.result.set({ ...RESPONSE_MATERIAL, filasInvalidas: 1 });
+    fixture.detectChanges();
+
+    harness.downloadErrors();
+
+    expect(fixture.nativeElement.textContent).toContain('Descargar errores');
+    expect(errorDownload).toHaveBeenCalledWith('MATERIAL', 7);
+    expect(harness.result()).not.toBeNull();
+  });
+
+  it('notifica error de descarga sin borrar la previsualizacion', () => {
+    const { harness, notifications } = configure({ errorDownload: vi.fn(() => throwError(() => new Error('Fallo CSV'))) });
+    harness.result.set({ ...RESPONSE_MATERIAL, filasInvalidas: 1 });
+
+    harness.downloadErrors();
+
+    expect(notifications.error).toHaveBeenCalledWith('Fallo CSV');
+    expect(harness.result()).not.toBeNull();
   });
 });

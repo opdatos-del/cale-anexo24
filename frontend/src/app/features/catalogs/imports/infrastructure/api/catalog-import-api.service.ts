@@ -1,7 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
+import { CatalogImportResponse, CatalogImportError, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogImportApiService {
@@ -14,9 +14,16 @@ export class CatalogImportApiService {
     return this.http.post<CatalogImportResponse>(`/api/v1/catalogos/importaciones/${endpoint}`, form);
   }
 
-  get(type: CatalogImportType, id: number): Observable<CatalogImportResponse> {
+  get(type: CatalogImportType, id: number, pagina = 1, tamano = 100): Observable<CatalogImportResponse> {
     const endpoint = this.endpoint(type);
-    return this.http.get<CatalogImportResponse>(`/api/v1/catalogos/importaciones/${endpoint}/${id}`);
+    const params = new HttpParams().set('pagina', pagina).set('tamano', tamano);
+    return this.http.get<CatalogImportResponse>('/api/v1/catalogos/importaciones/' + endpoint + '/' + id, { params });
+  }
+
+  getErrors(type: CatalogImportType, id: number, pagina = 1, tamano = 100): Observable<CatalogImportError[]> {
+    const endpoint = this.endpoint(type);
+    const params = new HttpParams().set('pagina', pagina).set('tamano', tamano);
+    return this.http.get<CatalogImportError[]>('/api/v1/catalogos/importaciones/' + endpoint + '/' + id + '/errores', { params });
   }
 
   confirmMaterial(cargaId: number): Observable<CatalogMaterialImportConfirmation> {

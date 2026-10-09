@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { CatalogImportResponse, CatalogImportType, CatalogMaterialImportConfirmation, CatalogProductImportConfirmation, CatalogClientImportConfirmation, CatalogProviderImportConfirmation, CatalogAgentImportConfirmation } from '@features/catalogs/imports/domain/models/catalog-import.model';
 import { ConfirmCatalogMaterialImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-material-import.use-case';
 import { ConfirmCatalogProductImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-product-import.use-case';
@@ -9,13 +10,15 @@ import { ConfirmCatalogClientImportUseCase } from '@features/catalogs/imports/ap
 import { ConfirmCatalogProviderImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-provider-import.use-case';
 import { ConfirmCatalogAgentImportUseCase } from '@features/catalogs/imports/application/use-cases/confirm-catalog-agent-import.use-case';
 import { UploadCatalogImportUseCase } from '@features/catalogs/imports/application/use-cases/upload-catalog-import.use-case';
+import { GetCatalogImportPreviewUseCase } from '@features/catalogs/imports/application/use-cases/get-catalog-import-preview.use-case';
+import { CatalogImportErrorCsvService } from '@features/catalogs/imports/application/catalog-import-error-csv.service';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
 
 @Component({
   selector: 'app-catalog-import',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, MatIconModule, MatPaginatorModule],
   template: `
     <main class="min-h-full bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
       <header class="mx-auto mb-6 w-full max-w-7xl">
@@ -52,8 +55,15 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
             <div class="rounded-xl bg-slate-50 p-3"><span class="block text-xs text-slate-500">Válidas</span><strong>{{ current.filasValidas }}</strong></div>
             <div class="rounded-xl bg-slate-50 p-3"><span class="block text-xs text-slate-500">Inválidas</span><strong>{{ current.filasInvalidas }}</strong></div>
           </div>
-          @if (current.errores.length) { <section class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4" aria-label="Errores"><h2 class="m-0 text-sm font-semibold text-red-900">Errores de validación</h2>@for (issue of current.errores; track $index) { <p class="mb-0 mt-2 text-sm text-red-800">{{ issue.fila ? 'Fila ' + issue.fila + ' · ' : '' }}{{ issue.columna || 'Estructura' }} · {{ issue.mensaje }}</p> }</section> }
-          @if (current.filas.length) { <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200"><table class="w-full min-w-max text-left text-xs"><thead class="bg-slate-50"><tr>@for (column of current.columnas; track column) { <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-600">{{ column }}</th> }</tr></thead><tbody class="divide-y divide-slate-100">@for (row of current.filas; track $index) { <tr>@for (column of current.columnas; track column) { <td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ row[column] || '—' }}</td> }</tr> }</tbody></table></div> }
+          @if (current.filasInvalidas > 0) {
+            <section class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4" aria-label="Errores">
+              <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="m-0 text-sm font-semibold text-red-900">Errores de validación</h2><p class="mb-0 mt-1 text-sm text-red-800">Descarga todos los errores persistidos de esta carga.</p></div><button mat-stroked-button type="button" [disabled]="isDownloadingErrors()" (click)="downloadErrors()">@if (isDownloadingErrors()) { Descargando errores... } @else { Descargar errores }</button></div>
+              @for (issue of current.errores; track $index) { <p class="mb-0 mt-2 text-sm text-red-800">{{ issue.fila ? 'Fila ' + issue.fila + ' · ' : '' }}{{ issue.columna || 'Estructura' }} · {{ issue.mensaje }}</p> }
+            </section>
+          }
+          @if (previewError()) { <div class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert"><p class="m-0 font-semibold">No pudimos cambiar la página</p><p class="mb-3 mt-1">{{ previewError() }}</p><button mat-stroked-button type="button" (click)="retryPreviewPage()">Reintentar</button></div> }
+          @if (isPreviewLoading()) { <div class="mt-5 h-24 animate-pulse rounded-xl bg-slate-100" aria-label="Cargando página de previsualización" aria-busy="true"></div> } @else if (current.filas.length) { <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200"><table class="w-full min-w-max text-left text-xs"><thead class="bg-slate-50"><tr>@for (column of current.columnas; track column) { <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-600">{{ column }}</th> }</tr></thead><tbody class="divide-y divide-slate-100">@for (row of current.filas; track $index) { <tr>@for (column of current.columnas; track column) { <td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ row[column] || '—' }}</td> }</tr> }</tbody></table></div> }
+          @if (current.totalPersistido > previewPageSize()) { <mat-paginator class="mt-3" [length]="current.totalPersistido" [pageIndex]="previewPage() - 1" [pageSize]="previewPageSize()" [pageSizeOptions]="[25, 50, 100]" showFirstLastButtons aria-label="Paginación de previsualización" (page)="changePreviewPage($event)" /> }
           @if (current.estado === 'CONFIRMADA') {
             <p class="mt-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900" role="status">
               Importación confirmada correctamente.
@@ -91,6 +101,11 @@ export class CatalogImportPage {
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly selectionError = signal<string | null>(null);
   protected readonly isLoading = signal(false);
+  protected readonly isPreviewLoading = signal(false);
+  protected readonly isDownloadingErrors = signal(false);
+  protected readonly previewPage = signal(1);
+  protected readonly previewPageSize = signal(100);
+  protected readonly previewError = signal<string | null>(null);
   protected readonly isConfirming = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly confirmationError = signal<string | null>(null);
@@ -115,6 +130,8 @@ export class CatalogImportPage {
     return 'La confirmación actualizará el catálogo de materiales utilizando las reglas actuales del sistema Anexo 24.';
   });
   private readonly upload = inject(UploadCatalogImportUseCase);
+  private readonly getPreview = inject(GetCatalogImportPreviewUseCase);
+  private readonly errorCsv = inject(CatalogImportErrorCsvService);
   private readonly confirmMaterial = inject(ConfirmCatalogMaterialImportUseCase);
   private readonly confirmProduct = inject(ConfirmCatalogProductImportUseCase);
   private readonly confirmClient = inject(ConfirmCatalogClientImportUseCase);
@@ -133,13 +150,13 @@ export class CatalogImportPage {
   }
 
   selectType(type: CatalogImportType): void {
-    this.type.set(type); this.selectedFile.set(null); this.selectionError.set(null); this.error.set(null); this.confirmationError.set(null); this.confirmation.set(null); this.result.set(null);
+    this.type.set(type); this.selectedFile.set(null); this.selectionError.set(null); this.error.set(null); this.previewError.set(null); this.confirmationError.set(null); this.confirmation.set(null); this.result.set(null); this.previewPage.set(1); this.previewPageSize.set(100);
   }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
-    this.selectionError.set(null); this.error.set(null); this.confirmationError.set(null); this.confirmation.set(null); this.result.set(null);
+    this.selectionError.set(null); this.error.set(null); this.previewError.set(null); this.confirmationError.set(null); this.confirmation.set(null); this.result.set(null); this.previewPage.set(1); this.previewPageSize.set(100);
     if (!file) return;
     if (file.size > 10 * 1024 * 1024 || !/\.(xls|xlsx)$/i.test(file.name)) {
       this.selectedFile.set(null); this.selectionError.set('Selecciona un archivo .xls o .xlsx de máximo 10 MiB.'); return;
@@ -148,6 +165,35 @@ export class CatalogImportPage {
   }
 
   retry(): void { const file = this.selectedFile(); if (file) this.submit(file); }
+
+  protected changePreviewPage(event: PageEvent): void {
+    const current = this.result();
+    if (!current) return;
+    this.previewPage.set(event.pageIndex + 1);
+    this.previewPageSize.set(event.pageSize);
+    this.loadPreview(current);
+  }
+
+  protected retryPreviewPage(): void {
+    const current = this.result();
+    if (current) this.loadPreview(current);
+  }
+
+  protected downloadErrors(): void {
+    const current = this.result();
+    if (!current || current.filasInvalidas === 0 || this.isDownloadingErrors()) return;
+    this.isDownloadingErrors.set(true);
+    this.errorCsv.download(current.tipo, current.id).subscribe({
+      next: () => {
+        this.isDownloadingErrors.set(false);
+        this.notifications.success('Errores de validación descargados.');
+      },
+      error: (err: { message?: string; error?: { message?: string } }) => {
+        this.isDownloadingErrors.set(false);
+        this.notifications.error(err?.error?.message || err?.message || 'No fue posible descargar los errores de validación.');
+      },
+    });
+  }
 
   protected requestConfirmation(): void {
     const current = this.result();
@@ -214,10 +260,26 @@ export class CatalogImportPage {
     }
   }
 
+  private loadPreview(current: CatalogImportResponse): void {
+    this.isPreviewLoading.set(true);
+    this.previewError.set(null);
+    this.getPreview.execute(current.tipo, current.id, this.previewPage(), this.previewPageSize()).subscribe({
+      next: (response) => {
+        this.result.set(response);
+        this.isPreviewLoading.set(false);
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.previewError.set(err?.error?.message || 'No fue posible cargar esta página de la previsualización.');
+        this.isPreviewLoading.set(false);
+        this.notifications.error('No fue posible cargar la página de previsualización.');
+      },
+    });
+  }
+
   private submit(file: File): void {
     this.isLoading.set(true); this.error.set(null); this.confirmationError.set(null); this.confirmation.set(null);
     this.upload.execute(this.type(), file).subscribe({
-      next: response => { this.result.set(response); this.isLoading.set(false); },
+      next: response => { this.result.set(response); this.previewPage.set(1); this.isLoading.set(false); },
       error: err => { this.error.set(err?.error?.message || 'Revisa el archivo y vuelve a intentar.'); this.isLoading.set(false); this.notifications.error('No fue posible validar el archivo.'); },
     });
   }
