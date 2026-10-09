@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
+import { ConstanciaImportErrorCsvService } from '@features/operations/constancias/application/constancia-import-error-csv.service';
 import { UploadConstanciaUseCase } from '@features/operations/constancias/application/use-cases/upload-constancia.use-case';
 import { GetConstanciaUseCase } from '@features/operations/constancias/application/use-cases/get-constancia.use-case';
 import { ConfirmConstanciaUseCase } from '@features/operations/constancias/application/use-cases/confirm-constancia.use-case';
@@ -44,6 +45,7 @@ describe('ConstanciaUploadPage', () => {
         { provide: UploadConstanciaUseCase, useValue: { execute: vi.fn(() => of(cargada)) } },
         { provide: ConfirmConstanciaUseCase, useValue: confirmUseCase },
         { provide: GetConstanciaUseCase, useValue: getUseCase },
+        { provide: ConstanciaImportErrorCsvService, useValue: { download: vi.fn(() => of(void 0)) } },
         { provide: ConfirmService, useValue: dialog },
         { provide: NotificationService, useValue: notifications },
         { provide: AuthService, useValue: { hasPermission: vi.fn(() => options.permiso ?? true) } },
@@ -115,7 +117,7 @@ describe('ConstanciaUploadPage', () => {
     harness.confirm();
     fixture.detectChanges();
     expect(confirmUseCase.execute).toHaveBeenCalledWith(1);
-    expect(getUseCase.execute).toHaveBeenCalledWith(1);
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 1, 100);
     expect(notifications.success).toHaveBeenCalled();
     expect(harness.confirmation()?.resultado).toBe('CONFIRMED');
   });
@@ -143,4 +145,12 @@ describe('ConstanciaUploadPage', () => {
     expect(mensaje).toContain('La carga no puede confirmarse');
     expect(mensaje).not.toMatch(/SQL|procedure|SELECT|INSERT|516/i);
   });
+  it('cambia de página sin volver a subir el archivo', () => {
+    const { fixture, harness, getUseCase } = configure();
+    harness.load.set({ ...cargada, totalPersistido: 101 });
+    (harness as unknown as { changePreviewPage: (event: { pageIndex: number; pageSize: number }) => void }).changePreviewPage({ pageIndex: 1, pageSize: 25 });
+    fixture.detectChanges();
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 2, 25);
+  });
+
 });
