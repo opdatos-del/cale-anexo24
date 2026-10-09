@@ -11,6 +11,8 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, normalizeCsvDate, serializeCsv } from '@core/export/csv-export';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
+import { SavedQueriesControlComponent } from '@features/saved-queries/presentation/saved-queries-control.component';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
 import { formatLocalDateForApi, formatOperationDate, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
 import {
@@ -37,6 +39,7 @@ interface ExitSearchResult {
     MatPaginatorModule,
     MatTableModule,
     OperationPeriodFilterComponent,
+    SavedQueriesControlComponent,
   ],
   selector: 'app-exit-list',
   template: `
@@ -93,6 +96,8 @@ interface ExitSearchResult {
             </div>
           }
         </section>
+
+        <div class="mb-4"><app-saved-queries-control scope="SALIDAS" [criteria]="savedCriteria()" (applyCriteria)="applySavedCriteria($event)" /></div>
 
         @if (hasSearched()) {
           <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
@@ -281,6 +286,19 @@ export class ExitListPage {
     this.searchTriggers.next(true);
   }
 
+  protected savedCriteria(): SavedCriteria {
+    return { from: formatLocalDateForApi(this.fromDate), to: formatLocalDateForApi(this.toDate), customsDocument: this.customsDocument, customsCode: this.customsCode, tariffFraction: this.tariffFraction, partNumber: this.partNumber };
+  }
+
+  protected applySavedCriteria(criteria: SavedCriteria): void {
+    const from = parseStoredDate(criteria['from']); const to = parseStoredDate(criteria['to']);
+    const values = ['customsDocument', 'customsCode', 'tariffFraction', 'partNumber'].map((key) => criteria[key]);
+    if (!from || !to || from.getTime() > to.getTime() || values.some((value) => typeof value !== 'string')) { this.notifications.error('Esta consulta guardada ya no es compatible con esta pantalla.'); return; }
+    this.requestSequence += 1; this.fromDate = from; this.toDate = to;
+    [this.customsDocument, this.customsCode, this.tariffFraction, this.partNumber] = values as string[];
+    this.periodFilter?.set({ start: from, end: to }); this.currentPage = 1; this.hasSearched.set(true); this.optionalFiltersExpanded.set(values.some(Boolean)); this.searchTriggers.next(true);
+  }
+
   protected clearFilters(): void {
     this.requestSequence += 1;
     this.periodFilter?.clear();
@@ -362,4 +380,10 @@ export class ExitListPage {
     this.hasSearched.set(false);
     this.isLoading.set(false);
   }
+}
+
+function parseStoredDate(value: string | number | null | undefined): Date | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number); const result = new Date(year, month - 1, day);
+  return result.getFullYear() === year && result.getMonth() === month - 1 && result.getDate() === day ? result : null;
 }

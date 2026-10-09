@@ -11,6 +11,8 @@ import { AuthService } from '@core/auth/auth.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
+import { SavedQueriesControlComponent } from '@features/saved-queries/presentation/saved-queries-control.component';
 import { formatLocalDateForApi, formatOperationDate, formatOperationPartida, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
 import { ExportReportUseCase } from '@features/reports/application/use-cases/export-report.use-case';
@@ -182,7 +184,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
 
 /** Genera reportes V1 paginados para el periodo obligatorio seleccionado. */
 @Component({
-  imports: [AppAlertComponent, FormsModule, MatButtonModule, MatIconModule, MatInputModule, MatPaginatorModule, MatTableModule, OperationPeriodFilterComponent],
+  imports: [AppAlertComponent, FormsModule, MatButtonModule, MatIconModule, MatInputModule, MatPaginatorModule, MatTableModule, OperationPeriodFilterComponent, SavedQueriesControlComponent],
   selector: 'app-report-list',
   template: `
     <div class="min-h-full bg-[#f4f7fb] text-slate-800">
@@ -266,6 +268,8 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               </div>
             }
           </div>
+
+          <div class="mt-4 border-t border-slate-100 pt-4"><app-saved-queries-control scope="REPORTES" [criteria]="savedCriteria()" (applyCriteria)="applySavedCriteria($event)" /></div>
 
           <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
             <button mat-button type="button" (click)="clearFilters()">Limpiar</button>
@@ -406,6 +410,19 @@ export class ReportListPage implements OnInit {
     });
   }
 
+  protected savedCriteria(): SavedCriteria {
+    return { type: this.selectedType(), from: formatLocalDateForApi(this.fromDate), to: formatLocalDateForApi(this.toDate), customsDocument: this.customsDocument, customsCode: this.customsCode, tariffFraction: this.tariffFraction, partNumber: this.partNumber, material: this.material, product: this.product, userId: this.userId, module: this.module, result: this.result, correlationId: this.correlationId, filter: this.filter };
+  }
+
+  protected applySavedCriteria(criteria: SavedCriteria): void {
+    const type = criteria['type']; const stringKeys = ['customsDocument', 'customsCode', 'tariffFraction', 'partNumber', 'material', 'product', 'module', 'result', 'correlationId', 'filter'];
+    const values = stringKeys.map((key) => criteria[key]); const from = parseStoredDate(criteria['from']); const to = parseStoredDate(criteria['to']); const userId = criteria['userId'];
+    if (typeof type !== 'string' || !REPORTS.some((report) => report.available && report.type === type) || values.some((value) => typeof value !== 'string') || (from === undefined) || (to === undefined) || (Boolean(from) !== Boolean(to)) || (from && to && from.getTime() > to.getTime()) || !(userId === null || (typeof userId === 'number' && Number.isInteger(userId) && userId > 0))) { this.notifications.error('Esta consulta guardada ya no es compatible con esta pantalla.'); return; }
+    this.selectedType.set(type as ReportType); this.fromDate = from; this.toDate = to; this.periodFilter?.set({ start: from, end: to });
+    [this.customsDocument, this.customsCode, this.tariffFraction, this.partNumber, this.material, this.product, this.module, this.result, this.correlationId, this.filter] = values as string[];
+    this.userId = userId as number | null; this.currentPage = 1; this.resetResults();
+  }
+
   protected clearFilters(): void {
     this.periodFilter?.clear(); this.fromDate = null; this.toDate = null; this.customsDocument = ''; this.customsCode = ''; this.tariffFraction = ''; this.partNumber = ''; this.material = ''; this.product = ''; this.userId = null; this.module = ''; this.result = ''; this.correlationId = ''; this.filter = ''; this.currentPage = 1; this.resetResults();
   }
@@ -424,4 +441,11 @@ export class ReportListPage implements OnInit {
   }
   private resetResults(): void { this.items.set([]); this.totalItems.set(0); this.hasGenerated.set(false); this.error.set(null); this.isLoading.set(false); }
   private download(file: Blob): void { const url = URL.createObjectURL(file); const link = document.createElement('a'); link.href = url; link.download = `${this.selectedType()}.xlsx`; link.click(); URL.revokeObjectURL(url); }
+}
+
+function parseStoredDate(value: string | number | null | undefined): Date | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const [year, month, day] = value.split('-').map(Number); const result = new Date(year, month - 1, day);
+  return result.getFullYear() === year && result.getMonth() === month - 1 && result.getDate() === day ? result : undefined;
 }

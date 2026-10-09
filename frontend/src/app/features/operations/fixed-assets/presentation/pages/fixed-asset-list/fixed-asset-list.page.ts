@@ -11,6 +11,8 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
 import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, normalizeCsvDate, serializeCsv } from '@core/export/csv-export';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
+import { SavedQueriesControlComponent } from '@features/saved-queries/presentation/saved-queries-control.component';
 import {
   formatLocalDateForApi,
   formatOperationDate,
@@ -44,6 +46,7 @@ interface FixedAssetSearchResult {
     MatPaginatorModule,
     MatTableModule,
     OperationPeriodFilterComponent,
+    SavedQueriesControlComponent,
   ],
   selector: 'app-fixed-asset-list',
   template: `
@@ -116,6 +119,8 @@ interface FixedAssetSearchResult {
             </div>
           }
         </section>
+
+        <div class="mb-4"><app-saved-queries-control scope="ACTIVOS_FIJOS" [criteria]="savedCriteria()" (applyCriteria)="applySavedCriteria($event)" /></div>
 
         @if (hasSearched()) {
           <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
@@ -344,6 +349,19 @@ export class FixedAssetListPage {
     this.scheduleSearch(true);
   }
 
+  protected savedCriteria(): SavedCriteria {
+    return { from: formatLocalDateForApi(this.fromDate), to: formatLocalDateForApi(this.toDate), customsDocument: this.customsDocument, customsCode: this.customsCode, partNumber: this.partNumber, description: this.description, serialNumber: this.serialNumber, brand: this.brand, model: this.model };
+  }
+
+  protected applySavedCriteria(criteria: SavedCriteria): void {
+    const from = parseNullableStoredDate(criteria['from']); const to = parseNullableStoredDate(criteria['to']);
+    const values = ['customsDocument', 'customsCode', 'partNumber', 'description', 'serialNumber', 'brand', 'model'].map((key) => criteria[key]);
+    if (from === undefined || to === undefined || Boolean(from) !== Boolean(to) || (from && to && from.getTime() > to.getTime()) || values.some((value) => typeof value !== 'string')) { this.notifications.error('Esta consulta guardada ya no es compatible con esta pantalla.'); return; }
+    this.requestSequence += 1; this.fromDate = from; this.toDate = to;
+    [this.customsDocument, this.customsCode, this.partNumber, this.description, this.serialNumber, this.brand, this.model] = values as string[];
+    this.periodFilter?.set({ start: from, end: to }); this.currentPage = 1; this.hasSearched.set(true); this.optionalFiltersExpanded.set(values.some(Boolean)); this.scheduleSearch(true);
+  }
+
   protected clearFilters(): void {
     this.requestSequence += 1;
     this.periodFilter?.clear();
@@ -445,4 +463,11 @@ export class FixedAssetListPage {
     this.hasSearched.set(false);
     this.isLoading.set(false);
   }
+}
+
+function parseNullableStoredDate(value: string | number | null | undefined): Date | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const [year, month, day] = value.split('-').map(Number); const result = new Date(year, month - 1, day);
+  return result.getFullYear() === year && result.getMonth() === month - 1 && result.getDate() === day ? result : undefined;
 }

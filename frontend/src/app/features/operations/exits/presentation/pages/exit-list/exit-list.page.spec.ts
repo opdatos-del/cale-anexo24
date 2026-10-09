@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { NotificationService } from '@core/notifications/notification.service';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
 import { ExitLine } from '@features/operations/exits/domain/models/exit-line.model';
@@ -29,6 +30,8 @@ function readBlob(blob: Blob): Promise<string> {
 class PeriodFilterStub {
   @Output() readonly periodChange = new EventEmitter<OperationPeriod>();
   clear(): void { this.periodChange.emit({ start: null, end: null }); }
+  period: OperationPeriod | null = null;
+  set(period: OperationPeriod): void { this.period = period; }
 }
 
 interface ExitHarness {
@@ -45,6 +48,7 @@ interface ExitHarness {
   isLoading: WritableSignal<boolean>;
   isExporting: WritableSignal<boolean>;
   hasSearched: WritableSignal<boolean>;
+  applySavedCriteria(criteria: SavedCriteria): void;
   canExport(): boolean;
   exportCsv(): Promise<void>;
 }
@@ -161,4 +165,19 @@ describe('ExitListPage CSV export', () => {
     expect(page.canExport()).toBe(false);
     expect(execute).not.toHaveBeenCalled();
   });
+  it('aplica filtros completos y rechaza presets obsoletos atomicamente', () => {
+    const { page, notifications } = configure();
+    page.currentPage = 5;
+    page.applySavedCriteria({ from: '2026-05-01', to: '2026-05-31', customsDocument: 'DOC-SAVED', customsCode: 'A1', tariffFraction: '5678', partNumber: 'PART-2' });
+    expect(page.currentPage).toBe(1);
+    expect(page.customsDocument).toBe('DOC-SAVED');
+    expect(page.customsCode).toBe('A1');
+    expect(page.tariffFraction).toBe('5678');
+    expect(page.partNumber).toBe('PART-2');
+    const snapshot = { currentPage: page.currentPage, customsDocument: page.customsDocument, customsCode: page.customsCode, tariffFraction: page.tariffFraction, partNumber: page.partNumber };
+    page.applySavedCriteria({ from: '2026-05-01', to: 'invalid-05-31', customsDocument: 'DOC-SAVED', customsCode: 'A1', tariffFraction: '5678', partNumber: 'PART-2' });
+    expect({ currentPage: page.currentPage, customsDocument: page.customsDocument, customsCode: page.customsCode, tariffFraction: page.tariffFraction, partNumber: page.partNumber }).toEqual(snapshot);
+    expect(notifications.error).toHaveBeenCalledWith('Esta consulta guardada ya no es compatible con esta pantalla.');
+  });
+
 });

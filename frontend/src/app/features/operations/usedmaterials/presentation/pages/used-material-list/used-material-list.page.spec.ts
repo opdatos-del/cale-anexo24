@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { NotificationService } from '@core/notifications/notification.service';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
 import { UsedMaterial, UsedMaterialSearchCriteria } from '@features/operations/usedmaterials/domain/models/used-material.model';
 import { SearchUsedMaterialsUseCase } from '@features/operations/usedmaterials/application/use-cases/search-used-materials.use-case';
@@ -28,6 +29,8 @@ function readBlob(blob: Blob): Promise<string> {
 class PeriodFilterStub {
   @Output() readonly periodChange = new EventEmitter<OperationPeriod>();
   clear(): void { this.periodChange.emit({ start: null, end: null }); }
+  period: OperationPeriod | null = null;
+  set(period: OperationPeriod): void { this.period = period; }
 }
 
 interface UsedMaterialHarness {
@@ -43,6 +46,7 @@ interface UsedMaterialHarness {
   totalItems: WritableSignal<number>;
   isLoading: WritableSignal<boolean>;
   hasSearched: WritableSignal<boolean>;
+  applySavedCriteria(criteria: SavedCriteria): void;
   canExport(): boolean;
   exportCsv(): Promise<void>;
 }
@@ -168,4 +172,19 @@ describe('UsedMaterialListPage CSV export', () => {
     expect(page.canExport()).toBe(false);
     expect(execute).not.toHaveBeenCalled();
   });
+  it('aplica filtros completos y rechaza presets obsoletos atomicamente', () => {
+    const { page, notifications } = configure();
+    page.currentPage = 5;
+    page.applySavedCriteria({ from: '2026-06-01', to: '2026-06-30', material: 'MAT-1', product: 'PROD-1', exitCustomsDocument: 'EXIT-1', exitCustomsCode: 'A1' });
+    expect(page.currentPage).toBe(1);
+    expect(page.material).toBe('MAT-1');
+    expect(page.product).toBe('PROD-1');
+    expect(page.exitCustomsDocument).toBe('EXIT-1');
+    expect(page.exitCustomsCode).toBe('A1');
+    const snapshot = { currentPage: page.currentPage, material: page.material, product: page.product, exitCustomsDocument: page.exitCustomsDocument, exitCustomsCode: page.exitCustomsCode };
+    page.applySavedCriteria({ from: '2026-06-01', to: 'invalid-06-30', material: 'MAT-1', product: 'PROD-1', exitCustomsDocument: 'EXIT-1', exitCustomsCode: 'A1' });
+    expect({ currentPage: page.currentPage, material: page.material, product: page.product, exitCustomsDocument: page.exitCustomsDocument, exitCustomsCode: page.exitCustomsCode }).toEqual(snapshot);
+    expect(notifications.error).toHaveBeenCalledWith('Esta consulta guardada ya no es compatible con esta pantalla.');
+  });
+
 });

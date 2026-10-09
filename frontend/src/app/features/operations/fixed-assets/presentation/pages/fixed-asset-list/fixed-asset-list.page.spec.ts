@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { NotificationService } from '@core/notifications/notification.service';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
 import { OperationPeriod, OperationPeriodFilterComponent } from '@features/operations/shared/presentation/operation-period-filter/operation-period-filter.component';
 import { FixedAsset, FixedAssetSearchCriteria } from '@features/operations/fixed-assets/domain/models/fixed-asset.model';
 import { SearchFixedAssetsUseCase } from '@features/operations/fixed-assets/application/use-cases/search-fixed-assets.use-case';
@@ -28,6 +29,8 @@ function readBlob(blob: Blob): Promise<string> {
 class PeriodFilterStub {
   @Output() readonly periodChange = new EventEmitter<OperationPeriod>();
   clear(): void { this.periodChange.emit({ start: null, end: null }); }
+  period: OperationPeriod | null = null;
+  set(period: OperationPeriod): void { this.period = period; }
 }
 
 interface FixedAssetHarness {
@@ -46,6 +49,7 @@ interface FixedAssetHarness {
   totalItems: WritableSignal<number>;
   isLoading: WritableSignal<boolean>;
   hasSearched: WritableSignal<boolean>;
+  applySavedCriteria(criteria: SavedCriteria): void;
   canExport(): boolean;
   exportCsv(): Promise<void>;
 }
@@ -175,4 +179,18 @@ describe('FixedAssetListPage CSV export', () => {
     expect(page.items()).toBe(visibleRows);
     expect(createObjectUrlSpy).not.toHaveBeenCalled();
   });
+  it('aplica filtros sin periodo y rechaza rango parcial sin cambiar estado', async () => {
+    const { page, notifications } = await configure();
+    page.currentPage = 4;
+    page.applySavedCriteria({ from: null, to: null, customsDocument: 'DOC-1', customsCode: 'A1', partNumber: 'P-1', description: 'Equipo', serialNumber: 'SER-1', brand: 'Marca', model: 'Modelo' });
+    expect(page.fromDate).toBeNull();
+    expect(page.toDate).toBeNull();
+    expect(page.customsDocument).toBe('DOC-1');
+    expect(page.currentPage).toBe(1);
+    const snapshot = { fromDate: page.fromDate, toDate: page.toDate, customsDocument: page.customsDocument, currentPage: page.currentPage };
+    page.applySavedCriteria({ from: '2026-07-01', to: null, customsDocument: 'STALE', customsCode: '', partNumber: '', description: '', serialNumber: '', brand: '', model: '' });
+    expect({ fromDate: page.fromDate, toDate: page.toDate, customsDocument: page.customsDocument, currentPage: page.currentPage }).toEqual(snapshot);
+    expect(notifications.error).toHaveBeenCalledWith('Esta consulta guardada ya no es compatible con esta pantalla.');
+  });
+
 });

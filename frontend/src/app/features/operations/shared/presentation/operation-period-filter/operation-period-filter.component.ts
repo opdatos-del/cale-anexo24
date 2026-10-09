@@ -80,6 +80,11 @@ export class OperationPeriodFilterComponent {
     this.range.reset({ start: null, end: null }, { emitEvent: false });
   }
 
+  /** Restaura un periodo de forma atómica sin disparar una búsqueda intermedia. */
+  set(period: OperationPeriod): void {
+    this.range.setValue({ start: period.start, end: period.end }, { emitEvent: false });
+  }
+
   protected applyPreset(preset: Preset): void {
     const today = this.startOfDay(new Date());
     const year = today.getFullYear();

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { WritableSignal } from '@angular/core';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,10 +8,16 @@ import { NotificationService } from '@core/notifications/notification.service';
 import { ExportReportUseCase } from '@features/reports/application/use-cases/export-report.use-case';
 import { SearchReportUseCase } from '@features/reports/application/use-cases/search-report.use-case';
 import { ReportPage, ReportRow } from '@features/reports/domain/models/report.model';
+import { SavedCriteria } from '@features/saved-queries/domain/saved-query.model';
 import { ReportListPage } from './report-list.page';
 
 interface PageInternals {
-  selectedType: { set(value: string): void };
+  selectedType: WritableSignal<string>;
+  applySavedCriteria(criteria: SavedCriteria): void;
+  fromDate: Date | null;
+  toDate: Date | null;
+  currentPage: number;
+  customsDocument: string;
   generate(): void;
   hasGenerated(): boolean;
   changePage(event: { pageIndex: number; pageSize: number; length: number }): void;
@@ -422,4 +429,21 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(page.filteredReports().map((report) => report.type)).toEqual(['compulsa', 'compulsa-detalle']);
     expect(page.hasGenerated()).toBe(false);
   });
+  it('restaura filtros guardados sin generar reporte y no muta ante preset incompatible', () => {
+    const internals = fixture.componentInstance as unknown as PageInternals;
+    internals.currentPage = 4;
+    const criteria: SavedCriteria = {
+      type: 'entradas', from: null, to: null, customsDocument: 'DOC-1', customsCode: 'A1', tariffFraction: '', partNumber: '',
+      material: '', product: '', userId: null, module: '', result: '', correlationId: '', filter: '',
+    };
+    internals.applySavedCriteria(criteria);
+    expect(internals.selectedType()).toBe('entradas');
+    expect(internals.customsDocument).toBe('DOC-1');
+    expect(internals.currentPage).toBe(1);
+    expect(search.execute).not.toHaveBeenCalled();
+    const snapshot = { type: internals.selectedType(), customsDocument: internals.customsDocument, currentPage: internals.currentPage };
+    internals.applySavedCriteria({ ...criteria, type: 'future-report' });
+    expect({ type: internals.selectedType(), customsDocument: internals.customsDocument, currentPage: internals.currentPage }).toEqual(snapshot);
+  });
+
 });
