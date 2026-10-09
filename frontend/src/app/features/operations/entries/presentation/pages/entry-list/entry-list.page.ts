@@ -6,10 +6,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, Observable, Subject, catchError, debounce, filter, map, switchMap, timer } from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, debounce, filter, firstValueFrom, map, switchMap, timer } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, normalizeCsvDate, serializeCsv } from '@core/export/csv-export';
 import { OperationSearchCriteria } from '@features/operations/shared/operation-search-criteria';
 import { formatLocalDateForApi, formatOperationDate, formatOperationQuantity, formatOperationText } from '@features/operations/shared/operation-formatters';
 import {
@@ -96,9 +97,12 @@ interface EntrySearchResult {
         @if (hasSearched()) {
           <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
             <span class="text-xs font-medium text-slate-500" aria-live="polite">{{ formatTotal() }} resultados</span>
-            <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de entradas">
-              <mat-icon class="text-[18px]!" aria-hidden="true">refresh</mat-icon> Actualizar
-            </button>
+            <div class="flex items-center gap-2">
+              <button mat-stroked-button type="button" class="h-9 rounded-lg! px-3!" (click)="exportCsv()" [disabled]="!canExport()"><mat-icon class="text-[18px]!" aria-hidden="true">download</mat-icon>{{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}</button>
+              <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de entradas">
+                <mat-icon class="text-[18px]!" aria-hidden="true">refresh</mat-icon> Actualizar
+              </button>
+            </div>
           </div>
         }
 
@@ -180,6 +184,7 @@ export class EntryListPage {
   protected readonly items = signal<EntryLine[]>([]);
   protected readonly totalItems = signal(0);
   protected readonly isLoading = signal(false);
+  protected readonly isExporting = signal(false);
   protected readonly hasSearched = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly optionalFiltersExpanded = signal(false);
@@ -253,6 +258,26 @@ export class EntryListPage {
 
   protected canRefresh(): boolean {
     return this.hasSearched() && this.hasValidPeriod();
+  }
+
+  protected canExport(): boolean {
+    return this.hasSearched() && this.hasValidPeriod() && !this.isLoading() && !this.isExporting() && this.totalItems() > 0;
+  }
+
+  protected async exportCsv(): Promise<void> {
+    if (!this.canExport()) return;
+    const criteria = this.buildCriteria();
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.searchEntries.execute({ ...criteria, page, pageSize })));
+      if (!rows.length) { this.notifications.info('No hay registros para exportar.'); return; }
+      const csv = serializeCsv(['Pedimento', 'Clave pedimento', 'Fecha de entrada', 'Fecha de pago', 'Fracción', 'UMC', 'Cantidad', 'N° parte'], rows.map((row) => [row.customsDocument, row.customsCode, normalizeCsvDate(row.entryDate), normalizeCsvDate(row.paymentDate), row.tariffFraction, row.commercialUnit, row.quantity, row.partNumber]));
+      downloadCsv('entradas.csv', csv);
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar las entradas.');
+    } finally {
+      this.isExporting.set(false);
+    }
   }
 
   protected refresh(): void {
