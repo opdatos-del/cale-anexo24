@@ -1,4 +1,5 @@
-import { Component, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -193,14 +194,17 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
         </header>
 
         <section class="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_4px_18px_rgb(15_23_42/4%)]" aria-label="Configuración del reporte">
+          <label class="mb-3 block"><span class="mb-1 block text-xs font-medium text-slate-700">Buscar reporte</span><input matInput name="reportSearch" [(ngModel)]="reportSearch" class="report-input" aria-label="Buscar reporte" /></label>
+          @if (filteredReports().length) {
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5" role="list" aria-label="Tipo de reporte">
-            @for (report of reports; track report.type) {
+            @for (report of filteredReports(); track report.type) {
               <button type="button" class="flex min-h-20 items-center gap-3 rounded-xl border px-3 text-left transition disabled:cursor-not-allowed disabled:opacity-55" [class.border-blue-500]="selectedType() === report.type" [class.bg-blue-50]="selectedType() === report.type" [class.border-slate-200]="selectedType() !== report.type" [class.bg-white]="selectedType() !== report.type" [disabled]="!report.available" [attr.aria-current]="selectedType() === report.type ? 'true' : null" (click)="selectReport(report)">
                 <mat-icon [class.text-blue-600]="selectedType() === report.type" [class.text-slate-400]="selectedType() !== report.type" aria-hidden="true">{{ report.icon }}</mat-icon>
                 <span class="text-sm font-medium text-slate-700">{{ report.label }} @if (!report.available) { <small class="block text-xs font-normal text-slate-400">No disponible</small> }</span>
               </button>
             }
           </div>
+          } @else { <p class="m-0 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">No se encontraron reportes.</p> }
 
           <div class="mt-4 border-t border-slate-100 pt-4">
             @if (!isTextReport()) {
@@ -303,13 +307,14 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     .report-input:focus { border-color: rgb(59 130 246); background: white; box-shadow: 0 0 0 4px rgb(59 130 246 / 10%); }
   `],
 })
-export class ReportListPage {
+export class ReportListPage implements OnInit {
   @ViewChild(OperationPeriodFilterComponent) private periodFilter?: OperationPeriodFilterComponent;
 
   protected readonly reports = REPORTS;
   protected readonly pageSizeOptions = [20, 50, 100];
   protected readonly loadingRows = [1, 2, 3, 4, 5];
   protected readonly selectedType = signal<ReportType>('entradas');
+  protected reportSearch = '';
   protected readonly items = signal<ReportRow[]>([]);
   protected readonly totalItems = signal(0);
   protected readonly isLoading = signal(false);
@@ -332,15 +337,34 @@ export class ReportListPage {
   protected currentPage = 1;
   protected pageSize = 20;
 
+  private readonly route = inject(ActivatedRoute, { optional: true });
+  private readonly router = inject(Router, { optional: true });
   private readonly auth = inject(AuthService);
   private readonly searchReport = inject(SearchReportUseCase);
   private readonly exportReport = inject(ExportReportUseCase);
   private readonly notifications = inject(NotificationService);
 
+  ngOnInit(): void {
+    this.route?.queryParamMap.subscribe((params) => {
+      const type = params.get('tipo');
+      const report = REPORTS.find((option) => option.type === type && option.available);
+      if (report && report.type !== this.selectedType()) {
+        this.selectedType.set(report.type);
+        this.resetResults();
+      }
+    });
+  }
+
+  protected filteredReports(): ReportOption[] {
+    const query = this.reportSearch.trim().toLocaleLowerCase();
+    return query ? REPORTS.filter((report) => report.label.toLocaleLowerCase().includes(query)) : REPORTS;
+  }
+
   protected selectReport(report: ReportOption): void {
     if (!report.available) return;
     this.selectedType.set(report.type);
     this.resetResults();
+    this.router?.navigate([], { relativeTo: this.route, queryParams: { tipo: report.type }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   protected onPeriodChange(period: OperationPeriod): void {

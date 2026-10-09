@@ -415,4 +415,11 @@ describe('ReportListPage (formato de partidas)', () => {
     expect(botones().some((button) => button.textContent?.includes('XLSX'))).toBe(false);
   });
 
+
+  it('filtra tipos por etiqueta sin generar un reporte', () => {
+    const page = fixture.componentInstance as unknown as { reportSearch: string; filteredReports(): { type: string }[]; hasGenerated(): boolean };
+    page.reportSearch = '  CoMpUlSa  ';
+    expect(page.filteredReports().map((report) => report.type)).toEqual(['compulsa', 'compulsa-detalle']);
+    expect(page.hasGenerated()).toBe(false);
+  });
 });
