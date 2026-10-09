@@ -1,4 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,6 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, serializeCsv } from '@core/export/csv-export';
+import { NotificationService } from '@core/notifications/notification.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { BusinessPartyKind, BusinessPartyRow } from '@features/catalogs/business-parties/domain/business-party.model';
 import { BusinessPartyApi } from '@features/catalogs/business-parties/infrastructure/business-party.api';
@@ -29,6 +33,10 @@ import { BusinessPartyApi } from '@features/catalogs/business-parties/infrastruc
           <input matInput name="filter" [(ngModel)]="filter" placeholder="Clave, nombre, RFC o patente" class="h-11 w-full rounded-xl border border-slate-200 px-4" /></label>
           <button mat-flat-button color="primary" type="submit">Consultar</button><button mat-stroked-button type="button" (click)="clear()">Limpiar</button></form>
       </section>
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <button mat-stroked-button type="button" (click)="exportCsv()" [disabled]="loading() || isExporting() || total() === 0"><mat-icon>download</mat-icon>{{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}</button>
+        <span class="text-xs text-slate-500" aria-live="polite">{{ total() }} registros</span>
+      </div>
       @if (loading()) { <div class="rounded-2xl border border-slate-200 bg-white p-6" aria-busy="true">Cargando socios comerciales…</div> }
       @else if (error()) { <app-alert kind="error" title="No pudimos cargar los socios comerciales" [message]="error()!" actionLabel="Reintentar" (action)="load()" /> }
       @else { <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -46,10 +54,41 @@ import { BusinessPartyApi } from '@features/catalogs/business-parties/infrastruc
 export class BusinessPartiesPage implements OnInit {
   protected readonly tabs: { kind: BusinessPartyKind; label: string }[] = [{kind:'clients',label:'Clientes'},{kind:'providers',label:'Proveedores'},{kind:'agents',label:'Agentes aduanales'}];
   protected readonly selected=signal<BusinessPartyKind>('clients'); protected readonly rows=signal<BusinessPartyRow[]>([]); protected readonly total=signal(0);
-  protected readonly loading=signal(false); protected readonly error=signal<string|null>(null); protected readonly columns=['key','name','fiscalId','detail'];
+  protected readonly loading=signal(false); protected readonly isExporting=signal(false); protected readonly error=signal<string|null>(null); protected readonly columns=['key','name','fiscalId','detail'];
   protected filter=''; protected page=1; protected pageSize=20; private request=0; private readonly api=inject(BusinessPartyApi);
-  ngOnInit(): void { this.load(); }
-  protected select(kind: BusinessPartyKind): void { if(kind===this.selected()) return; this.selected.set(kind); this.filter=''; this.page=1; this.load(); }
+  private readonly route=inject(ActivatedRoute); private readonly router=inject(Router); private readonly notifications=inject(NotificationService);
+  ngOnInit(): void {
+    const kind = this.route.snapshot.queryParamMap.get('tipo');
+    if (kind === 'clientes') this.selected.set('clients');
+    else if (kind === 'proveedores') this.selected.set('providers');
+    else if (kind === 'agentes') this.selected.set('agents');
+    this.load();
+  }
+  protected select(kind: BusinessPartyKind): void {
+    const changed = kind !== this.selected();
+    if (changed) {
+      this.selected.set(kind); this.filter=''; this.page=1;
+    }
+    const tipo = kind === 'clients' ? 'clientes' : kind === 'providers' ? 'proveedores' : 'agentes';
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { tipo }, queryParamsHandling: 'merge', replaceUrl: true });
+    if (changed) this.load();
+  }
+  protected async exportCsv(): Promise<void> {
+    const kind = this.selected(); const filter = this.filter;
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.api.search(kind, filter, page, pageSize)));
+      if (!rows.length) { this.notifications.info('No hay registros para exportar.'); return; }
+      if (kind === 'agents') {
+        downloadCsv('agentes-aduanales.csv', serializeCsv(['Clave', 'Nombre', 'RFC', 'Patente', 'Agencia aduanal'], rows.map((row) => [row.key, row.name, row.fiscalId, row.patent, row.agency])));
+      } else {
+        const filename = kind === 'clients' ? 'clientes.csv' : 'proveedores.csv';
+        downloadCsv(filename, serializeCsv(['Clave', 'Nombre', 'RFC / ID fiscal', 'País', 'Correo'], rows.map((row) => [row.key, row.name, row.fiscalId, row.country, row.email])));
+      }
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar los socios comerciales.');
+    } finally { this.isExporting.set(false); }
+  }
   protected search(): void { this.page=1; this.load(); } protected clear(): void { this.filter=''; this.search(); }
   protected changePage(event: PageEvent): void { this.page=event.pageIndex+1; this.pageSize=event.pageSize; this.load(); }
   protected load(): void { const id=++this.request; this.loading.set(true); this.error.set(null); this.api.search(this.selected(),this.filter,this.page,this.pageSize).subscribe({next:r=>{if(id!==this.request)return;this.rows.set(r.items);this.total.set(r.total);this.loading.set(false);},error:e=>{if(id!==this.request)return;this.loading.set(false);this.error.set(userFacingApiError(e,'Verifica tu conexión e inténtalo nuevamente.'));}}); }
