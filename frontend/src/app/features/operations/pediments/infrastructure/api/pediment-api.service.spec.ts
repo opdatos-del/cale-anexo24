@@ -42,3 +42,14 @@ describe('PedimentApiService', () => {
     http.verify();
   });
 });
+
+  it('consulta errores paginados con el wrapper del contrato', () => {
+    TestBed.configureTestingModule({ providers: [PedimentApiService, provideHttpClient(), provideHttpClientTesting()] });
+    const service = TestBed.inject(PedimentApiService);
+    const http = TestBed.inject(HttpTestingController);
+    service.errors(7, 2, 50).subscribe((response) => expect(response.errores).toEqual([]));
+    const request = http.expectOne('/api/v1/operaciones/pedimentos/cargas/7/errores?pagina=2&tamano=50');
+    expect(request.request.method).toBe('GET');
+    request.flush({ cargaId: 7, pagina: 2, tamano: 50, errores: [] });
+    http.verify();
+  });

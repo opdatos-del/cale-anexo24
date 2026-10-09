@@ -41,3 +41,10 @@ export interface PedimentConfirmation {
   partidasProcesadas: number;
   fechaConfirmacion: string;
 }
+
+export interface PedimentErrorsResponse {
+  cargaId: number;
+  pagina: number;
+  tamano: number;
+  errores: PedimentError[];
+}

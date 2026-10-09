@@ -8,6 +8,7 @@ import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
 import { UploadPedimentUseCase } from '@features/operations/pediments/application/use-cases/upload-pediment.use-case';
 import { ConfirmPedimentUseCase } from '@features/operations/pediments/application/use-cases/confirm-pediment.use-case';
 import { GetPedimentUseCase } from '@features/operations/pediments/application/use-cases/get-pediment.use-case';
+import { PedimentImportErrorCsvService } from '@features/operations/pediments/application/pediment-import-error-csv.service';
 import { PedimentConfirmation, PedimentLoad } from '@features/operations/pediments/domain/models/pediment-upload.model';
 import { PedimentUploadPage } from './pediment-upload.page';
 
@@ -47,6 +48,7 @@ describe('PedimentUploadPage', () => {
         { provide: UploadPedimentUseCase, useValue: { execute: vi.fn(() => of()) } },
         { provide: ConfirmPedimentUseCase, useValue: confirmUseCase },
         { provide: GetPedimentUseCase, useValue: getUseCase },
+        { provide: PedimentImportErrorCsvService, useValue: { download: vi.fn(() => of(undefined)) } },
         { provide: ConfirmService, useValue: dialog },
         { provide: NotificationService, useValue: notifications },
         { provide: AuthService, useValue: { hasPermission: vi.fn(() => options.permiso ?? true) } },
@@ -117,7 +119,7 @@ describe('PedimentUploadPage', () => {
     harness.confirm();
     fixture.detectChanges();
     expect(confirmUseCase.execute).toHaveBeenCalledWith(1);
-    expect(getUseCase.execute).toHaveBeenCalledWith(1);
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 1, 100);
     expect(notifications.success).toHaveBeenCalled();
     expect(harness.confirmation()?.resultado).toBe('CONFIRMED');
   });
@@ -135,7 +137,7 @@ describe('PedimentUploadPage', () => {
     harness.load.set(cargada);
     harness.confirm();
     expect(notifications.info).toHaveBeenCalledWith('La carga ya se encontraba confirmada.');
-    expect(getUseCase.execute).toHaveBeenCalledWith(1);
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 1, 100);
   });
 
   it('409 muestra mensaje seguro', () => {
