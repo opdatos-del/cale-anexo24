@@ -129,6 +129,10 @@ class RuntimeIdentityDeploymentScriptsIT {
             "APP24_Q_CONSTANCIA_CARGA_OBTENER",
             "APP24_Q_CONSTANCIA_CARGA_ERRORES",
             "APP24_C_CONSTANCIA_CARGA_CREAR",
+            "APP24_Q_CONSULTAS_GUARDADAS_LISTAR",
+            "APP24_C_CONSULTA_GUARDADA_CREAR",
+            "APP24_C_CONSULTA_GUARDADA_ACTUALIZAR",
+            "APP24_C_CONSULTA_GUARDADA_ELIMINAR",
     };
 
     private static final String CUERPO_COMMAND = """
@@ -213,7 +217,7 @@ class RuntimeIdentityDeploymentScriptsIT {
         assertEquals(0, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE m.name = '" + RUNTIME + "' AND r.name IN ('db_owner','db_datareader','db_datawriter','db_ddladmin')"));
 
         assertEquals(1, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_principals WHERE name = 'app24_runtime' AND type = 'R'"));
-        assertEquals(55, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
+        assertEquals(APP_SP.length, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime') AND (permission_name <> 'EXECUTE' OR class_desc <> 'OBJECT_OR_COLUMN' OR state <> 'G')"));
         assertEquals(1, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_role_members drm JOIN sys.database_principals r ON r.principal_id = drm.role_principal_id JOIN sys.database_principals m ON m.principal_id = drm.member_principal_id WHERE r.name = 'app24_runtime' AND m.name = '" + RUNTIME + "'"));
         assertEquals(0, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('" + RUNTIME + "') AND NOT (class_desc = 'DATABASE' AND permission_name = 'CONNECT' AND state = 'G')"));
@@ -222,8 +226,8 @@ class RuntimeIdentityDeploymentScriptsIT {
         aplicar04();
         aplicar05();
         assertEquals(CALE_SP.length, valorAdmin(CALE, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('cale_immex_runtime')"));
-        assertEquals(55, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
-        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=" + CALE_SP.length + " APP=55");
+        assertEquals(APP_SP.length, valorAdmin(APP, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id = USER_ID('app24_runtime')"));
+        System.out.println("[DEPLOY-IT] 04/05 aplicados e idempotentes: CALE=" + CALE_SP.length + " APP=" + APP_SP.length);
     }
 
     @Test
