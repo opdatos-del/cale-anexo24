@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
+import { ActaImportErrorCsvService } from '@features/operations/actas/application/acta-import-error-csv.service';
 import { UploadActaUseCase } from '@features/operations/actas/application/use-cases/upload-acta.use-case';
 import { GetActaUseCase } from '@features/operations/actas/application/use-cases/get-acta.use-case';
 import { ConfirmActaUseCase } from '@features/operations/actas/application/use-cases/confirm-acta.use-case';
@@ -44,6 +45,7 @@ describe('ActaUploadPage', () => {
         { provide: UploadActaUseCase, useValue: { execute: vi.fn(() => of(cargada)) } },
         { provide: ConfirmActaUseCase, useValue: confirmUseCase },
         { provide: GetActaUseCase, useValue: getUseCase },
+        { provide: ActaImportErrorCsvService, useValue: { download: vi.fn(() => of(void 0)) } },
         { provide: ConfirmService, useValue: dialog },
         { provide: NotificationService, useValue: notifications },
         { provide: AuthService, useValue: { hasPermission: vi.fn(() => options.permiso ?? true) } },
@@ -115,7 +117,7 @@ describe('ActaUploadPage', () => {
     harness.confirm();
     fixture.detectChanges();
     expect(confirmUseCase.execute).toHaveBeenCalledWith(1);
-    expect(getUseCase.execute).toHaveBeenCalledWith(1);
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 1, 100);
     expect(notifications.success).toHaveBeenCalled();
     expect(harness.confirmation()?.resultado).toBe('CONFIRMED');
   });
@@ -143,4 +145,12 @@ describe('ActaUploadPage', () => {
     expect(mensaje).toContain('La carga no puede confirmarse');
     expect(mensaje).not.toMatch(/SQL|procedure|SELECT|INSERT|516/i);
   });
+  it('cambia de página sin volver a subir el archivo', () => {
+    const { fixture, harness, getUseCase } = configure();
+    harness.load.set({ ...cargada, totalPersistido: 101 });
+    (harness as unknown as { changePreviewPage: (event: { pageIndex: number; pageSize: number }) => void }).changePreviewPage({ pageIndex: 1, pageSize: 25 });
+    fixture.detectChanges();
+    expect(getUseCase.execute).toHaveBeenCalledWith(1, 2, 25);
+  });
+
 });

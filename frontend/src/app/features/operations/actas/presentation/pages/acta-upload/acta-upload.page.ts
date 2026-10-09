@@ -2,11 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { EMPTY, catchError, finalize, switchMap } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
+import { ActaImportErrorCsvService } from '@features/operations/actas/application/acta-import-error-csv.service';
 import { ActaConfirmation, ActaError, ActaLoad, ActaLoadState } from '@features/operations/actas/domain/models/acta-import.model';
 import { UploadActaUseCase } from '@features/operations/actas/application/use-cases/upload-acta.use-case';
 import { GetActaUseCase } from '@features/operations/actas/application/use-cases/get-acta.use-case';
@@ -18,7 +20,7 @@ const PREVIEW_COLUMNS = ['Folio', 'Fecha', 'Clave', 'Linea', 'Cantidad', 'Umc', 
 const CONFIRM_MESSAGE = 'La confirmación procesará el acta mediante las reglas vigentes del sistema Anexo 24 y puede generar salidas, partidas y descargas dirigidas. Verifica la información antes de continuar.';
 
 @Component({
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatPaginatorModule],
   selector: 'app-acta-upload',
   template: `
     <main class="mx-auto min-h-full w-full max-w-7xl bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
@@ -51,8 +53,11 @@ const CONFIRM_MESSAGE = 'La confirmación procesará el acta mediante las reglas
         <section class="mt-6" aria-label="Resultado de validación">
           <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h2 class="m-0 text-lg font-semibold text-slate-900">Resultado de validación</h2><p class="mb-0 mt-1 break-all text-xs text-slate-500">{{ result.archivo }}</p></div><span class="w-fit rounded-full px-3 py-1 text-xs font-semibold" [class.bg-emerald-50]="result.estado === 'PREVISUALIZADA'" [class.text-emerald-700]="result.estado === 'PREVISUALIZADA'" [class.bg-amber-50]="result.estado === 'CON_ERRORES'" [class.text-amber-800]="result.estado === 'CON_ERRORES'" [class.bg-blue-50]="result.estado === 'CONFIRMADA'" [class.text-blue-700]="result.estado === 'CONFIRMADA'">{{ stateLabel(result.estado) }}</span></div>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4"><div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"><span class="block text-xs text-slate-500">Total</span><strong>{{ result.totalFilas }}</strong></div><div class="rounded-xl bg-emerald-50 p-4"><span class="block text-xs text-emerald-700">Válidas</span><strong>{{ result.filasValidas }}</strong></div><div class="rounded-xl bg-red-50 p-4"><span class="block text-xs text-red-700">Inválidas</span><strong>{{ result.filasInvalidas }}</strong></div><div class="rounded-xl bg-blue-50 p-4"><span class="block text-xs text-blue-700">Errores</span><strong>{{ result.errores.length }}</strong></div></div>
-          @if (result.filas.length) { <div class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table class="w-full min-w-max text-left text-xs"><thead class="bg-slate-50"><tr>@for (column of previewColumns(result); track column) { <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-600">{{ column }}</th> }</tr></thead><tbody class="divide-y divide-slate-100">@for (row of result.filas; track $index) { <tr>@for (column of previewColumns(result); track column) { <td class="max-w-64 whitespace-nowrap px-3 py-3 text-slate-600">{{ row[column] || '—' }}</td> }</tr> }</tbody></table></div> } @else { <div class="mt-5 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">No hay filas para mostrar.</div> }
-          @if (result.errores.length) { <section class="mt-5 rounded-2xl border border-red-200 bg-red-50/60 p-4" aria-label="Errores de validación"><h3 class="m-0 text-sm font-semibold text-red-900">Errores de validación</h3><div class="mt-3 space-y-2">@for (issue of result.errores; track $index) { <div class="rounded-lg border border-red-100 bg-white p-3"><p class="m-0 text-sm font-medium text-red-800">{{ issue.mensaje }}</p><p class="mb-0 mt-1 text-xs text-red-700">{{ errorLocation(issue) }} · {{ issue.codigo }}</p></div> }</div></section> }
+          @if (previewError()) { <section class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert"><p class="m-0 font-semibold">No pudimos cambiar la pagina</p><p class="mb-3 mt-1">{{ previewError() }}</p><button mat-stroked-button type="button" (click)="retryPreviewPage()">Reintentar</button></section> }
+          @if (isPreviewLoading()) { <section class="mt-5 flex min-h-24 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600" aria-live="polite" aria-busy="true"><span class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></span>Cargando pagina de previsualizacion...</section> } @else if (result.filas.length)
+ { <div class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table class="w-full min-w-max text-left text-xs"><thead class="bg-slate-50"><tr>@for (column of previewColumns(result); track column) { <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-600">{{ column }}</th> }</tr></thead><tbody class="divide-y divide-slate-100">@for (row of result.filas; track $index) { <tr>@for (column of previewColumns(result); track column) { <td class="max-w-64 whitespace-nowrap px-3 py-3 text-slate-600">{{ row[column] || '—' }}</td> }</tr> }</tbody></table></div> } @else { <div class="mt-5 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">No hay filas para mostrar.</div> }
+          @if (result.totalPersistido > previewPageSize()) { <mat-paginator class="mt-3" [length]="result.totalPersistido" [pageIndex]="previewPage() - 1" [pageSize]="previewPageSize()" [pageSizeOptions]="[25, 50, 100]" showFirstLastButtons aria-label="Paginacion de previsualizacion" (page)="changePreviewPage($event)" /> }
+          @if (result.filasInvalidas > 0) { <section class="mt-5 rounded-2xl border border-red-200 bg-red-50/60 p-4" aria-label="Errores de validación"><div class="flex flex-wrap items-center justify-between gap-3"><h3 class="m-0 text-sm font-semibold text-red-900">Errores de validación</h3><button mat-stroked-button type="button" [disabled]="isDownloadingErrors()" (click)="downloadErrors()">@if (isDownloadingErrors()) { Descargando errores... } @else { Descargar errores }</button></div><div class="mt-3 space-y-2">@for (issue of result.errores; track $index) { <div class="rounded-lg border border-red-100 bg-white p-3"><p class="m-0 text-sm font-medium text-red-800">{{ issue.mensaje }}</p><p class="mb-0 mt-1 text-xs text-red-700">{{ errorLocation(issue) }} · {{ issue.codigo }}</p></div> }</div></section> }
           @if (canConfirm()) {
             <div class="mt-5 flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div><p class="m-0 text-sm font-medium text-slate-700">Confirmación autoritativa</p><p class="mb-0 mt-1 text-xs text-slate-500">Aplicará las reglas vigentes del sistema Anexo 24 sobre la carga validada.</p></div>
@@ -72,6 +77,11 @@ export class ActaUploadPage {
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly selectionMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
+  protected readonly isPreviewLoading = signal(false);
+  protected readonly isDownloadingErrors = signal(false);
+  protected readonly previewPage = signal(1);
+  protected readonly previewPageSize = signal(100);
+  protected readonly previewError = signal<string | null>(null);
   protected readonly isConfirming = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly load = signal<ActaLoad | null>(null);
@@ -90,6 +100,7 @@ export class ActaUploadPage {
   private readonly confirmService = inject(ConfirmService);
   private readonly confirmUseCase = inject(ConfirmActaUseCase);
   private readonly getUseCase = inject(GetActaUseCase);
+  private readonly errorCsv = inject(ActaImportErrorCsvService);
   private readonly uploadUseCase = inject(UploadActaUseCase);
   private readonly notifications = inject(NotificationService);
 
@@ -113,6 +124,9 @@ export class ActaUploadPage {
     this.selectionMessage.set(null);
     this.error.set(null);
     this.load.set(null);
+    this.previewPage.set(1);
+    this.previewPageSize.set(100);
+    this.previewError.set(null);
   }
 
   protected clear(): void {
@@ -121,6 +135,9 @@ export class ActaUploadPage {
     this.selectionMessage.set(null);
     this.error.set(null);
     this.load.set(null);
+    this.previewPage.set(1);
+    this.previewPageSize.set(100);
+    this.previewError.set(null);
     this.confirmation.set(null);
   }
 
@@ -129,12 +146,52 @@ export class ActaUploadPage {
     if (!file || this.isBusy()) return;
     this.isLoading.set(true);
     this.error.set(null);
+    this.previewError.set(null);
     this.confirmation.set(null);
     this.uploadUseCase.execute(file).pipe(catchError((cause: unknown) => {
       this.error.set(userFacingApiError(cause, 'Verifica tu conexión e inténtalo nuevamente.'));
       this.notifications.error('No fue posible validar el acta.');
       return EMPTY;
-    }), finalize(() => this.isLoading.set(false))).subscribe((result) => this.load.set(result));
+    }), finalize(() => this.isLoading.set(false))).subscribe((result) => { this.load.set(result); this.previewPage.set(1); });
+  }
+
+  protected changePreviewPage(event: PageEvent): void {
+    const result = this.load();
+    if (!result) return;
+    this.previewPage.set(event.pageIndex + 1);
+    this.previewPageSize.set(event.pageSize);
+    this.loadPreview(result);
+  }
+
+  protected retryPreviewPage(): void {
+    const result = this.load();
+    if (result) this.loadPreview(result);
+  }
+
+  protected downloadErrors(): void {
+    const result = this.load();
+    if (!result || result.filasInvalidas === 0 || this.isDownloadingErrors()) return;
+    this.isDownloadingErrors.set(true);
+    this.errorCsv.download(result.id).subscribe({
+      next: () => { this.isDownloadingErrors.set(false); this.notifications.success('Errores de validacion descargados.'); },
+      error: (cause: { message?: string; error?: { message?: string } }) => {
+        this.isDownloadingErrors.set(false);
+        this.notifications.error(cause?.error?.message || cause?.message || 'No fue posible descargar los errores de validacion.');
+      },
+    });
+  }
+
+  private loadPreview(result: ActaLoad): void {
+    this.isPreviewLoading.set(true);
+    this.previewError.set(null);
+    this.getUseCase.execute(result.id, this.previewPage(), this.previewPageSize()).subscribe({
+      next: (updated) => { this.load.set(updated); this.isPreviewLoading.set(false); },
+      error: (cause: { error?: { message?: string } }) => {
+        this.previewError.set(cause?.error?.message || 'No fue posible cargar esta pagina de la previsualizacion.');
+        this.isPreviewLoading.set(false);
+        this.notifications.error('No fue posible cargar la pagina de previsualizacion.');
+      },
+    });
   }
 
   /** Confirma la carga tras confirmación explícita del usuario. */
@@ -160,7 +217,7 @@ export class ActaUploadPage {
         if (!confirmacion) return EMPTY;
         this.confirmation.set(confirmacion);
         this.notifications.success('Acta confirmada.');
-        return this.getUseCase.execute(result.id);
+        return this.getUseCase.execute(result.id, this.previewPage(), this.previewPageSize());
       }),
       catchError((cause: unknown) => {
         this.notifications.error(userFacingApiError(cause, 'No fue posible actualizar la carga.'));
