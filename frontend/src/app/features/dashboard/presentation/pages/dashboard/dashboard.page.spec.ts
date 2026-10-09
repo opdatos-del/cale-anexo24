@@ -53,3 +53,28 @@ describe('DashboardPage quick links', () => {
     expect(fixture.nativeElement.textContent).toContain('Carga y validación de archivos de facturación.');
   });
 });
+
+describe('DashboardPage operation links', () => {
+  it.each([
+    ['PEDIMENTOS_CARGAR', 'Carga de pedimentos'],
+    ['ACTAS_CARGAR', 'Actas'],
+    ['CONSTANCIAS_CARGAR', 'Constancias'],
+  ])('shows %s operation link', (permission, label) => {
+    const fixture = configure([permission]);
+    expect(fixture.nativeElement.textContent).toContain(label);
+  });
+
+  it('hides operation links without their permissions', () => {
+    const fixture = configure(['REPORTES_GENERAR']);
+    expect(fixture.nativeElement.textContent).not.toContain('Carga y validación de pedimentos.');
+    expect(fixture.nativeElement.textContent).not.toContain('confirmación autorizada de actas.');
+    expect(fixture.nativeElement.textContent).not.toContain('confirmación autorizada de constancias.');
+  });
+
+  it('shows all operation links for combined permissions', () => {
+    const fixture = configure(['PEDIMENTOS_CARGAR', 'ACTAS_CARGAR', 'CONSTANCIAS_CARGAR']);
+    expect(fixture.nativeElement.textContent).toContain('Carga de pedimentos');
+    expect(fixture.nativeElement.textContent).toContain('Actas');
+    expect(fixture.nativeElement.textContent).toContain('Constancias');
+  });
+});
