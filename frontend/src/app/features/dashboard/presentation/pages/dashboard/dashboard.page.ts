@@ -36,7 +36,7 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
         </div>
       }
 
-      @if (auth.hasAnyPermission('MATERIALES_CONSULTAR', 'PRODUCTOS_CONSULTAR', 'ESTRUCTURAS_CONSULTAR', 'OPERACIONES_CONSULTAR')) {
+      @if (auth.hasAnyPermission('MATERIALES_CONSULTAR', 'PRODUCTOS_CONSULTAR', 'ESTRUCTURAS_CONSULTAR', 'OPERACIONES_CONSULTAR', 'REPORTES_GENERAR', 'MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR', 'FACTURACION_CARGAR')) {
         <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Accesos rápidos de catálogos">
         @if (auth.hasPermission('MATERIALES_CONSULTAR')) {
           <mat-card class="dashboard-card rounded-2xl! border! border-slate-200/80! bg-white! p-5! shadow-[0_4px_18px_rgb(15_23_42/4%)]!">
@@ -97,6 +97,24 @@ import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
               <p class="m-0 text-sm text-slate-700">Activos fijos</p>
             </div>
             <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consulta de partidas de importación marcadas como activos fijos.</p>
+          </a>
+        }
+        @if (auth.hasPermission('REPORTES_GENERAR')) {
+          <a routerLink="/reportes" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><mat-icon class="text-[20px]!">summarize</mat-icon></span><p class="m-0 text-sm text-slate-700">Reportes</p></div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Consultas y exportaciones disponibles.</p>
+          </a>
+        }
+        @if (auth.hasAnyPermission('MATERIALES_CARGAR', 'PRODUCTOS_CARGAR', 'CLIENTES_CARGAR', 'PROVEEDORES_CARGAR', 'AGENTES_CARGAR')) {
+          <a routerLink="/catalogos/importaciones" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><mat-icon class="text-[20px]!">upload_file</mat-icon></span><p class="m-0 text-sm text-slate-700">Importaciones de catálogos</p></div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Validación y previsualización de catálogos.</p>
+          </a>
+        }
+        @if (auth.hasPermission('FACTURACION_CARGAR')) {
+          <a routerLink="/facturacion" class="dashboard-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_18px_rgb(15_23_42/4%)] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><mat-icon class="text-[20px]!">receipt_long</mat-icon></span><p class="m-0 text-sm text-slate-700">Facturación</p></div>
+            <p class="mt-4 mb-0 text-sm leading-6 text-slate-500">Carga y validación de archivos de facturación.</p>
           </a>
         }
         </section>
