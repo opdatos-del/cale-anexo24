@@ -9,10 +9,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTableModule } from '@angular/material/table';
-import { EMPTY, Observable, Subject, catchError, debounce, filter, map, switchMap, timer } from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, debounce, filter, firstValueFrom, map, switchMap, timer } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
 import { AppAlertComponent } from '@core/ui/app-alert/app-alert.component';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, serializeCsv } from '@core/export/csv-export';
 import {
   AuditLogEntry,
   AuditLogModule,
@@ -206,9 +207,14 @@ interface AuditLogSearchResult {
         @if (hasSearched() && !validationMessage()) {
           <div class="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
             <span class="text-xs font-medium text-slate-500" aria-live="polite">{{ formatTotal() }} resultados</span>
-            <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de bitácora">
-              <mat-icon class="text-[18px]!" aria-hidden="true">refresh</mat-icon> Actualizar
-            </button>
+            <div class="flex items-center gap-2">
+              <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="refresh()" [disabled]="!canRefresh()" aria-label="Actualizar consulta de bitácora">
+                <mat-icon class="text-[18px]!" aria-hidden="true">refresh</mat-icon> Actualizar
+              </button>
+              <button mat-button type="button" class="h-9 rounded-lg! px-3! text-slate-600!" (click)="exportCsv()" [disabled]="isLoading() || isExporting() || totalItems() === 0 || !hasSearched() || validationMessage() !== null" aria-label="Exportar bitácora a CSV">
+                <mat-icon class="text-[18px]!" aria-hidden="true">download</mat-icon> {{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}
+              </button>
+            </div>
           </div>
         }
 
@@ -293,6 +299,7 @@ export class AuditLogListPage {
   protected readonly items = signal<AuditLogEntry[]>([]);
   protected readonly totalItems = signal(0);
   protected readonly isLoading = signal(false);
+  protected readonly isExporting = signal(false);
   protected readonly hasSearched = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -394,6 +401,20 @@ export class AuditLogListPage {
     this.currentPage = 1;
     this.hasSearched.set(true);
     this.scheduleSearch(false);
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const criteria = this.buildCriteria();
+    if (!criteria || !this.hasSearched() || this.validationMessage() !== null) return;
+    this.isExporting.set(true);
+    try {
+      const rows = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.searchAuditLog.execute({ ...criteria, page, pageSize })));
+      if (!rows.length) { this.notifications.info('No hay eventos para exportar.'); return; }
+      const csv = serializeCsv(['Fecha', 'Usuario ID', 'Usuario', 'Módulo', 'Acción', 'Resultado', 'Detalle', 'Correlation ID'], rows.map((row) => [row.date, row.userId, row.user, row.module, row.action, row.result, row.detail, row.correlationId]));
+      downloadCsv('bitacora.csv', csv);
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar la bitácora.');
+    } finally { this.isExporting.set(false); }
   }
 
   protected refresh(): void {
