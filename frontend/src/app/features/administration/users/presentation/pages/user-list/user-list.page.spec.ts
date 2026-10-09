@@ -36,6 +36,10 @@ interface PageInternals {
   load(): void;
   clearFilters(): void;
   onPage(event: { pageIndex: number; pageSize: number }): void;
+  page: { set(value: number): void; (): number };
+  pageSize: { set(value: number): void; (): number };
+  total(): number;
+  exportCsv(): Promise<void>;
   confirmStatusChange(user: UserAdministration): void;
   openCreate(): void;
   openEdit(user: UserAdministration): void;
@@ -48,6 +52,7 @@ const user: UserAdministration = { id: 7, key: 'OPERADOR', name: 'Operador', ema
 const firstPage: UserPage = { items: [user], total: 1, page: 1, pageSize: 20 };
 
 describe('UserListPage', () => {
+  afterEach(() => vi.unstubAllGlobals());
   let fixture: ComponentFixture<UserListPage>;
   let component: UserListPage;
   const search = { execute: vi.fn() };
@@ -151,6 +156,37 @@ describe('UserListPage', () => {
     expect(instance.loading()).toBe(false);
     expect(instance.error()).toBe('No fue posible consultar los usuarios.');
     expect(notifications.error).toHaveBeenCalledWith('No fue posible consultar los usuarios.');
+  });
+
+  it('exporta todos los usuarios con snapshot de filtros sin alterar página visible', async () => {
+    search.execute.mockReturnValue(of(firstPage));
+    createPage();
+    const instance = component as unknown as PageInternals;
+    instance.filters.setValue({ key: ' K ', name: ' Nombre ', email: ' mail@test ', status: 'ACTIVO', profileId: 3 });
+    instance.page.set(3);
+    instance.pageSize.set(50);
+    const visibleUsers = instance.users();
+    let exported: Blob | undefined;
+    const createObjectURL = vi.fn((blob: Blob) => { exported = blob; return 'blob:csv'; });
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    await instance.exportCsv();
+
+    expect(search.execute).toHaveBeenLastCalledWith({ key: ' K ', name: ' Nombre ', email: ' mail@test ', status: 'ACTIVO', profileId: 3, page: 1, pageSize: 100 });
+    expect(instance.page()).toBe(3);
+    expect(instance.pageSize()).toBe(50);
+    expect(instance.users()).toBe(visibleUsers);
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    const csv = await (exported as Blob).text();
+    expect(csv).toContain('Clave,Nombre,Correo,Perfil,Vigencia,Estado');
+    expect(csv).toContain('OPERADOR,Operador,operador@example.test,Operación,,ACTIVO');
+    expect(csv).not.toContain(',7,');
+    expect(csv).not.toContain(',3,');
+    expect(download).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:csv');
+    vi.unstubAllGlobals();
   });
 
   it('solicita confirmación y cambia el estado sólo al aceptarla', () => {

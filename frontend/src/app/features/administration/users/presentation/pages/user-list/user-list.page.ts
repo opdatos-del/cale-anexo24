@@ -12,9 +12,10 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { debounceTime, distinctUntilChanged, merge } from 'rxjs';
+import { debounceTime, distinctUntilChanged, firstValueFrom, merge } from 'rxjs';
 import { userFacingApiError } from '@core/http/api-error.util';
 import { NotificationService } from '@core/notifications/notification.service';
+import { CSV_EXPORT_LIMIT_MESSAGE, downloadCsv, loadAllCsvPages, normalizeCsvDate, serializeCsv } from '@core/export/csv-export';
 import { ConfirmService } from '@core/ui/confirm-dialog/confirm.service';
 import { ChangeUserStatusUseCase } from '@features/administration/users/application/use-cases/change-user-status.use-case';
 
@@ -64,6 +65,9 @@ export function formatExpiration(value: string | null): string {
             <span class="text-xs font-medium text-slate-500" aria-live="polite">{{ formatTotal() }} resultados</span>
             <button mat-stroked-button type="button" (click)="load()" [disabled]="loading()" aria-label="Actualizar listado de usuarios">
               <mat-icon aria-hidden="true">refresh</mat-icon> Actualizar
+            </button>
+            <button mat-stroked-button type="button" (click)="exportCsv()" [disabled]="loading() || isExporting() || total() === 0" aria-label="Exportar usuarios a CSV">
+              <mat-icon aria-hidden="true">download</mat-icon> {{ isExporting() ? 'Exportando...' : 'Exportar CSV' }}
             </button>
             <button mat-flat-button type="button" (click)="openCreate()" aria-label="Crear usuario">
               <mat-icon aria-hidden="true">person_add</mat-icon> Nuevo usuario
@@ -183,6 +187,7 @@ export class UserListPage implements OnInit {
   protected readonly page = signal(1);
   protected readonly pageSize = signal(20);
   protected readonly loading = signal(false);
+  protected readonly isExporting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly profiles = signal<ProfileAdministration[]>([]);
   protected readonly profilesLoading = signal(false);
@@ -204,6 +209,19 @@ export class UserListPage implements OnInit {
     this.filters.controls.profileId.valueChanges.pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.filtersChanged());
     this.loadProfiles();
     this.load();
+  }
+
+  protected async exportCsv(): Promise<void> {
+    const filters = this.filters.getRawValue();
+    this.isExporting.set(true);
+    try {
+      const users = await loadAllCsvPages((page, pageSize) => firstValueFrom(this.searchUsers.execute({ ...filters, page, pageSize })));
+      if (!users.length) { this.notifications.info('No hay usuarios para exportar.'); return; }
+      const csv = serializeCsv(['Clave', 'Nombre', 'Correo', 'Perfil', 'Vigencia', 'Estado'], users.map((user) => [user.key, user.name, user.email, user.profileName, normalizeCsvDate(user.expiration), user.status]));
+      downloadCsv('usuarios.csv', csv);
+    } catch (cause) {
+      this.notifications.error(cause instanceof Error && cause.message === CSV_EXPORT_LIMIT_MESSAGE ? CSV_EXPORT_LIMIT_MESSAGE : 'No fue posible exportar los usuarios.');
+    } finally { this.isExporting.set(false); }
   }
 
   protected load(): void {
