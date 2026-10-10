@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { appConfig } from '@app/app.config';
@@ -144,6 +145,31 @@ describe('BillingUploadPage', () => {
     expect(billingApi.load).toHaveBeenCalledWith(1, 2, 50);
     expect(page.response().cargas[0].estado).toBe(initialStatus);
     expect(fixture.nativeElement.textContent).toContain(label);
+  });
+
+  it('abre sólo historial y omite plantilla en deep-link de carga', () => {
+    const api = {
+      template: vi.fn(() => of(TEMPLATE)),
+      downloadTemplate: vi.fn(() => of(new Blob(['xlsx']))),
+      history: vi.fn(() => of({ items: [], total: 0, pagina: 1, tamano: 20 })),
+      load: vi.fn(() => of({ id: 101, archivo: 'a.xlsx', hash: 'hash-a', estado: 'PREVISUALIZADA' as const, totalRegistros: 0, registrosValidos: 0, registrosInvalidos: 0, preview: { filas: [], pagina: 1, tamano: 100 }, errores: [] })),
+    };
+    TestBed.configureTestingModule({
+      imports: [BillingUploadPage],
+      providers: [
+        { provide: UploadBillingFilesUseCase, useValue: { execute: vi.fn() } },
+        { provide: BillingApiService, useValue: api },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ carga: '101' }) } } },
+        { provide: Router, useValue: { navigate: vi.fn(() => Promise.resolve(true)) } },
+      ],
+    });
+    const fixture = TestBed.createComponent(BillingUploadPage);
+    fixture.detectChanges();
+
+    expect(api.template).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('app-billing-history')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Selecciona archivos');
+    expect(fixture.nativeElement.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toContain('Historial');
   });
 
 });

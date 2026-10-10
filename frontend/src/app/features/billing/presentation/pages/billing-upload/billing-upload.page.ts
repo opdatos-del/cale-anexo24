@@ -29,8 +29,9 @@ interface BillingPreviewState {
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Facturación · V1</p>
         <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Carga de facturación</h1>
         <p class="mt-1 text-sm text-slate-500">Carga archivos para validar sus registros antes de cualquier confirmación.</p>
-      </header><div class="mb-5 flex gap-2" role="tablist" aria-label="Secciones de facturación"><button type="button" role="tab" title="Nueva carga" [attr.aria-selected]="activeTab() === 'upload'" (click)="activeTab.set('upload')">Nueva carga</button><button type="button" role="tab" title="Historial" [attr.aria-selected]="activeTab() === 'history'" (click)="activeTab.set('history')">Historial</button></div>
+      </header><div class="mb-5 flex gap-2" role="tablist" aria-label="Secciones de facturación"><button type="button" role="tab" title="Nueva carga" [attr.aria-selected]="activeTab() === 'upload'" (click)="selectTab('upload')" [class.bg-blue-600]="activeTab() === 'upload'" [class.text-white]="activeTab() === 'upload'" [class.bg-white]="activeTab() !== 'upload'">Nueva carga</button><button type="button" role="tab" title="Historial" [attr.aria-selected]="activeTab() === 'history'" (click)="selectTab('history')" [class.bg-blue-600]="activeTab() === 'history'" [class.text-white]="activeTab() === 'history'" [class.bg-white]="activeTab() !== 'history'">Historial</button></div>
 
+      @if (activeTab() === 'upload') {
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Carga de archivos de facturación">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="m-0 text-base font-semibold text-slate-800">Selecciona archivos</h2><p class="mb-0 mt-1 text-xs text-slate-500">Excel .xls o .xlsx · máximo 5 archivos · 10 MiB por archivo</p></div>
@@ -83,7 +84,10 @@ interface BillingPreviewState {
       } @else if (!isLoading() && !error()) {
         <section class="mt-5 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-8 text-center"><mat-icon class="mb-2 text-slate-300" aria-hidden="true">receipt_long</mat-icon><p class="m-0 text-sm font-medium text-slate-600">Aún no hay cargas para mostrar</p><span class="mt-1 text-xs text-slate-400">Selecciona uno o varios archivos Excel para comenzar.</span></section>
       }
-    @if (activeTab() === 'history') { <app-billing-history /> }</main>
+      } @else {
+        <app-billing-history />
+      }
+    </main>
   `,
 })
 export class BillingUploadPage implements OnInit {
@@ -104,8 +108,15 @@ export class BillingUploadPage implements OnInit {
   private readonly route = inject(ActivatedRoute, { optional: true });
 
   ngOnInit(): void {
-    this.loadTemplate();
-    if (Number(this.route?.snapshot.queryParamMap.get('carga')) > 0) this.activeTab.set('history');
+    const carga = Number(this.route?.snapshot.queryParamMap.get('carga'));
+    const opensHistory = Number.isSafeInteger(carga) && carga > 0;
+    this.activeTab.set(opensHistory ? 'history' : 'upload');
+    if (!opensHistory) this.loadTemplate();
+  }
+
+  protected selectTab(tab: 'upload' | 'history'): void {
+    this.activeTab.set(tab);
+    if (tab === 'upload' && !this.template() && !this.isTemplateLoading()) this.loadTemplate();
   }
 
   protected loadTemplate(): void {
