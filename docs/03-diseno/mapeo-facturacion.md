@@ -564,3 +564,27 @@ capturas antes/despues aprobadas por el responsable funcional.
 
 LIVE writes = 0. LIVE mutable executions = 0. NEW_BUSINESS_SP = 0.
 INLINE_BUSINESS_SQL_JAVA = 0.
+
+
+## 19. Historial, recuperación y aislamiento por propietario (Sprint 11)
+
+El detalle persistido estaba expuesto por identificador sin filtrar usuario_id.
+El contrato nuevo requiere propietario autenticado en el procedimiento de detalle;
+encabezado, filas, conteo y errores quedan bajo el mismo predicado. Un
+identificador ajeno devuelve 404 sin revelar su existencia.
+
+El nuevo procedimiento de listado lista sólo CargaFacturacion del propietario,
+con periodo opcional completo, estado persistido opcional, paginación 1-100 y
+orden fecha DESC, id DESC. No devuelve filas ni errores. Los estados persistidos
+PREVISUALIZADA e INVALIDA permanecen distintos de los estados temporales de
+upload VALIDADA, CON_ERRORES y FALLIDA.
+
+La UI conserva /facturacion, agrega Historial y permite abrir una carga con el
+query param carga para recuperar detalle persistido. No envía usuarioId.
+
+Forensic LIVE read-only revalidó definiciones completas de CARGA_FACTURAS,
+CARGAFACTURASENPSALIDAS, CREAPRODUCTOSCARGAFACTURA, INSTERTAFACTURASFC y
+LIGACTMFACTURA: todos contienen DML y no tienen caller metadata visible. No hay
+entrada autoritativa, mapping, grano, duplicados, atomicidad, retry ni
+concurrencia confirmados. LEGACY-058 sigue PARTIAL y la confirmación permanece
+BLOCKED_BUSINESS; no se ejecutaron SP mutables.

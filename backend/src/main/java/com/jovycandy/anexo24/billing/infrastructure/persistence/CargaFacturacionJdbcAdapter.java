@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jovycandy.anexo24.billing.domain.model.ArchivoFacturacion;
 import com.jovycandy.anexo24.billing.domain.model.CargaFacturacionDetalle;
+import com.jovycandy.anexo24.billing.domain.model.CargaFacturacionResumen;
+import com.jovycandy.anexo24.billing.domain.model.EstadoCargaFacturacionPersistida;
+import com.jovycandy.anexo24.shared.api.Pagina;
 import com.jovycandy.anexo24.billing.domain.port.CargaFacturacionRepository;
 import com.jovycandy.anexo24.shared.exception.RecursoDuplicadoException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.CallableStatement;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.util.*;
 
 @Repository
@@ -21,6 +25,7 @@ public class CargaFacturacionJdbcAdapter implements CargaFacturacionRepository {
     static final String EXISTE = "app24.APP24_Q_FACTURACION_CARGA_POR_HASH";
     static final String CREAR = "app24.APP24_C_FACTURACION_CARGA_CREAR";
     static final String OBTENER = "app24.APP24_Q_FACTURACION_CARGA_OBTENER";
+    static final String LISTAR = "app24.APP24_Q_FACTURACION_CARGAS_LISTAR";
     private final JdbcTemplate appJdbcTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -71,12 +76,12 @@ public class CargaFacturacionJdbcAdapter implements CargaFacturacionRepository {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Optional<CargaFacturacionDetalle> findById(long id, int pagina, int tamano) {
+    public Optional<CargaFacturacionDetalle> findById(long id, long usuarioId, int pagina, int tamano) {
         Map<String, Object> result = appJdbcTemplate.call(connection -> {
-            CallableStatement statement = connection.prepareCall("{call " + OBTENER + "(?, ?, ?)}");
-            statement.setLong(1, id); statement.setInt(2, pagina); statement.setInt(3, tamano); return statement;
-        }, List.of(new SqlParameter("CargaId", Types.BIGINT), new SqlParameter("Pagina", Types.INTEGER),
-                new SqlParameter("Tamano", Types.INTEGER),
+            CallableStatement statement = connection.prepareCall("{call " + OBTENER + "(?, ?, ?, ?)}");
+            statement.setLong(1, id); statement.setLong(2, usuarioId); statement.setInt(3, pagina); statement.setInt(4, tamano); return statement;
+        }, List.of(new SqlParameter("CargaId", Types.BIGINT), new SqlParameter("UsuarioId", Types.BIGINT),
+                new SqlParameter("Pagina", Types.INTEGER), new SqlParameter("Tamano", Types.INTEGER),
                 new SqlReturnResultSet("carga", (rs, n) -> new Object[]{rs.getLong("id"), rs.getString("archivo"), rs.getString("hash"),
                         rs.getString("estado"), rs.getInt("total_registros"), rs.getInt("registros_validos"), rs.getInt("registros_invalidos")} ),
                 new SqlReturnResultSet("filas", (rs, n) -> new Object[]{rs.getString("hoja"), rs.getInt("fila"), rs.getString("datos_json")} ),
@@ -94,6 +99,28 @@ public class CargaFacturacionJdbcAdapter implements CargaFacturacionRepository {
         return Optional.of(new CargaFacturacionDetalle((Long) meta[0], (String) meta[1], (String) meta[2], (String) meta[3],
                 (Integer) meta[4], (Integer) meta[5], (Integer) meta[6], filas,
                 (List<ArchivoFacturacion.Error>) result.getOrDefault("errores", List.of())));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Pagina<CargaFacturacionResumen> buscar(long usuarioId, EstadoCargaFacturacionPersistida estado,
+                                                    LocalDate desde, LocalDate hasta, int pagina, int tamano) {
+        Map<String, Object> result = appJdbcTemplate.call(connection -> {
+            CallableStatement statement = connection.prepareCall("{call " + LISTAR + "(?, ?, ?, ?, ?, ?, ?)}");
+            statement.setLong(1, usuarioId);
+            if (estado == null) statement.setNull(2, Types.VARCHAR); else statement.setString(2, estado.name());
+            statement.setObject(3, desde); statement.setObject(4, hasta); statement.setInt(5, pagina); statement.setInt(6, tamano);
+            statement.registerOutParameter(7, Types.BIGINT); return statement;
+        }, List.of(new SqlParameter("UsuarioId", Types.BIGINT), new SqlParameter("Estado", Types.VARCHAR),
+                new SqlParameter("Desde", Types.DATE), new SqlParameter("Hasta", Types.DATE),
+                new SqlParameter("Pagina", Types.INTEGER), new SqlParameter("Tamano", Types.INTEGER),
+                new SqlOutParameter("Total", Types.BIGINT), new SqlReturnResultSet("items", (rs, n) ->
+                        new CargaFacturacionResumen(rs.getLong("id"), rs.getString("archivo"), rs.getString("hash"),
+                                rs.getTimestamp("fecha").toLocalDateTime(), EstadoCargaFacturacionPersistida.valueOf(rs.getString("estado")),
+                                rs.getInt("total_registros"), rs.getInt("registros_validos"), rs.getInt("registros_invalidos")))));
+        List<CargaFacturacionResumen> items = (List<CargaFacturacionResumen>) result.getOrDefault("items", List.of());
+        Number total = (Number) result.get("Total");
+        return new Pagina<>(items, total == null ? 0L : total.longValue(), pagina, tamano);
     }
 
     private int invalidRows(ArchivoFacturacion archivo) {

@@ -60,3 +60,22 @@ export interface BillingLoadDetail {
   preview: { filas: Record<string, string | null>[]; pagina: number; tamano: number };
   errores: BillingValidationError[];
 }
+
+
+export interface BillingLoadSummary {
+  id: number;
+  archivo: string;
+  hash: string;
+  fecha: string;
+  estado: BillingPersistedLoadStatus;
+  totalRegistros: number;
+  registrosValidos: number;
+  registrosInvalidos: number;
+}
+
+export interface BillingPage<T> {
+  items: T[];
+  total: number;
+  pagina: number;
+  tamano: number;
+}

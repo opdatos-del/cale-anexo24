@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { EMPTY, catchError, finalize } from 'rxjs';
@@ -7,6 +8,7 @@ import { userFacingApiError } from '@core/http/api-error.util';
 import { UploadBillingFilesUseCase } from '@features/billing/application/use-cases/upload-billing-files.use-case';
 import { BillingLoad, BillingLoadDetail, BillingTemplate, BillingUploadResponse } from '@features/billing/domain/models/billing-upload.model';
 import { BillingApiService } from '@features/billing/infrastructure/api/billing-api.service';
+import { BillingHistoryComponent } from '@features/billing/presentation/components/billing-history.component';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -19,7 +21,7 @@ interface BillingPreviewState {
 }
 
 @Component({
-  imports: [CommonModule, MatIconModule, MatPaginatorModule],
+  imports: [CommonModule, MatIconModule, MatPaginatorModule, BillingHistoryComponent],
   selector: 'app-billing-upload',
   template: `
     <main class="mx-auto min-h-full w-full max-w-7xl bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-9">
@@ -27,7 +29,7 @@ interface BillingPreviewState {
         <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Facturación · V1</p>
         <h1 class="m-0 text-2xl font-semibold tracking-tight text-slate-900">Carga de facturación</h1>
         <p class="mt-1 text-sm text-slate-500">Carga archivos para validar sus registros antes de cualquier confirmación.</p>
-      </header>
+      </header><div class="mb-5 flex gap-2" role="tablist" aria-label="Secciones de facturación"><button type="button" role="tab" title="Nueva carga" [attr.aria-selected]="activeTab() === 'upload'" (click)="activeTab.set('upload')">Nueva carga</button><button type="button" role="tab" title="Historial" [attr.aria-selected]="activeTab() === 'history'" (click)="activeTab.set('history')">Historial</button></div>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="Carga de archivos de facturación">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -81,10 +83,11 @@ interface BillingPreviewState {
       } @else if (!isLoading() && !error()) {
         <section class="mt-5 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-8 text-center"><mat-icon class="mb-2 text-slate-300" aria-hidden="true">receipt_long</mat-icon><p class="m-0 text-sm font-medium text-slate-600">Aún no hay cargas para mostrar</p><span class="mt-1 text-xs text-slate-400">Selecciona uno o varios archivos Excel para comenzar.</span></section>
       }
-    </main>
+    @if (activeTab() === 'history') { <app-billing-history /> }</main>
   `,
 })
 export class BillingUploadPage implements OnInit {
+  protected readonly activeTab = signal<'upload' | 'history'>('upload');
   protected readonly selectedFiles = signal<File[]>([]);
   protected readonly selectionMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
@@ -98,9 +101,11 @@ export class BillingUploadPage implements OnInit {
   protected readonly previewStates = signal<Record<number, BillingPreviewState>>({});
   private readonly uploadFiles = inject(UploadBillingFilesUseCase);
   private readonly billingApi = inject(BillingApiService);
+  private readonly route = inject(ActivatedRoute, { optional: true });
 
   ngOnInit(): void {
     this.loadTemplate();
+    if (Number(this.route?.snapshot.queryParamMap.get('carga')) > 0) this.activeTab.set('history');
   }
 
   protected loadTemplate(): void {

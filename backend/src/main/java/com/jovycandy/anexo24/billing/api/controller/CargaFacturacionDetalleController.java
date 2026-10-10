@@ -3,7 +3,9 @@ package com.jovycandy.anexo24.billing.api.controller;
 import com.jovycandy.anexo24.billing.api.dto.CargaFacturacionDetalleResponse;
 import com.jovycandy.anexo24.billing.domain.port.CargaFacturacionRepository;
 import org.springframework.http.ResponseEntity;
+import com.jovycandy.anexo24.security.AuthenticatedUserPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,10 +23,11 @@ public class CargaFacturacionDetalleController {
     @PreAuthorize("hasAuthority('FACTURACION_CARGAR')")
     public ResponseEntity<CargaFacturacionDetalleResponse> obtener(@PathVariable long id,
                                                                     @RequestParam(defaultValue = "1") int pagina,
-                                                                    @RequestParam(defaultValue = "100") int tamano) {
+                                                                    @RequestParam(defaultValue = "100") int tamano,
+                                                                    @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         if (id <= 0 || pagina < 1 || tamano < 1 || tamano > 100)
             throw new BillingUploadExceptionHandler.BillingArchivoInvalidoException("Los parámetros de paginación no son válidos.");
-        return repository.findById(id, pagina, tamano)
+        return repository.findById(id, principal.userId(), pagina, tamano)
                 .map(detail -> ResponseEntity.ok(CargaFacturacionDetalleResponse.from(detail, pagina, tamano)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
