@@ -6,7 +6,7 @@ import { BillingApiService } from '@features/billing/infrastructure/api/billing-
 import { userFacingApiError } from '@core/http/api-error.util';
 import { finalize } from 'rxjs';
 
-@Component({ selector: 'app-billing-history', imports: [CommonModule], template: '@if (loading()) { <p role="status">Cargando historial…</p> } @if (error(); as message) { <p role="alert">{{ message }} <button type="button" (click)="search()">Reintentar</button></p> } <h2>Historial</h2><button type="button" (click)="search()">Actualizar</button> @if (detail(); as carga) { <article><button type="button" (click)="closeReview()">Cerrar</button> <strong>{{ carga.archivo }}</strong> {{ persistedLabel(carga.estado) }} · {{ carga.preview.filas.length }} filas · {{ carga.errores.length }} errores</article> } @if (page(); as result) { @for (load of result.items; track load.id) { <article> {{ load.fecha | date:"dd/MM/yyyy" }} · {{ load.archivo }} · {{ persistedLabel(load.estado) }} · {{ load.totalRegistros }} registros <button type="button" (click)="review(load.id)" [attr.aria-label]="reviewLabel(load)">Revisar</button></article> } <button type="button" [disabled]="result.pagina === 1" (click)="goTo(result.pagina - 1)">Anterior</button> {{ result.pagina }} / {{ result.total }} <button type="button" [disabled]="result.pagina * result.tamano >= result.total" (click)="goTo(result.pagina + 1)">Siguiente</button> }' })
+@Component({ selector: 'app-billing-history', imports: [CommonModule], template: '<select #status (change)="setStatus(status.value)"><option value="">Todos</option><option value="PREVISUALIZADA">Previsualizada</option><option value="INVALIDA">Inválida</option></select> <input #from type="date" (change)="setPeriod(from.value, to.value)"> <input #to type="date" (change)="setPeriod(from.value, to.value)"> @if (loading()) { <p role="status">Cargando historial…</p> } @if (error(); as message) { <p role="alert">{{ message }} <button type="button" (click)="search()">Reintentar</button></p> } <h2>Historial</h2><button type="button" (click)="search()">Actualizar</button> @if (detail(); as carga) { <article><button type="button" (click)="closeReview()">Cerrar</button> <strong>{{ carga.archivo }}</strong> {{ persistedLabel(carga.estado) }} · {{ carga.preview.filas.length }} filas · {{ carga.errores.length }} errores</article> } @if (page(); as result) { @for (load of result.items; track load.id) { <article> {{ load.fecha | date:"dd/MM/yyyy" }} · {{ load.archivo }} · {{ persistedLabel(load.estado) }} · {{ load.totalRegistros }} registros <button type="button" (click)="review(load.id)" [attr.aria-label]="reviewLabel(load)">Revisar</button></article> } <button type="button" [disabled]="result.pagina === 1" (click)="goTo(result.pagina - 1)">Anterior</button> {{ result.pagina }} / {{ result.total }} <button type="button" [disabled]="result.pagina * result.tamano >= result.total" (click)="goTo(result.pagina + 1)">Siguiente</button> }' })
 export class BillingHistoryComponent implements OnInit {
   private readonly api = inject(BillingApiService);
   private readonly route = inject(ActivatedRoute);
@@ -19,6 +19,8 @@ export class BillingHistoryComponent implements OnInit {
   private status: BillingPersistedLoadStatus | null = null;
   private currentPage = 1;
   private pageSize = 20;
+  private desde: string | null = null;
+  private hasta: string | null = null;
 
   ngOnInit(): void {
     this.search();
@@ -30,6 +32,12 @@ export class BillingHistoryComponent implements OnInit {
     this.status = value === 'PREVISUALIZADA' || value === 'INVALIDA' ? value : null;
     this.currentPage = 1;
     this.search();
+  }
+
+  protected setPeriod(desde: string, hasta: string): void {
+    this.desde = desde || null; this.hasta = hasta || null;
+    if ((this.desde === null) !== (this.hasta === null) || (this.desde !== null && this.hasta !== null && this.desde > this.hasta)) return;
+    this.currentPage = 1; this.search();
   }
 
   protected setPageSize(value: string): void {
@@ -47,7 +55,7 @@ export class BillingHistoryComponent implements OnInit {
     if (this.loading()) return;
     this.loading.set(true);
     this.error.set(null);
-    this.api.history(this.status, null, null, this.currentPage, this.pageSize)
+    this.api.history(this.status, this.desde, this.hasta, this.currentPage, this.pageSize)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({ next: (result) => this.page.set(result), error: (cause: unknown) => this.error.set(userFacingApiError(cause, 'No fue posible cargar el historial.')) });
   }
