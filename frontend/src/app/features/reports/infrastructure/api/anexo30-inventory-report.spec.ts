@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ReportApiService } from './report-api.service';
 
 describe('ReportApiService inventario inicial Anexo 30', () => {
-  it('consulta snapshot con filtro opcional y paginación, sin periodo', () => {
+  it('consulta vista legacy con filtro opcional y paginación, sin periodo', () => {
     TestBed.configureTestingModule({ providers: [ReportApiService, provideHttpClient(), provideHttpClientTesting()] });
     const service = TestBed.inject(ReportApiService);
     const http = TestBed.inject(HttpTestingController);

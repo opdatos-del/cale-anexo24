@@ -72,20 +72,23 @@ Objetos LIVE confirmados:
 
 - `dbo.INVENTARIOINICIAL`: VIEW read-only, 7 columnas, definición completa.
 - Dependencias: `dbo.v_saldos` y `dbo.importaciones`.
-- `dbo.v_saldos`: VIEW read-only; proyecta saldos persistidos desde
-  `Importaciones`/`partidas`, sin DML propio.
-- Snapshot actual A31 observado con 0 filas en tablas A31 auditadas.
+- `dbo.v_saldos`: VIEW read-only; deriva valores desde saldos operacionales de
+  `Importaciones`/`partidas`, incluyendo `PARTIDAS.Saldo`, sin DML propio.
+- Las tablas A31 auditadas se observaron con 0 filas. Esto no demuestra que
+  `dbo.INVENTARIOINICIAL` esté vacía: la vista depende de otras fuentes.
 - `dbo.A31_SALDOS`: procedimiento mutable con `INSERT` en `A31_DESCARGAS` y
   `UPDATE` sobre `A31_ENTRADAS.SALDO`; no se ejecutó.
 
-`INVENTARIOINICIAL` tiene grano explícito por `documento`, fecha y fracción, y
-proyección estable: patente, número de pedimento, clave de sección aduanera,
-fecha de selección, fracción, valor comercial histórico e indicador de activo
-fijo. Se implementó consulta read-only paginada y exportación XLSX; filtro sólo
-sobre columnas proyectadas.
+`INVENTARIOINICIAL` es una VIEW legacy read-only con grano y proyección estables:
+patente, número de pedimento, clave de sección aduanera, fecha de selección,
+fracción, valor comercial histórico e indicador de activo fijo. La consulta nueva
+lee esa vista y sus saldos operacionales disponibles; no representa un snapshot
+A31 materializado, no garantiza fecha de corte fiscal inmutable y no constituye
+por sí misma un inventario inicial fiscal formalmente validado. Se implementó
+consulta paginada y exportación XLSX; filtro sólo sobre columnas proyectadas.
 
 ```text
-ANEXO30_INITIAL_INVENTORY = IMPLEMENTED_READ_ONLY_LAST_SNAPSHOT
+ANEXO30_INITIAL_INVENTORY = IMPLEMENTED_READ_ONLY_LEGACY_VIEW
 ANEXO30_BALANCES = BLOCKED_BUSINESS
 ANEXO30_EXPIRATIONS = BLOCKED_EVIDENCE
 ANEXO30_MUTABLE_SP_EXECUTIONS = 0
@@ -93,7 +96,8 @@ LEGACY_073 = PARTIAL_ACCEPTED_V1
 ```
 
 Las lecturas previas de entradas, fracciones, descargas y comparativa permanecen
-read-only. No se afirma actualidad: el snapshot LIVE actual está vacío.
+read-only. La ausencia de filas en tablas A31 no permite inferir ausencia de filas
+en `INVENTARIOINICIAL`; tampoco se afirma fecha de corte fiscal para esta vista.
 
 ## SP y permisos
 

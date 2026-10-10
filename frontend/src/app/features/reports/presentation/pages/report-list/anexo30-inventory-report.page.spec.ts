@@ -24,7 +24,7 @@ describe('ReportListPage inventario inicial Anexo 30', () => {
     fixture.detectChanges();
 
     expect(search.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'anexo30-revision-inventario-inicial', page: 1, pageSize: 20 }));
-    expect(fixture.nativeElement.textContent).toContain('Inventario inicial agrupado');
+    expect(fixture.nativeElement.textContent).toContain('Consulta read-only de dbo.INVENTARIOINICIAL, derivada de saldos operacionales disponibles');
     expect(fixture.nativeElement.textContent).toContain('0000001');
     expect(fixture.nativeElement.querySelector('app-operation-period-filter')).toBeNull();
   });

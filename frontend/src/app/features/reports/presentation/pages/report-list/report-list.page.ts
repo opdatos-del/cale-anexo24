@@ -244,7 +244,7 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
             } @else if (selectedType() === 'f4') {
               <p class="m-0 text-xs text-slate-500">Consulta líneas dirigidas de salidas F4/A3 con tipo CTM APAA o desperdicio; no genera descargos.</p>
             } @else if (selectedType() === 'anexo30-revision-inventario-inicial') {
-              <p class="m-0 text-xs text-slate-500">Inventario inicial agrupado por documento, fecha y fracci&oacute;n desde el &uacute;ltimo snapshot persistido. La consulta no recalcula saldos.</p>
+              <p class="m-0 text-xs text-slate-500">Consulta read-only de dbo.INVENTARIOINICIAL, derivada de saldos operacionales disponibles; no garantiza fecha de corte fiscal ni recalcula saldos.</p>
             } @else if (selectedType() === 'anexo30-revision-fracciones') {
               <p class="m-0 text-xs text-slate-500">Registros persistidos de fracción utilizados por el proceso Anexo 30.</p>
             } @else if (selectedType() === 'anexo30-revision-descargas') {
