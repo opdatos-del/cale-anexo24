@@ -50,6 +50,7 @@ const REPORTS: ReportOption[] = [
   { type: 'anexo30-revision-fracciones', label: 'Revision Anexo 30 - Fracciones de descarga', icon: 'description', available: true },
   { type: 'anexo30-revision-descargas', label: 'Revision Anexo 30 - Descargas', icon: 'account_tree', available: true },
   { type: 'anexo30-revision-comparativa', label: 'Revisi\u00f3n Anexo 30 - Comparativa', icon: 'difference', available: true },
+  { type: 'anexo30-revision-inventario-inicial', label: 'Revisi\u00f3n Anexo 30 - Inventario inicial', icon: 'inventory_2', available: true },
   { type: 'saldos', label: 'Saldos', icon: 'account_balance_wallet', available: true },
 ];
 
@@ -171,6 +172,12 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
     { key: 'iva21Total', label: 'IVA 21 total', format: 'quantity' }, { key: 'iva22Total', label: 'IVA 22 total', format: 'quantity' }, { key: 'valorTotal', label: 'Valor total', format: 'quantity' },
     { key: 'ivaDescargadoA31', label: 'IVA descargado A31', format: 'quantity' }, { key: 'ivaDescargadoA24', label: 'IVA descargado A24', format: 'quantity' },
   ],
+  'anexo30-revision-inventario-inicial': [
+    { key: 'patente', label: 'Patente' }, { key: 'numeroPedimento', label: 'N\u00famero de pedimento' },
+    { key: 'claveSeccionAduanera', label: 'Clave secci\u00f3n aduanera' }, { key: 'fechaSeleccion', label: 'Fecha de selecci\u00f3n', format: 'date' },
+    { key: 'fraccion', label: 'Fracci\u00f3n arancelaria' }, { key: 'valorComercialHistorico', label: 'Valor comercial hist\u00f3rico', format: 'quantity' },
+    { key: 'identificadorActivoFijo', label: 'Activo fijo' },
+  ],
   'anexo30-revision-entradas': [
     { key: 'pedimento', label: 'Pedimento' }, { key: 'pedimentoOriginal', label: 'Pedimento original' },
     { key: 'fecha', label: 'Fecha', format: 'date' }, { key: 'fechaOriginal', label: 'Fecha original', format: 'date' },
@@ -236,6 +243,8 @@ const COLUMNS: Record<ReportType, ReportColumn[]> = {
               <p class="m-0 text-xs text-slate-500">Consulta snapshots históricos de operaciones bloqueadas; no resuelve ni desbloquea.</p>
             } @else if (selectedType() === 'f4') {
               <p class="m-0 text-xs text-slate-500">Consulta líneas dirigidas de salidas F4/A3 con tipo CTM APAA o desperdicio; no genera descargos.</p>
+            } @else if (selectedType() === 'anexo30-revision-inventario-inicial') {
+              <p class="m-0 text-xs text-slate-500">Inventario inicial agrupado por documento, fecha y fracci&oacute;n desde el &uacute;ltimo snapshot persistido. La consulta no recalcula saldos.</p>
             } @else if (selectedType() === 'anexo30-revision-fracciones') {
               <p class="m-0 text-xs text-slate-500">Registros persistidos de fracción utilizados por el proceso Anexo 30.</p>
             } @else if (selectedType() === 'anexo30-revision-descargas') {
@@ -377,7 +386,7 @@ export class ReportListPage implements OnInit {
     this.resetResults();
   }
 
-  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'compulsa-detalle' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'rectificaciones-detalle' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa'; }
+  protected isTextReport(): boolean { return this.selectedType() === 'compulsa' || this.selectedType() === 'compulsa-detalle' || this.selectedType() === 'rectificaciones' || this.selectedType() === 'rectificaciones-detalle' || this.selectedType() === 'vencimientos' || this.selectedType() === 'dirigidos' || this.selectedType() === 'analisis-descargas' || this.selectedType() === 'operaciones-bloqueadas' || this.selectedType() === 'f4' || this.selectedType() === 'anexo30-revision-entradas' || this.selectedType() === 'anexo30-revision-fracciones' || this.selectedType() === 'anexo30-revision-descargas' || this.selectedType() === 'anexo30-revision-comparativa' || this.selectedType() === 'anexo30-revision-inventario-inicial'; }
   protected isOperationalReport(): boolean { return !this.isTextReport() && this.selectedType() !== 'bitacora'; }
   protected periodMessage(): string | null {
     if (this.isTextReport()) return null;
@@ -388,7 +397,7 @@ export class ReportListPage implements OnInit {
   protected columns(): ReportColumn[] { return COLUMNS[this.selectedType()]; }
   protected displayedColumns(): string[] { return this.columns().map((column) => column.key); }
   protected formatTotal(): string { return new Intl.NumberFormat('es-MX').format(this.totalItems()); }
-  protected canExport(): boolean { return (this.selectedType() === "f4" || this.selectedType() === "dirigidos" || this.selectedType() === "analisis-descargas" || this.selectedType() === "compulsa" || this.selectedType() === "compulsa-detalle" || this.selectedType() === "rectificaciones" || this.selectedType() === "rectificaciones-detalle" || this.selectedType() === "vencimientos" || this.selectedType() === "operaciones-bloqueadas" || this.selectedType() === "anexo30-revision-entradas" || this.selectedType() === "anexo30-revision-fracciones" || this.selectedType() === "anexo30-revision-descargas" || this.selectedType() === "anexo30-revision-comparativa" || !this.isTextReport()) && this.auth.hasPermission("REPORTES_EXPORTAR") && this.hasGenerated() && this.items().length > 0; }
+  protected canExport(): boolean { return (this.selectedType() === "f4" || this.selectedType() === "dirigidos" || this.selectedType() === "analisis-descargas" || this.selectedType() === "compulsa" || this.selectedType() === "compulsa-detalle" || this.selectedType() === "rectificaciones" || this.selectedType() === "rectificaciones-detalle" || this.selectedType() === "vencimientos" || this.selectedType() === "operaciones-bloqueadas" || this.selectedType() === "anexo30-revision-entradas" || this.selectedType() === "anexo30-revision-fracciones" || this.selectedType() === "anexo30-revision-descargas" || this.selectedType() === "anexo30-revision-comparativa" || this.selectedType() === "anexo30-revision-inventario-inicial" || !this.isTextReport()) && this.auth.hasPermission("REPORTES_EXPORTAR") && this.hasGenerated() && this.items().length > 0; }
 
   protected generate(): void {
     if (!this.canGenerate()) return;

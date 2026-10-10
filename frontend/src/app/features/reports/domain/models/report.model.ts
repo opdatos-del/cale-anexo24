@@ -1,5 +1,5 @@
 /** Reportes disponibles en el contrato V1. */
-export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora' | 'compulsa' | 'rectificaciones' | 'vencimientos' | 'dirigidos' | 'analisis-descargas' | 'operaciones-bloqueadas' | 'f4' | 'anexo30-revision-entradas' | 'anexo30-revision-fracciones' | 'anexo30-revision-descargas' | 'anexo30-revision-comparativa' | 'rectificaciones-detalle' | 'compulsa-detalle' | 'saldos';
+export type ReportType = 'entradas' | 'salidas' | 'materiales-utilizados' | 'bitacora' | 'compulsa' | 'rectificaciones' | 'vencimientos' | 'dirigidos' | 'analisis-descargas' | 'operaciones-bloqueadas' | 'f4' | 'anexo30-revision-entradas' | 'anexo30-revision-fracciones' | 'anexo30-revision-descargas' | 'anexo30-revision-comparativa' | 'anexo30-revision-inventario-inicial' | 'rectificaciones-detalle' | 'compulsa-detalle' | 'saldos';
 
 /** Filtros comunes y específicos admitidos por los reportes V1. */
 export interface ReportSearchCriteria {

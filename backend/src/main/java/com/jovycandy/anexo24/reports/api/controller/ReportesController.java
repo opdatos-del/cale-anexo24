@@ -19,6 +19,7 @@ import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30EntradaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30FraccionDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30DescargaDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30ComparativaDto;
+import com.jovycandy.anexo24.reports.extended.api.dto.Anexo30InventarioInicialDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.SaldoDto;
 import com.jovycandy.anexo24.reports.extended.api.dto.VencimientoDto;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnalisisDescargasUseCase;
@@ -33,6 +34,7 @@ import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30Ent
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30FraccionesUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30DescargasUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30ComparativaUseCase;
+import com.jovycandy.anexo24.reports.extended.application.query.ListarAnexo30InventarioInicialUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarSaldosUseCase;
 import com.jovycandy.anexo24.reports.extended.application.query.ListarVencimientosUseCase;
 import com.jovycandy.anexo24.reports.extended.domain.model.AnalisisDescarga;
@@ -47,6 +49,7 @@ import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Entrada;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Fraccion;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Descarga;
 import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30Comparativa;
+import com.jovycandy.anexo24.reports.extended.domain.model.Anexo30InventarioInicial;
 import com.jovycandy.anexo24.reports.extended.domain.model.Saldo;
 import com.jovycandy.anexo24.reports.extended.domain.model.Vencimiento;
 import com.jovycandy.anexo24.reports.infrastructure.export.ExportadorXlsxReportes;
@@ -91,6 +94,7 @@ public class ReportesController {
     private final ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase;
     private final ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase;
     private final ListarAnexo30ComparativaUseCase listarAnexo30ComparativaUseCase;
+    private final ListarAnexo30InventarioInicialUseCase listarAnexo30InventarioInicialUseCase;
     private final ListarSaldosUseCase listarSaldosUseCase;
 
     public ReportesController(ConsultarReportesUseCase consultarReportesUseCase,
@@ -108,6 +112,7 @@ public class ReportesController {
             ListarAnexo30FraccionesUseCase listarAnexo30FraccionesUseCase,
             ListarAnexo30DescargasUseCase listarAnexo30DescargasUseCase,
             ListarAnexo30ComparativaUseCase listarAnexo30ComparativaUseCase,
+            ListarAnexo30InventarioInicialUseCase listarAnexo30InventarioInicialUseCase,
             ListarSaldosUseCase listarSaldosUseCase) {
         this.consultarReportesUseCase = consultarReportesUseCase;
         this.exportadorXlsxReportes = exportadorXlsxReportes;
@@ -124,6 +129,7 @@ public class ReportesController {
         this.listarAnexo30FraccionesUseCase = listarAnexo30FraccionesUseCase;
         this.listarAnexo30DescargasUseCase = listarAnexo30DescargasUseCase;
         this.listarAnexo30ComparativaUseCase = listarAnexo30ComparativaUseCase;
+        this.listarAnexo30InventarioInicialUseCase = listarAnexo30InventarioInicialUseCase;
         this.listarSaldosUseCase = listarSaldosUseCase;
     }
 
@@ -423,6 +429,28 @@ public class ReportesController {
     public ResponseEntity<Pagina<Anexo30ComparativaDto>> anexo30RevisionComparativa(@RequestParam(required = false) String filtro, @RequestParam(defaultValue = "1") int pagina, @RequestParam(defaultValue = "20") int tamano) {
         Pagina<Anexo30Comparativa> resultado = listarAnexo30ComparativaUseCase.ejecutar(filtro, pagina, tamano);
         return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30ComparativaDto::from).toList(), resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/anexo30-revision-inventario-inicial")
+    @PreAuthorize("hasAuthority('REPORTES_GENERAR')")
+    public ResponseEntity<Pagina<Anexo30InventarioInicialDto>> anexo30RevisionInventarioInicial(
+            @RequestParam(required = false) String filtro,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "20") int tamano) {
+        Pagina<Anexo30InventarioInicial> resultado = listarAnexo30InventarioInicialUseCase.ejecutar(filtro, pagina, tamano);
+        return ResponseEntity.ok(new Pagina<>(resultado.items().stream().map(Anexo30InventarioInicialDto::from).toList(),
+                resultado.total(), resultado.pagina(), resultado.tamano()));
+    }
+
+    @GetMapping("/anexo30-revision-inventario-inicial/exportacion")
+    @PreAuthorize("hasAuthority('REPORTES_EXPORTAR')")
+    public ResponseEntity<byte[]> exportarAnexo30RevisionInventarioInicial(@RequestParam(required = false) String filtro) {
+        List<Anexo30InventarioInicial> resultado = listarAnexo30InventarioInicialUseCase.exportar(filtro);
+        return archivo("anexo30-revision-inventario-inicial",
+                List.of("Patente", "Número de pedimento", "Clave sección aduanera", "Fecha de selección",
+                        "Fracción arancelaria", "Valor comercial histórico", "Activo fijo"),
+                resultado.stream().map(item -> fila(item.patente(), item.numeroPedimento(), item.claveSeccionAduanera(),
+                        item.fechaSeleccion(), item.fraccion(), item.valorComercialHistorico(), item.identificadorActivoFijo())).toList());
     }
 
     @GetMapping("/anexo30-revision-entradas/exportacion")
