@@ -145,3 +145,30 @@ inline Java SQL = 0
 
 La consulta read-only existente permanece bajo `CATALOGOS_AUX_CONSULTAR`. No se
 reutiliza ese permiso para una futura escritura o staging de carga.
+
+## Reauditoría Sprint 12 — clientes y proveedores
+
+La primera auditoría anterior conserva el estado histórico de discovery. La
+verificación LIVE de Sprint 12 cerró el comportamiento de claves existentes:
+
+- `dbo.CARGACLIENTES` contiene `INSERT` y `TRUNCATE`, pero no `UPDATE`; usa
+  `WHERE NOT EXISTS` contra la clave existente y contra errores del lote.
+- `dbo.CARGAPROVEEDORES` contiene `INSERT` y `TRUNCATE`, pero no `UPDATE`; usa
+  `WHERE NOT EXISTS` con la misma semántica de preservación.
+- Ambos procedimientos son mutables y no se ejecutaron durante la auditoría.
+- La implementación moderna confirma altas válidas nuevas y preserva claves ya
+  existentes; coincide con el comportamiento legacy demostrado.
+
+```text
+LEGACY_CLIENT_EXISTING_KEY_BEHAVIOR = INSERT_ONLY
+LEGACY_PROVIDER_EXISTING_KEY_BEHAVIOR = INSERT_ONLY
+CURRENT_IMPLEMENTATION_MATCHES_LEGACY = YES
+LEGACY_056 = IMPLEMENTED_REDESIGNED
+CLIENT_PROVIDER_UPDATE_FEATURE = NOT_A_LEGACY_REQUIREMENT
+CALE_IMMEX_WRITES = 0
+MUTABLE_LEGACY_EXECUTIONS = 0
+```
+
+La capacidad se describe como importación preservando claves existentes, no como
+actualización de registros. Las secciones iniciales `UNKNOWN` documentan el
+estado previo a esta reauditoría y no representan el estado final V1.

@@ -142,3 +142,21 @@ confirmado. La auditoría posterior `feature/legacy-divisions-read-v1` demostró
 que División se resuelve contra `dbo.almacen` (`dbo.ENTIDAD(@DIVISION)` devuelve
 `ALMACENKEY`), por lo que `LEGACY-008` quedó `IMPLEMENTED_REDESIGNED` cubierto por
 `/catalogos/almacenes`, sin cambios en esta feature.
+
+## Reauditoría Sprint 12
+
+La auditoría final confirmó fuente, cardinalidad y lectura, pero no cerró un
+contrato seguro de mantenimiento. No se encontró writer directo visible ni se
+confirmaron campos editables, validación, permiso de guardado o regla de
+concurrencia. `SP_GENERA_TXT_COMPLETO` no demuestra por sí mismo un contrato de
+mantenimiento de `DatosGenerales`.
+
+```text
+GENERAL_DATA_SINGLETON = OBSERVED_SINGLETON_WITHOUT_DB_ENFORCEMENT
+GENERAL_DATA_WRITER = NOT_CONFIRMED
+GENERAL_DATA_EDIT_CONTRACT = BLOCKED_EVIDENCE
+LEGACY_001 = PARTIAL_ACCEPTED_V1
+PUT_DATOS_GENERALES = NOT_IMPLEMENTED
+```
+
+No se agrega endpoint de escritura ni actualización directa.
