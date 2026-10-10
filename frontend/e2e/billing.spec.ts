@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Request } from '@playwright/test';
-import { assertNoRuntimeFailures, authenticateWithPermissions, installRuntimeMonitors } from './fixtures';
+import { assertNoRuntimeFailures, assertNoUnexpectedApiRequests, authenticateWithPermissions, installRuntimeMonitors, installSyntheticApiIsolation } from './fixtures';
 
 const template = {
   nombre: 'FACTURACION',
@@ -86,6 +86,14 @@ function assertMultipartWithoutUserId(request: Request): void {
 }
 
 test.describe('Facturación browser sintético', () => {
+  test.beforeEach(async ({ page }) => {
+    await installSyntheticApiIsolation(page);
+  });
+
+  test.afterEach(({ page }) => {
+    assertNoUnexpectedApiRequests(page);
+  });
+
   test('carga plantilla, valida archivo sintético y no ofrece confirmación operacional', async ({ page }) => {
     let uploadRequest: Request | undefined;
     await page.route('**/api/v1/facturacion/cargas', async (route) => {
@@ -231,7 +239,6 @@ test.describe('Facturación browser sintético', () => {
   });
 
   test('deniega facturación antes de invocar API de negocio sin permiso', async ({ page }) => {
-    await page.route('**/api/v1/**', (route) => { throw new Error(`API no esperada: ${route.request().method()} ${route.request().url()}`); });
     await authenticateWithPermissions(page, []);
     await page.goto('/facturacion');
     await expect(page).toHaveURL(/\/forbidden$/);

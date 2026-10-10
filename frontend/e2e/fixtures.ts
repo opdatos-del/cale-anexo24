@@ -1,5 +1,34 @@
 import { expect, type Page } from '@playwright/test';
 
+interface SyntheticApiIsolation {
+  unexpectedApiRequests: string[];
+}
+
+const syntheticApiIsolations = new WeakMap<Page, SyntheticApiIsolation>();
+
+/**
+ * Aísla sólo specs browser sintéticos. Los mocks específicos se registran después
+ * y los atienden; cualquier API no declarada se bloquea antes de llegar al proxy.
+ * No usar en E2E de integración que requieren backend real autorizado.
+ */
+export async function installSyntheticApiIsolation(page: Page): Promise<void> {
+  if (syntheticApiIsolations.has(page)) return;
+
+  const isolation: SyntheticApiIsolation = { unexpectedApiRequests: [] };
+  syntheticApiIsolations.set(page, isolation);
+  await page.route('**/api/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    isolation.unexpectedApiRequests.push(request.method() + ' ' + url.pathname + url.search);
+    await route.abort('blockedbyclient');
+  });
+}
+
+export function assertNoUnexpectedApiRequests(page: Page): void {
+  const unexpectedApiRequests = syntheticApiIsolations.get(page)?.unexpectedApiRequests ?? [];
+  expect(unexpectedApiRequests, 'API sintética no interceptada: ' + unexpectedApiRequests.join(' | ')).toEqual([]);
+}
+
 export function installRuntimeMonitors(page: Page, options: { ignoredConsoleErrorFragments?: string[] } = {}) {
   const consoleErrors: string[] = [];
   const ignoredConsoleErrorFragments = options.ignoredConsoleErrorFragments ?? [];
@@ -78,7 +107,7 @@ export async function authenticateWithPermissions(page: Page, permissions: reado
 
 /**
  * Simula sólo GET read-only requeridos por las siete rutas smoke añadidas.
- * Intercepta toda llamada `/api`; fallback de página vacía evita acceso al backend configurado.
+ * Intercepta toda llamada `/api`; fallback fail-closed bloquea acceso al backend configurado.
  */
 export async function mockSmokeReadApi(page: Page): Promise<void> {
   await page.route('**/api/v1/**', async (route) => {
@@ -86,7 +115,8 @@ export async function mockSmokeReadApi(page: Page): Promise<void> {
     const path = new URL(request.url()).pathname;
 
     if (request.method() !== 'GET') {
-      throw new Error(`Solicitud no read-only durante smoke: ${request.method()} ${path}`);
+      await route.fallback();
+      return;
     }
 
     if (path === '/api/v1/catalogos/datos-generales') {
@@ -99,16 +129,21 @@ export async function mockSmokeReadApi(page: Page): Promise<void> {
       return;
     }
 
+    if (path === '/api/v1/system/status') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'UP', moduleCDatabase: 'UP', applicationDatabase: 'UP' }) });
+      return;
+    }
+
     if (path === '/api/v1/facturacion/plantilla') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ nombre: 'FACTURACION', version: 'E2E', hoja: 'FACTURAS', columnas: [{ nombre: 'Documento', obligatoria: true, tipo: 'TEXTO' }] }) });
       return;
     }
 
-    if (['/api/v1/catalogos/unidades', '/api/v1/catalogos/tipos-material', '/api/v1/catalogos/almacenes', '/api/v1/catalogos/categorias', '/api/v1/catalogos/clientes', '/api/v1/catalogos/proveedores', '/api/v1/catalogos/agentes-aduanales'].includes(path)) {
+    if (['/api/v1/catalogos/unidades', '/api/v1/catalogos/tipos-material', '/api/v1/catalogos/almacenes', '/api/v1/catalogos/categorias', '/api/v1/catalogos/clientes', '/api/v1/catalogos/proveedores', '/api/v1/catalogos/agentes-aduanales', '/api/v1/catalogos/materiales', '/api/v1/catalogos/productos', '/api/v1/catalogos/estructuras', '/api/v1/operaciones/activos-fijos', '/api/v1/bitacora', '/api/v1/administracion/perfiles', '/api/v1/administracion/actividades', '/api/v1/administracion/usuarios'].includes(path)) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, pagina: 1, tamano: 20 }) });
       return;
     }
 
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, pagina: 1, tamano: 20 }) });
+    await route.fallback();
   });
 }

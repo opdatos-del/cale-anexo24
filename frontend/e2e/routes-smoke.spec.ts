@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { assertNoRuntimeFailures, authenticateWithPermissions, installRuntimeMonitors, mockSmokeReadApi } from './fixtures';
+import { assertNoRuntimeFailures, assertNoUnexpectedApiRequests, authenticateWithPermissions, installRuntimeMonitors, installSyntheticApiIsolation, mockSmokeReadApi } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await installSyntheticApiIsolation(page);
+});
+
+test.afterEach(({ page }) => {
+  assertNoUnexpectedApiRequests(page);
+});
 
 const protectedRoutes = [
   { route: '/dashboard', title: 'Hola, E2E Sintético' },

@@ -1,5 +1,13 @@
 import { test, expect, type Download, type Page } from '@playwright/test';
-import { assertNoRuntimeFailures, authenticateWithPermissions, E2E_ALL_PERMISSIONS, installRuntimeMonitors } from './fixtures';
+import { assertNoRuntimeFailures, assertNoUnexpectedApiRequests, authenticateWithPermissions, E2E_ALL_PERMISSIONS, installRuntimeMonitors, installSyntheticApiIsolation } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await installSyntheticApiIsolation(page);
+});
+
+test.afterEach(({ page }) => {
+  assertNoUnexpectedApiRequests(page);
+});
 
 const SALDOS_PATH = /\/api\/v1\/reportes\/saldos(?:\?.*)?$/;
 const SALDOS_EXPORT_PATH = /\/api\/v1\/reportes\/saldos\/exportacion(?:\?.*)?$/;

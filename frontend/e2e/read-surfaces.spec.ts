@@ -1,5 +1,13 @@
 import { test, expect, type Download, type Page } from '@playwright/test';
-import { assertNoRuntimeFailures, authenticateWithPermissions, installRuntimeMonitors } from './fixtures';
+import { assertNoRuntimeFailures, assertNoUnexpectedApiRequests, authenticateWithPermissions, installRuntimeMonitors, installSyntheticApiIsolation } from './fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await installSyntheticApiIsolation(page);
+});
+
+test.afterEach(({ page }) => {
+  assertNoUnexpectedApiRequests(page);
+});
 
 async function downloadBytes(download: Download): Promise<number> {
   const stream = await download.createReadStream();
