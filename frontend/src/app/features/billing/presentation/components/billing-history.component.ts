@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -110,7 +111,7 @@ export class BillingHistoryComponent implements OnInit {
         next: (detail) => this.detail.set(detail),
         error: (cause: unknown) => {
           this.detail.set(null);
-          this.detailError.set(userFacingApiError(cause, 'No fue posible encontrar esta carga.'));
+          this.detailError.set(detailAccessError(cause));
         },
       });
   }
@@ -143,4 +144,13 @@ export class BillingHistoryComponent implements OnInit {
   protected reviewLabel(load: BillingLoadSummary): string {
     return 'Revisar ' + load.archivo;
   }
+}
+
+/** Conserva mensaje neutral para cargas inexistentes o ajenas. */
+function detailAccessError(cause: unknown): string {
+  if (cause instanceof HttpErrorResponse && cause.status === 404) {
+    const correlationId = typeof cause.error?.correlationId === 'string' ? cause.error.correlationId : null;
+    return 'No fue posible encontrar esta carga.' + (correlationId ? ' Referencia: ' + correlationId : '');
+  }
+  return userFacingApiError(cause, 'No fue posible encontrar esta carga.');
 }

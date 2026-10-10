@@ -1,8 +1,15 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Download, type Page } from '@playwright/test';
 import { assertNoRuntimeFailures, authenticateWithPermissions, E2E_ALL_PERMISSIONS, installRuntimeMonitors } from './fixtures';
 
 const SALDOS_PATH = /\/api\/v1\/reportes\/saldos(?:\?.*)?$/;
 const SALDOS_EXPORT_PATH = /\/api\/v1\/reportes\/saldos\/exportacion(?:\?.*)?$/;
+async function downloadBytes(download: Download): Promise<number> {
+  const stream = await download.createReadStream();
+  let total = 0;
+  for await (const chunk of stream ?? []) total += Buffer.byteLength(chunk);
+  return total;
+}
+
 
 async function mockSavedQueries(page: Page): Promise<void> {
   await page.route('**/api/v1/consultas-guardadas**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
@@ -81,7 +88,9 @@ test('Saldos descarga XLSX sintético sólo con permiso de exportación', async 
 
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'XLSX' }).click();
-  expect((await download).suggestedFilename()).toBe('saldos.xlsx');
+  const artifact = await download;
+  expect(artifact.suggestedFilename()).toBe('saldos.xlsx');
+  expect(await downloadBytes(artifact)).toBeGreaterThan(0);
   await expect.poll(() => exportRequests.length).toBe(1);
   expect(exportRequests[0].searchParams.get('tamano')).toBe('100');
   await assertNoRuntimeFailures(monitors);

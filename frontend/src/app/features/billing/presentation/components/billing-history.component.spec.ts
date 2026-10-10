@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -103,4 +104,31 @@ describe('BillingHistoryComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('No fue posible encontrar esta carga');
   });
 
+
+
+  it('muestra mensaje neutral para HTTP 404 sin cuerpo', () => {
+    const { fixture, api } = configure({ carga: '101' });
+    api.load.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+    (fixture.componentInstance as unknown as { review(id: number, updateUrl?: boolean): void }).review(101, false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('No fue posible encontrar esta carga.');
+  });
+
+  it('conserva correlation ID seguro sin revelar propiedad en HTTP 404', () => {
+    const { fixture, api } = configure({ carga: '101' });
+    api.load.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404, error: { correlationId: 'e2e-404' } })));
+    (fixture.componentInstance as unknown as { review(id: number, updateUrl?: boolean): void }).review(101, false);
+    fixture.detectChanges();
+    const message = fixture.nativeElement.querySelector('[role="alert"]')?.textContent;
+    expect(message).toContain('No fue posible encontrar esta carga. Referencia: e2e-404');
+    expect(message).not.toMatch(/propiedad|otro usuario|pertenece/i);
+  });
+
+  it('conserva traducción actual para errores distintos de 404', () => {
+    const { fixture, api } = configure({ carga: '101' });
+    api.load.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503, error: { correlationId: 'e2e-503' } })));
+    (fixture.componentInstance as unknown as { review(id: number, updateUrl?: boolean): void }).review(101, false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('El servicio no está disponible. Referencia: e2e-503');
+  });
 });
