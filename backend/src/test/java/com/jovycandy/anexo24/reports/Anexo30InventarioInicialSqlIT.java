@@ -26,14 +26,14 @@ class Anexo30InventarioInicialSqlIT {
         disponible = dockerDisponible();
         if (!disponible && "true".equalsIgnoreCase(System.getenv("CI"))) throw new IllegalStateException("Docker no disponible en CI.");
         Assumptions.assumeTrue(disponible, "Docker no disponible localmente; se omite la prueba SQL.");
-        SQL.start(); crearBase(); aplicarSp();
+        SQL.start(); crearBase(); crearFixture(); aplicarSp();
     }
     @AfterAll static void detener() { if (disponible) SQL.stop(); }
 
     @BeforeEach void sembrar() throws Exception {
         try (Connection c = conectar(); Statement s = c.createStatement()) {
-            s.execute("DELETE FROM dbo.INVENTARIOINICIAL");
-            s.execute("INSERT dbo.INVENTARIOINICIAL ([Patente],[Número de pedimento],[Clave sección aduanera],[Fecha de selección del pedimento],[Fracción arancelaria o subpartida],[Valor comercial histórico],[Identificador de Activo fijo]) VALUES "
+            s.execute("DELETE FROM dbo.INVENTARIOINICIAL_FIXTURE");
+            s.execute("INSERT dbo.INVENTARIOINICIAL_FIXTURE ([Patente],[Número de pedimento],[Clave sección aduanera],[Fecha de selección del pedimento],[Fracción arancelaria o subpartida],[Valor comercial histórico],[Identificador de Activo fijo]) VALUES "
                     + "('1234','0000001','240','2026-01-10', '84715002',100.25,'NO'),"
                     + "('1234','0000002','240','2026-02-10', '84715002',200.50,'SI'),"
                     + "('5678','0000003','241','2026-03-10', '90211001',300.75,'NO')");
@@ -76,6 +76,19 @@ class Anexo30InventarioInicialSqlIT {
     }
     private record Resultado(List<String> columnas, List<List<String>> filas, long total) {}
     private static void crearBase() throws Exception { try (Connection c=DriverManager.getConnection(url("master"),SQL.getUsername(),SQL.getPassword()); Statement s=c.createStatement()) { s.execute("IF DB_ID('"+DB+"') IS NULL CREATE DATABASE ["+DB+"]"); } }
+    private static void crearFixture() throws Exception {
+        try (Connection c=conectar(); Statement s=c.createStatement()) {
+            s.execute("CREATE TABLE dbo.INVENTARIOINICIAL_FIXTURE ("
+                    + "[Patente] VARCHAR(20) NULL, [Número de pedimento] VARCHAR(20) NULL, "
+                    + "[Clave sección aduanera] VARCHAR(20) NULL, [Fecha de selección del pedimento] DATE NULL, "
+                    + "[Fracción arancelaria o subpartida] VARCHAR(30) NULL, [Valor comercial histórico] DECIMAL(18,2) NULL, "
+                    + "[Identificador de Activo fijo] VARCHAR(20) NULL)");
+            s.execute("CREATE VIEW dbo.INVENTARIOINICIAL AS SELECT [Patente], [Número de pedimento], "
+                    + "[Clave sección aduanera], [Fecha de selección del pedimento], "
+                    + "[Fracción arancelaria o subpartida], [Valor comercial histórico], "
+                    + "[Identificador de Activo fijo] FROM dbo.INVENTARIOINICIAL_FIXTURE");
+        }
+    }
     private static void aplicarSp() throws Exception { try (Connection c=conectar()) { String text=Files.readString(raiz().resolve("procedures/queries/APP24_Q_ANEXO30_INVENTARIO_INICIAL_LISTAR.sql")); try(Statement s=c.createStatement()){ for(String batch:text.split("(?im)^\s*GO\s*$")) if(!batch.isBlank()) s.execute(batch); } } }
     private static Path raiz() { Path p=Path.of("..","infra","sql"); return Files.exists(p)?p:Path.of("infra","sql"); }
     private static boolean dockerDisponible(){ try{return DockerClientFactory.instance().isDockerAvailable();}catch(Throwable e){return false;} }
